@@ -35,7 +35,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, options, onClose }) => 
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.1 }}
-      className="absolute bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 py-1"
+      className="absolute bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg z-50 p-1"
       style={{ top: y, left: x }}
     >
       {options.map((option, index) => (
@@ -45,7 +45,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, options, onClose }) => 
             option.onClick();
             onClose();
           }}
-          className="block w-full text-left px-4 py-1.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+          className="block w-full text-left px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md transition-colors"
         >
           {option.label}
         </button>

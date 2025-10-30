@@ -11,6 +11,7 @@ import PropertiesSidebar from './components/PropertiesSidebar';
 import SettingsSidebar from './components/SettingsSidebar';
 import { EXAMPLE_PROMPT } from './constants';
 import { motion, AnimatePresence } from 'framer-motion';
+import LandingPage from './components/LandingPage';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -52,6 +53,7 @@ const getFontStyles = async (): Promise<string> => {
 
 
 const App: React.FC = () => {
+  const [showLandingPage, setShowLandingPage] = useState(true);
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [history, setHistory] = useState<(DiagramData | null)[]>([null]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -252,6 +254,10 @@ const App: React.FC = () => {
     const newNodes = diagramData.nodes.map(n => n.id === itemId ? {...n, ...newProps} : n);
     const newContainers = diagramData.containers?.map(c => c.id === itemId ? {...c, ...newProps as Partial<Container>} : c);
     handleDiagramUpdate({ ...diagramData, nodes: newNodes, containers: newContainers }, true);
+  }
+  
+  if (showLandingPage) {
+    return <LandingPage onLaunch={() => setShowLandingPage(false)} />;
   }
 
   return (

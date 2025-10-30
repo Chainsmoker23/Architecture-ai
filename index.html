@@ -1,16 +1,38 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ArchiGen AI</title>
+    <title>ArchiGen AI — AI Software Architecture Generator</title>
+    <meta name="description" content="Generate professional software architecture diagrams instantly from a single prompt. AI-powered design for AWS, GCP, Azure, microservices, and more." />
+    <meta name="keywords" content="AI, architecture generator, cloud design, microservices, AWS, GCP, Azure, blockchain, software architecture, diagram tool" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       body {
         font-family: 'Inter', sans-serif;
       }
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+      
+      @keyframes shimmer {
+        0% { background-position: -1000px 0; }
+        100% { background-position: 1000px 0; }
+      }
+      .shimmer-button {
+        background: linear-gradient(to right, #F9D7E3 40%, #FFCCE0 50%, #F9D7E3 60%);
+        background-size: 2000px 100%;
+        animation: shimmer 5s linear infinite;
+      }
+      @keyframes pulse-subtle {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.02);
+        }
+      }
+      .pulse-subtle {
+        animation: pulse-subtle 3s ease-in-out infinite;
+      }
     </style>
   <script type="importmap">
 {

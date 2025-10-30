@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-// DO: Add Variants to framer-motion import for explicit typing.
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeProvider';
 
@@ -8,7 +7,6 @@ const SettingsSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
-  // DO: Explicitly type sidebarVariants as Variants to fix type inference issue.
   const sidebarVariants: Variants = {
     closed: { x: '-100%', transition: { type: 'spring', stiffness: 400, damping: 40 } },
     open: { x: 0, transition: { type: 'spring', stiffness: 400, damping: 40 } },
