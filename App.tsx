@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { DiagramData, Node, Container } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
@@ -12,6 +13,10 @@ import SettingsSidebar from './components/SettingsSidebar';
 import { EXAMPLE_PROMPT } from './constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import LandingPage from './components/LandingPage';
+import ContactPage from './components/ContactPage';
+import AboutPage from './components/AboutPage';
+import SdkPage from './components/SdkPage';
+import AuthPage from './components/AuthPage';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -53,7 +58,7 @@ const getFontStyles = async (): Promise<string> => {
 
 
 const App: React.FC = () => {
-  const [showLandingPage, setShowLandingPage] = useState(true);
+  const [currentPage, setCurrentPage] = useState<'landing' | 'app' | 'contact' | 'about' | 'sdk' | 'auth'>('landing');
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [history, setHistory] = useState<(DiagramData | null)[]>([null]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -67,6 +72,7 @@ const App: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
   const svgRef = useRef<SVGSVGElement>(null);
+  const fitScreenRef = useRef<(() => void) | null>(null);
 
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -241,6 +247,10 @@ const App: React.FC = () => {
     }
   }, [diagramData]);
 
+  const handleFitToScreen = () => {
+    fitScreenRef.current?.();
+  };
+
   const selectedItem = useMemo(() => {
     if (!diagramData || selectedIds.length !== 1) return null;
     const selectedId = selectedIds[0];
@@ -256,8 +266,31 @@ const App: React.FC = () => {
     handleDiagramUpdate({ ...diagramData, nodes: newNodes, containers: newContainers }, true);
   }
   
-  if (showLandingPage) {
-    return <LandingPage onLaunch={() => setShowLandingPage(false)} />;
+  if (currentPage === 'landing') {
+    return <LandingPage 
+      onLaunch={() => setCurrentPage('auth')} 
+      onNavigate={(page) => {
+        if (page === 'contact') setCurrentPage('contact');
+        if (page === 'about') setCurrentPage('about');
+        if (page === 'sdk') setCurrentPage('sdk');
+      }} 
+    />;
+  }
+  
+  if (currentPage === 'auth') {
+    return <AuthPage onBack={() => setCurrentPage('landing')} onLogin={() => setCurrentPage('app')} />;
+  }
+
+  if (currentPage === 'contact') {
+    return <ContactPage onBack={() => setCurrentPage('landing')} />;
+  }
+  
+  if (currentPage === 'about') {
+    return <AboutPage onBack={() => setCurrentPage('landing')} onLaunch={() => setCurrentPage('auth')} />;
+  }
+  
+  if (currentPage === 'sdk') {
+    return <SdkPage onBack={() => setCurrentPage('landing')} />;
   }
 
   return (
@@ -328,11 +361,13 @@ const App: React.FC = () => {
                       onRedo={handleRedo}
                       canUndo={historyIndex > 0}
                       canRedo={historyIndex < history.length - 1}
+                      onFitToScreen={handleFitToScreen}
                   />
                 </div>
                 <div className="flex-1 relative">
                   <DiagramCanvas 
                     forwardedRef={svgRef}
+                    fitScreenRef={fitScreenRef}
                     data={diagramData} 
                     onDataChange={handleDiagramUpdate} 
                     selectedIds={selectedIds}

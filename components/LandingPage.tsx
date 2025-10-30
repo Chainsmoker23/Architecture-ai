@@ -1,11 +1,15 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import { FOOTER_LINKS } from '../constants';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
+import AssistantWidget from './AssistantWidget';
 
 interface LandingPageProps {
   onLaunch: () => void;
+  onNavigate: (page: 'contact' | 'about' | 'sdk') => void;
 }
 
 const AnimatedArchitecture: React.FC<{
@@ -275,7 +279,7 @@ const heroArchitectures = [
 ]
 
 
-const LandingPage: React.FC<LandingPageProps> = ({ onLaunch }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [activeDemoSlide, setActiveDemoSlide] = useState(0);
   const [isDemoHovered, setIsDemoHovered] = useState(false);
@@ -368,7 +372,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch }) => {
               </motion.div>
             ))}
           </div>
-        </motion.section>
+        </section>
 
         {/* Demo Section */}
         <section id="demo" className="py-24 bg-white text-center">
@@ -455,9 +459,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch }) => {
                 <p className="text-[#555555]">Instant Architecture Design.</p>
             </div>
             <div className="flex items-center space-x-6 text-[#555555]">
-                {FOOTER_LINKS.links.map((link) => (
-                    <a key={link.name} href={link.href} className="hover:text-[#2B2B2B] transition-colors">{link.name}</a>
-                ))}
+                {FOOTER_LINKS.links.map((link) => {
+                    const page = link.name.toLowerCase() as 'contact' | 'about' | 'sdk';
+                    if (['contact', 'about', 'sdk'].includes(page)) {
+                        return (
+                            <button key={link.name} onClick={() => onNavigate(page)} className="hover:text-[#2B2B2B] transition-colors cursor-pointer">
+                                {link.name}
+                            </button>
+                        );
+                    }
+                    return (
+                        <a key={link.name} href={link.href} className="hover:text-[#2B2B2B] transition-colors">{link.name}</a>
+                    );
+                })}
             </div>
           </div>
           <div className="mt-8 border-t border-[#EAEAEA] pt-8 flex flex-col sm:flex-row justify-between items-center">
@@ -473,6 +487,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch }) => {
           </div>
         </div>
       </footer>
+      <AssistantWidget />
     </div>
   );
 };

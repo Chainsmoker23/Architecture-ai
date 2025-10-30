@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 interface ToolbarProps {
@@ -9,6 +10,7 @@ interface ToolbarProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  onFitToScreen: () => void;
 }
 
 const ToolbarButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {children: React.ReactNode}> = ({ children, ...props }) => (
@@ -20,7 +22,7 @@ const ToolbarButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {c
     </button>
 );
 
-const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, onUndo, onRedo, canUndo, canRedo }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, onUndo, onRedo, canUndo, canRedo, onFitToScreen }) => {
   
   return (
     <div className="flex items-center space-x-2">
@@ -29,6 +31,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, on
       </ToolbarButton>
       <ToolbarButton onClick={onRedo} disabled={!canRedo} title="Redo">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 15l3-3m0 0l-3-3m3 3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      </ToolbarButton>
+      <ToolbarButton onClick={onFitToScreen} title="Fit to Screen">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" /></svg>
       </ToolbarButton>
 
       <div className="w-px h-6 bg-[var(--color-border)] mx-1"></div>

@@ -1,8 +1,11 @@
 
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { select } from 'd3-selection';
 import { drag } from 'd3-drag';
 import { zoom, zoomIdentity, ZoomTransform } from 'd3-zoom';
+// FIX: Import d3-transition to add the .transition() method to d3 selections.
+import 'd3-transition';
 import { DiagramData, Node, Link, Container } from '../types';
 import ArchitectureIcon from './ArchitectureIcon';
 import ContextMenu from './ContextMenu';
@@ -16,12 +19,13 @@ interface DiagramCanvasProps {
   selectedIds: string[];
   setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   forwardedRef: React.RefObject<SVGSVGElement>;
+  fitScreenRef: React.RefObject<(() => void) | null>;
 }
 
 interface Point { x: number; y: number; }
 interface Rect { x: number; y: number; width: number; height: number; }
 
-const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selectedIds, setSelectedIds, forwardedRef }) => {
+const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; link: Link; } | null>(null);
@@ -60,6 +64,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
   useEffect(() => {
     if (!forwardedRef.current) return;
     const svg = select(forwardedRef.current);
+    const parent = containerRef.current;
 
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
@@ -69,6 +74,34 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
       
     svg.call(zoomBehavior);
     
+    const fitToScreen = () => {
+      const contentGroup = svg.select<SVGGElement>('#diagram-content').node();
+      if (!contentGroup || !parent || data.nodes.length === 0) return;
+
+      const bounds = contentGroup.getBBox();
+      const parentWidth = parent.clientWidth;
+      const parentHeight = parent.clientHeight;
+      const { width: diagramWidth, height: diagramHeight, x: diagramX, y: diagramY } = bounds;
+
+      if (diagramWidth <= 0 || diagramHeight <= 0) return;
+
+      const scale = Math.min(
+        4, // max zoom from scaleExtent
+        0.95 / Math.max(diagramWidth / parentWidth, diagramHeight / parentHeight)
+      );
+
+      const tx = parentWidth / 2 - (diagramX + diagramWidth / 2) * scale;
+      const ty = parentHeight / 2 - (diagramY + diagramHeight / 2) * scale;
+
+      svg.transition()
+        .duration(750)
+        .call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(scale));
+    };
+
+    if (fitScreenRef) {
+      fitScreenRef.current = fitToScreen;
+    }
+
     const handleCanvasClick = () => {
         setSelectedIds([]);
         setContextMenu(null);
@@ -77,8 +110,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
 
     return () => {
         svg.on('click', null).on('.zoom', null);
+        if (fitScreenRef) fitScreenRef.current = null;
     }
-  }, [forwardedRef, setSelectedIds]);
+  }, [forwardedRef, setSelectedIds, data, fitScreenRef]);
 
   const handleLinkContextMenu = (e: React.MouseEvent, link: Link) => {
     e.preventDefault();

@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Content } from "@google/genai";
 import { DiagramData } from "../types";
 
 const API_KEY = process.env.API_KEY;
@@ -132,3 +132,22 @@ export const explainArchitecture = async (diagramData: DiagramData): Promise<str
         throw new Error("Failed to generate explanation.");
     }
 }
+
+export const chatWithAssistant = async (history: Content[]): Promise<string> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: history,
+      config: {
+        systemInstruction: `You are 'Archie', a friendly AI assistant for ArchiGen AI, a tool that generates software architecture diagrams from text. Your primary roles are:
+1.  **Generate Example Prompts:** When a user asks for a prompt idea (e.g., "prompt for a video streaming site"), create a single, clear, and detailed prompt suitable for the ArchiGen diagram generator. For instance: 'Design a scalable video streaming service on AWS using S3 for video storage, CloudFront for CDN, EC2 for processing, and RDS for metadata.' **Crucially, you must wrap the final generated prompt in a markdown code block like this: \`\`\`prompt\n[The prompt goes here]\n\`\`\`**. Do not include any other text outside the code block when generating a prompt.
+2.  **Answer Questions:** Briefly answer questions about ArchiGen AI. Explain that it's a web app that uses Google's Gemini AI to turn text descriptions into architecture diagrams. Mention it's for developers, architects, and students.
+3.  **Be Concise:** Keep all your answers short and to the point.`
+      }
+    });
+    return response.text;
+  } catch (error) {
+    console.error("Error with assistant chat:", error);
+    throw new Error("Sorry, I'm having trouble connecting right now.");
+  }
+};
