@@ -12,7 +12,7 @@ import ContextMenu from './ContextMenu';
 const GRID_SIZE = 10;
 const MARGIN = 20;
 
-export type InteractionMode = 'select' | 'addNode' | 'connect';
+export type InteractionMode = 'select' | 'addNode' | 'connect' | 'pan' | 'lasso';
 
 interface DiagramCanvasProps {
   data: DiagramData;
@@ -21,22 +21,28 @@ interface DiagramCanvasProps {
   setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   forwardedRef: React.RefObject<SVGSVGElement>;
   fitScreenRef: React.RefObject<(() => void) | null>;
+  centerViewRef: React.RefObject<(() => void) | null>;
   interactionMode?: InteractionMode;
   onInteractionCanvasClick?: (coords: { x: number, y: number }) => void;
   onInteractionNodeClick?: (nodeId: string) => void;
   linkPreview?: { sourceNode: Node; targetCoords: { x: number; y: number } } | null;
+  lassoRect?: {x: number, y: number, width: number, height: number} | null;
+  setLassoRect?: React.Dispatch<React.SetStateAction<{x: number, y: number, width: number, height: number} | null>>;
 }
 
 interface Point { x: number; y: number; }
 interface Rect { x: number; y: number; width: number; height: number; }
 
 const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ 
-    data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
-    interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview 
+    data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef, centerViewRef,
+    interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview,
+    lassoRect, setLassoRect
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; link: Link; } | null>(null);
+  const isLassoingRef = useRef(false);
+  const lassoStartPointRef = useRef({x: 0, y: 0});
   
   const nodesById = useMemo(() => new Map(data.nodes.map(node => [node.id, node])), [data.nodes]);
   const isSelected = (id: string) => selectedIds.includes(id);
@@ -77,11 +83,17 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
+      .filter((event) => {
+        if (interactionMode === 'pan') return !event.button; // allow pan with left click
+        return event.ctrlKey || event.metaKey || event.button === 1; // allow zoom with wheel/middle click
+      })
       .on('zoom', (event) => {
-        setViewTransform(event.transform);
+        if (interactionMode === 'pan' || event.sourceEvent?.type === 'wheel') {
+            setViewTransform(event.transform);
+        }
       });
       
-    svg.call(zoomBehavior);
+    svg.call(zoomBehavior).on("dblclick.zoom", null);
     
     const fitToScreen = () => {
       const contentGroup = svg.select<SVGGElement>('#diagram-content').node();
@@ -106,32 +118,107 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
         .duration(750)
         .call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(scale));
     };
+    
+    const centerView = () => {
+      const contentGroup = svg.select<SVGGElement>('#diagram-content').node();
+      if (!contentGroup || !parent || data.nodes.length === 0) return;
+
+      const bounds = contentGroup.getBBox();
+      const parentWidth = parent.clientWidth;
+      const parentHeight = parent.clientHeight;
+      const { width: diagramWidth, height: diagramHeight, x: diagramX, y: diagramY } = bounds;
+      
+      if (diagramWidth <= 0 || diagramHeight <= 0) return;
+
+      const currentScale = viewTransform.k;
+      const tx = parentWidth / 2 - (diagramX + diagramWidth / 2) * currentScale;
+      const ty = parentHeight / 2 - (diagramY + diagramHeight / 2) * currentScale;
+
+      svg.transition()
+        .duration(750)
+        .call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(currentScale));
+    };
 
     if (fitScreenRef) {
       fitScreenRef.current = fitToScreen;
     }
+    if (centerViewRef) {
+        centerViewRef.current = centerView;
+    }
+
+    const getTransformedPoint = (event: MouseEvent) => {
+        const svgNode = svg.node();
+        if (!svgNode) return { x: 0, y: 0 };
+        const svgPoint = svgNode.createSVGPoint();
+        svgPoint.x = event.clientX;
+        svgPoint.y = event.clientY;
+        return svgPoint.matrixTransform((svgNode.getScreenCTM() as DOMMatrix).inverse());
+    };
 
     const handleCanvasClick = (event: MouseEvent) => {
+        const transformedPoint = getTransformedPoint(event);
         if (interactionMode === 'addNode' && onInteractionCanvasClick) {
-            const svgNode = svg.node();
-            if (!svgNode) return;
-            const svgPoint = svgNode.createSVGPoint();
-            svgPoint.x = event.clientX;
-            svgPoint.y = event.clientY;
-            const transformedPoint = svgPoint.matrixTransform((svgNode.getScreenCTM() as DOMMatrix).inverse());
             onInteractionCanvasClick(transformedPoint);
         } else {
             setSelectedIds([]);
             setContextMenu(null);
         }
     };
+    
+    const handleMouseDown = (event: MouseEvent) => {
+        if (interactionMode === 'lasso' && setLassoRect) {
+            event.preventDefault();
+            isLassoingRef.current = true;
+            const startPoint = getTransformedPoint(event);
+            lassoStartPointRef.current = startPoint;
+            setLassoRect({ x: startPoint.x, y: startPoint.y, width: 0, height: 0 });
+        }
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+        if (interactionMode === 'lasso' && isLassoingRef.current && setLassoRect) {
+            event.preventDefault();
+            const currentPoint = getTransformedPoint(event);
+            const startPoint = lassoStartPointRef.current;
+            const x = Math.min(startPoint.x, currentPoint.x);
+            const y = Math.min(startPoint.y, currentPoint.y);
+            const width = Math.abs(startPoint.x - currentPoint.x);
+            const height = Math.abs(startPoint.y - currentPoint.y);
+            setLassoRect({ x, y, width, height });
+        }
+    };
+
+    const handleMouseUp = (event: MouseEvent) => {
+        if (interactionMode === 'lasso' && isLassoingRef.current && lassoRect && setLassoRect) {
+            isLassoingRef.current = false;
+            setLassoRect(null);
+
+            const selected = data.nodes.filter(node => {
+                const nodeX = node.x - node.width / 2;
+                const nodeY = node.y - node.height / 2;
+                return (
+                    nodeX < lassoRect.x + lassoRect.width &&
+                    nodeX + node.width > lassoRect.x &&
+                    nodeY < lassoRect.y + lassoRect.height &&
+                    nodeY + node.height > lassoRect.y
+                );
+            });
+            setSelectedIds(selected.map(n => n.id));
+        }
+    };
+    
     svg.on('click', handleCanvasClick);
+    svg.on('mousedown', handleMouseDown);
+    svg.on('mousemove', handleMouseMove);
+    svg.on('mouseup', handleMouseUp);
+    svg.on('mouseleave', handleMouseUp); // End lasso if mouse leaves svg
 
     return () => {
-        svg.on('click', null).on('.zoom', null);
+        svg.on('click', null).on('.zoom', null).on('mousedown', null).on('mousemove', null).on('mouseup', null).on('mouseleave', null);
         if (fitScreenRef) fitScreenRef.current = null;
+        if (centerViewRef) centerViewRef.current = null;
     }
-  }, [forwardedRef, setSelectedIds, data, fitScreenRef, interactionMode, onInteractionCanvasClick]);
+  }, [forwardedRef, setSelectedIds, data, fitScreenRef, centerViewRef, viewTransform, interactionMode, onInteractionCanvasClick, lassoRect, setLassoRect]);
 
   const handleLinkContextMenu = (e: React.MouseEvent, link: Link) => {
     e.preventDefault();
@@ -174,7 +261,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     switch(interactionMode) {
       case 'addNode': return 'crosshair';
       case 'connect': return 'pointer';
-      default: return 'grab';
+      case 'pan': return 'grab';
+      case 'lasso': return 'crosshair';
+      default: return 'default';
     }
   };
 
@@ -209,6 +298,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                       onSelect={handleSelection}
                       selectedIds={selectedIds}
                       fillColor={fillColor}
+                      interactionMode={interactionMode}
                   />
               );
           })}
@@ -246,6 +336,15 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                 className="pointer-events-none"
             />
           )}
+          {lassoRect && (
+            <rect 
+                {...lassoRect}
+                fill="rgba(249, 215, 227, 0.2)"
+                stroke="var(--color-accent)"
+                strokeWidth="1"
+                strokeDasharray="4 4"
+            />
+          )}
         </g>
       </svg>
       {contextMenu && (
@@ -268,6 +367,7 @@ interface DraggableProps {
     data: DiagramData;
     onDataChange: (data: DiagramData, fromHistory?: boolean) => void;
     selectedIds: string[];
+    interactionMode: InteractionMode;
 }
 
 const DiagramContainer = ({ container, isSelected, onSelect, fillColor, ...props }: {
@@ -280,7 +380,7 @@ const DiagramContainer = ({ container, isSelected, onSelect, fillColor, ...props
     const { label, type, x, y, width, height } = container;
 
     useEffect(() => {
-        if (!ref.current) return;
+        if (!ref.current || props.interactionMode !== 'select') return;
         const dragHandler = drag<SVGGElement, unknown>()
             .on('start', (event) => event.sourceEvent.stopPropagation())
             .on('drag', (event) => {
@@ -300,8 +400,8 @@ const DiagramContainer = ({ container, isSelected, onSelect, fillColor, ...props
                 
                 const newContainers = data.containers?.map(c => {
                     if (isDraggingSelected ? selectedIds.includes(c.id) : c.id === container.id) {
-                         const newX = Math.round((c.x + dx) / GRID_SIZE) * GRID_SIZE;
-                         const newY = Math.round((c.y + dy) / GRID_SIZE) * GRID_SIZE;
+                         const newX = c.x + dx;
+                         const newY = c.y + dy;
                          return { ...c, x: newX, y: newY };
                     }
                     return c;
@@ -323,25 +423,26 @@ const DiagramContainer = ({ container, isSelected, onSelect, fillColor, ...props
         style.strokeDasharray = '8 4';
     }
 
-
     return (
-        <g ref={ref} transform={`translate(${x}, ${y})`} className="cursor-move" onClick={(e) => onSelect(e, container.id)} style={{ filter: 'url(#drop-shadow)' }}>
+        <g ref={ref} transform={`translate(${x}, ${y})`} className={props.interactionMode === 'select' ? 'cursor-move' : ''} onClick={(e) => onSelect(e, container.id)} style={{ filter: 'url(#drop-shadow)' }}>
             <rect width={width} height={height} {...style} />
             <text x="15" y="25" fill="var(--color-text-secondary)" style={{ fontSize: '14px', fontWeight: 600, textTransform: 'uppercase' }}>{label}</text>
         </g>
     );
 }
 
-const DiagramNode = ({ node, isSelected, onSelect, interactionMode, ...props }: {
+const DiagramNode = ({ node, isSelected, onSelect, ...props }: {
     node: Node;
     isSelected: boolean;
     onSelect: (e: React.MouseEvent, id: string) => void;
-    interactionMode: InteractionMode;
 } & DraggableProps) => {
     const ref = useRef<SVGGElement>(null);
 
     useEffect(() => {
-        if (!ref.current || node.locked) return;
+        if (!ref.current || node.locked || props.interactionMode !== 'select') {
+            select(ref.current).on('.drag', null);
+            return;
+        }
         const dragHandler = drag<SVGGElement, unknown>()
             .on('start', (event) => event.sourceEvent.stopPropagation())
             .on('drag', (event) => {
@@ -351,8 +452,8 @@ const DiagramNode = ({ node, isSelected, onSelect, interactionMode, ...props }: 
                 const newNodes = data.nodes.map(n => {
                     const shouldMove = isDraggingSelected ? selectedIds.includes(n.id) : n.id === node.id;
                     if (shouldMove && !n.locked) {
-                        const newX = Math.round((n.x + event.dx) / GRID_SIZE) * GRID_SIZE;
-                        const newY = Math.round((n.y + event.dy) / GRID_SIZE) * GRID_SIZE;
+                        const newX = n.x + event.dx;
+                        const newY = n.y + event.dy;
                         return { ...n, x: newX, y: newY };
                     }
                     return n;
@@ -364,8 +465,9 @@ const DiagramNode = ({ node, isSelected, onSelect, interactionMode, ...props }: 
 
     const getCursor = () => {
         if (node.locked) return 'default';
-        if (interactionMode === 'connect') return 'pointer';
-        return 'move';
+        if (props.interactionMode === 'connect') return 'pointer';
+        if (props.interactionMode === 'select') return 'move';
+        return 'default';
     };
 
     return (

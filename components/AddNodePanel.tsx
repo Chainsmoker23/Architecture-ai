@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { ICONS } from '../constants';
 import { IconType } from '../types';
@@ -18,7 +19,8 @@ const AddNodePanel: React.FC<AddNodePanelProps> = ({ onSelectNodeType, onClose }
     }, [searchTerm]);
 
     return (
-        <div className="w-80 h-full bg-[var(--color-panel-bg)] border-r border-[var(--color-border)] p-4 flex flex-col">
+        <div className="h-full md:h-full w-screen max-w-[320px] md:w-80 bg-[var(--color-panel-bg)] md:border-r md:border-[var(--color-border)] p-4 flex flex-col rounded-t-2xl md:rounded-none">
+            <div className="w-12 h-1.5 bg-[var(--color-border)] rounded-full mx-auto mb-4 md:hidden" />
             <div className="flex justify-between items-center mb-4">
                  <h2 className="text-xl font-semibold">Add Node</h2>
                  <button onClick={onClose} className="p-1 rounded-full hover:bg-[var(--color-button-bg-hover)]">
