@@ -1,7 +1,7 @@
 
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { select } from 'd3-selection';
+import { select, pointer } from 'd3-selection';
 import { drag } from 'd3-drag';
 import { zoom, zoomIdentity, ZoomTransform } from 'd3-zoom';
 import 'd3-transition';
@@ -76,6 +76,10 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
+      .filter(event => {
+        // Allow wheel zoom and right-click pan, but prevent left-click pan unless on background
+        return event.type === 'wheel' || event.button === 2 || (event.type === 'mousedown' && (event.target as HTMLElement)?.tagName === 'svg');
+      })
       .on('zoom', (event) => {
         setViewTransform(event.transform);
       });
@@ -110,21 +114,12 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       fitScreenRef.current = fitToScreen;
     }
     
-    const getTransformedPoint = (event: MouseEvent) => {
-        const svgNode = svg.node();
-        if (!svgNode) return { x: 0, y: 0 };
-        const svgPoint = svgNode.createSVGPoint();
-        svgPoint.x = event.clientX;
-        svgPoint.y = event.clientY;
-        return svgPoint.matrixTransform((svgNode.getScreenCTM() as DOMMatrix).inverse());
-    };
-
-    const handleCanvasClick = (event: MouseEvent) => {
+    const handleCanvasClick = (event: PointerEvent) => {
         // Prevent deselecting when panning
         if (event.detail > 0 && (event.target as SVGSVGElement).tagName === 'svg') {
-            const transformedPoint = getTransformedPoint(event);
+            const transformedPoint = pointer(event, svg.node());
             if (interactionMode === 'addNode' && onInteractionCanvasClick) {
-                onInteractionCanvasClick(transformedPoint);
+                onInteractionCanvasClick({ x: transformedPoint[0], y: transformedPoint[1] });
             } else {
                 setSelectedIds([]);
                 setContextMenu(null);
@@ -132,11 +127,17 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
         }
     };
     
-    svg.on('click', handleCanvasClick);
+    const svgNode = svg.node();
+    if (svgNode) {
+      svgNode.addEventListener('click', handleCanvasClick as EventListener);
+    }
 
     return () => {
-        svg.on('click', null).on('.zoom', null);
-        if (fitScreenRef) fitScreenRef.current = null;
+      if (svgNode) {
+         svgNode.removeEventListener('click', handleCanvasClick as EventListener);
+      }
+      svg.on('.zoom', null);
+      if (fitScreenRef) fitScreenRef.current = null;
     }
   }, [forwardedRef, setSelectedIds, data, fitScreenRef, viewTransform, interactionMode, onInteractionCanvasClick]);
 
@@ -181,7 +182,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     switch(interactionMode) {
       case 'addNode': return 'crosshair';
       case 'connect': return 'pointer';
-      default: return 'default';
+      default: return 'grab';
     }
   };
 
@@ -199,7 +200,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
               <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="var(--color-shadow)" floodOpacity="0.1" />
           </filter>
         </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" transform={viewTransform.toString()} />
+        <rect width="100%" height="100%" fill="url(#grid)" />
 
         <g id="diagram-content" transform={viewTransform.toString()}>
           {data.containers?.map(container => {
@@ -231,6 +232,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
               target={targetNode} 
               obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))}
               onContextMenu={handleLinkContextMenu}
+              isSelected={isSelected(link.id)}
               onSelect={handleItemSelection}
             />;
           })}
@@ -288,38 +290,56 @@ const DiagramContainer = ({ container, isSelected, onSelect, fillColor, ...props
 } & DraggableProps) => {
     const ref = useRef<SVGGElement>(null);
     const { label, type, x, y, width, height } = container;
-
+    
     useEffect(() => {
         if (!ref.current || props.interactionMode !== 'select') return;
+
+        const g = select(ref.current);
+        let startX = 0, startY = 0;
+        let childStartPositions = new Map<string, {x: number, y: number}>();
+        
         const dragHandler = drag<SVGGElement, unknown>()
-            .on('start', (event) => event.sourceEvent.stopPropagation())
+            .on('start', (event) => {
+                startX = container.x;
+                startY = container.y;
+                childStartPositions.clear();
+                container.childNodeIds.forEach(id => {
+                    const node = props.data.nodes.find(n => n.id === id);
+                    if (node) childStartPositions.set(id, { x: node.x, y: node.y });
+                });
+                g.raise();
+                event.sourceEvent.stopPropagation();
+            })
             .on('drag', (event) => {
-                const dx = event.dx;
-                const dy = event.dy;
-                const { data, onDataChange, selectedIds } = props;
-                const isDraggingSelected = selectedIds.includes(container.id);
+                const dx = event.x - event.subject.x;
+                const dy = event.y - event.subject.y;
+                g.attr('transform', `translate(${startX + dx}, ${startY + dy})`);
                 
+                // This part is tricky for performance without full state update
+            })
+            .on('end', (event) => {
+                const finalDx = event.x - event.subject.x;
+                const finalDy = event.y - event.subject.y;
+                const { data, onDataChange } = props;
+
                 const newNodes = data.nodes.map(n => {
-                    const shouldMove = (isDraggingSelected && selectedIds.includes(n.id)) || 
-                                     (!isDraggingSelected && container.childNodeIds.includes(n.id));
-                    if (shouldMove && !n.locked) {
-                        return { ...n, x: n.x + dx, y: n.y + dy };
+                    if (container.childNodeIds.includes(n.id) && !n.locked) {
+                        const startPos = childStartPositions.get(n.id);
+                        return { ...n, x: (startPos?.x || n.x) + finalDx, y: (startPos?.y || n.y) + finalDy };
                     }
                     return n;
                 });
                 
                 const newContainers = data.containers?.map(c => {
-                    if (isDraggingSelected ? selectedIds.includes(c.id) : c.id === container.id) {
-                         const newX = c.x + dx;
-                         const newY = c.y + dy;
-                         return { ...c, x: newX, y: newY };
+                    if (c.id === container.id) {
+                         return { ...c, x: startX + finalDx, y: startY + finalDy };
                     }
                     return c;
                 }) || [];
 
-                onDataChange({ ...data, nodes: newNodes, containers: newContainers }, true);
+                onDataChange({ ...data, nodes: newNodes, containers: newContainers });
             });
-        select(ref.current).call(dragHandler);
+        g.call(dragHandler);
     }, [container, props]);
 
     const style: React.SVGProps<SVGRectElement> = {
@@ -353,25 +373,59 @@ const DiagramNode = ({ node, isSelected, onSelect, ...props }: {
             select(ref.current).on('.drag', null);
             return;
         }
-        const dragHandler = drag<SVGGElement, unknown>()
-            .on('start', (event) => event.sourceEvent.stopPropagation())
-            .on('drag', (event) => {
-                const { data, onDataChange, selectedIds } = props;
-                const isDraggingSelected = selectedIds.includes(node.id);
 
+        const g = select(ref.current);
+        let startPositions = new Map<string, {x: number, y: number}>();
+        
+        const dragHandler = drag<SVGGElement, unknown>()
+            .on('start', function(event) {
+                startPositions.clear();
+                const { selectedIds } = props;
+                const isDraggingSelected = selectedIds.includes(node.id);
+                const idsToMove = isDraggingSelected ? selectedIds : [node.id];
+                
+                props.data.nodes.forEach(n => {
+                    if (idsToMove.includes(n.id)) {
+                        startPositions.set(n.id, { x: n.x, y: n.y });
+                    }
+                });
+                
+                select(this).raise();
+                event.sourceEvent.stopPropagation();
+            })
+            .on('drag', function(event) {
+                const dx = event.x - event.subject.x;
+                const dy = event.y - event.subject.y;
+                
+                startPositions.forEach((startPos, id) => {
+                    const el = select<SVGGElement, Node>(`#node-g-${id}`).node();
+                    if(el) {
+                        const n = props.data.nodes.find(node => node.id === id);
+                        if (n) {
+                           select(el).attr('transform', `translate(${startPos.x + dx - n.width / 2}, ${startPos.y + dy - n.height / 2})`);
+                        }
+                    }
+                });
+            })
+            .on('end', function(event) {
+                const finalDx = event.x - event.subject.x;
+                const finalDy = event.y - event.subject.y;
+                const { data, onDataChange } = props;
+                
                 const newNodes = data.nodes.map(n => {
-                    const shouldMove = isDraggingSelected ? selectedIds.includes(n.id) : n.id === node.id;
-                    if (shouldMove && !n.locked) {
-                        const newX = n.x + event.dx;
-                        const newY = n.y + event.dy;
-                        return { ...n, x: newX, y: newY };
+                    const startPos = startPositions.get(n.id);
+                    if (startPos && !n.locked) {
+                        return { ...n, x: startPos.x + finalDx, y: startPos.y + finalDy };
                     }
                     return n;
                 });
-                onDataChange({ ...data, nodes: newNodes }, true);
+                onDataChange({ ...data, nodes: newNodes });
             });
-        select(ref.current).call(dragHandler);
-    }, [node, props]);
+            
+        g.call(dragHandler);
+
+    }, [node.id, props.data.nodes, props.selectedIds, node.locked, props.interactionMode, props.onDataChange]);
+
 
     const getCursor = () => {
         if (node.locked) return 'default';
@@ -380,8 +434,42 @@ const DiagramNode = ({ node, isSelected, onSelect, ...props }: {
         return 'default';
     };
 
+    if (node.type === 'neuron') {
+        return (
+            <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
+               style={{ cursor: getCursor() }}
+               onClick={(e) => onSelect(e, node.id)} >
+                <circle 
+                    cx={node.width / 2} 
+                    cy={node.height / 2} 
+                    r={Math.min(node.width, node.height) / 2} 
+                    fill={node.color || "#CCCCCC"}
+                    stroke={isSelected ? 'var(--color-accent)' : '#000000'}
+                    strokeWidth={isSelected ? 2 : 1}
+                />
+            </g>
+        );
+    }
+
+    if (node.type === 'layer-label') {
+        return (
+             <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x}, ${node.y})`}
+               style={{ cursor: getCursor(), pointerEvents: 'none' }} >
+                <text 
+                    textAnchor="middle" 
+                    dominantBaseline="middle"
+                    fill="var(--color-text-primary)"
+                    fontSize="16"
+                    fontWeight="600"
+                >
+                    {node.label}
+                </text>
+            </g>
+        );
+    }
+
     return (
-        <g ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
+        <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
            style={{ cursor: getCursor(), filter: 'url(#drop-shadow)' }}
            onClick={(e) => onSelect(e, node.id)} >
             <rect width={node.width} height={node.height} rx={12} ry={12} fill={node.color || "var(--color-node-bg)"}
@@ -404,6 +492,11 @@ const DiagramNode = ({ node, isSelected, onSelect, ...props }: {
 const getOrthogonalPath = (source: Node, target: Node, obstacles: Rect[]): Point[] => {
     const start: Point = { x: source.x, y: source.y };
     const end: Point = { x: target.x, y: target.y };
+
+    // For neuron-to-neuron connections, draw a straight line.
+    if(source.type === 'neuron' && target.type === 'neuron') {
+        return [start, end];
+    }
     
     const pathH: Point[] = [start, { x: end.x, y: start.y }, end];
     const pathV: Point[] = [start, { x: start.x, y: end.y }, end];
@@ -439,7 +532,7 @@ const pointsToPath = (points: Point[], radius: number): string => {
         const p2 = points[i];
         const p3 = points[i + 1];
         
-        if (p3) {
+        if (p3 && radius > 0) {
             const dx1 = p2.x - p1.x;
             const dy1 = p2.y - p1.y;
             const dx2 = p3.x - p2.x;
@@ -470,7 +563,8 @@ const getDashArray = (style?: 'solid' | 'dotted' | 'dashed') => {
     }
 }
 
-const DiagramLink = ({ link, source, target, obstacles, onContextMenu, onSelect }: { link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, link: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void }) => {
+const DiagramLink = ({ link, source, target, obstacles, onContextMenu, onSelect, isSelected }: { link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, link: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void, isSelected: boolean }) => {
+    const isNeuronLink = source.type === 'neuron' && target.type === 'neuron';
     const pathPoints = useMemo(() => getOrthogonalPath(source, target, obstacles), [source, target, obstacles]);
     
     if (pathPoints.length < 2) return null;
@@ -481,15 +575,19 @@ const DiagramLink = ({ link, source, target, obstacles, onContextMenu, onSelect 
     const dx = endPoint.x - prevPoint.x;
     const dy = endPoint.y - prevPoint.y;
     const length = Math.sqrt(dx*dx + dy*dy);
-    const unitDx = dx/length;
-    const unitDy = dy/length;
-    const targetRadius = Math.max(target.width, target.height) / 2;
-    pathPoints[pathPoints.length - 1] = {
-        x: endPoint.x - unitDx * (targetRadius * 0.5),
-        y: endPoint.y - unitDy * (targetRadius * 0.5)
-    };
     
-    const pathD = useMemo(() => pointsToPath(pathPoints, 10), [pathPoints]);
+    if (length > 0) {
+        const unitDx = dx/length;
+        const unitDy = dy/length;
+        const targetRadius = isNeuronLink ? target.width / 2 : Math.max(target.width, target.height) / 2;
+        const inset = isNeuronLink ? 0 : 0.5;
+        pathPoints[pathPoints.length - 1] = {
+            x: endPoint.x - unitDx * (targetRadius * inset),
+            y: endPoint.y - unitDy * (targetRadius * inset)
+        };
+    }
+    
+    const pathD = useMemo(() => pointsToPath(pathPoints, isNeuronLink ? 0 : 10), [pathPoints, isNeuronLink]);
     
     const midIndex = Math.floor(pathPoints.length / 2);
     const midPoint1 = pathPoints[midIndex-1];
@@ -498,21 +596,24 @@ const DiagramLink = ({ link, source, target, obstacles, onContextMenu, onSelect 
 
     const midX = (midPoint1.x + midPoint2.x) / 2;
     const midY = (midPoint1.y + midPoint2.y) / 2;
-    const strokeColor = link.color || 'var(--color-link)';
+    const strokeColor = link.color || (isNeuronLink ? '#000000' : 'var(--color-link)');
+    const strokeWidth = isSelected ? 3 : (isNeuronLink ? 1 : 2);
 
     return (
         <g onContextMenu={(e) => onContextMenu(e, link)} onClick={(e) => onSelect(e, link.id)}>
-            <path d={pathD} stroke="transparent" strokeWidth="15" fill="none" className="cursor-pointer" />
-            <path d={pathD} stroke={strokeColor} strokeOpacity="0.8" strokeWidth="2"
-                  fill="none"
+            <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none"
                   strokeDasharray={getDashArray(link.style)}
-                  markerEnd="url(#arrowhead)" />
-             <style>{`#arrowhead path { fill: ${strokeColor}; }`}</style>
+                  markerEnd={isNeuronLink ? undefined : "url(#arrowhead)"}
+                  className="transition-all" />
+            <path d={pathD} stroke="transparent" strokeWidth="15" fill="none" className="cursor-pointer" />
             {link.label && (
-                <text x={midX} y={midY} dy="-6" fill="var(--color-text-secondary)" textAnchor="middle"
-                      style={{ fontSize: '10px', paintOrder: 'stroke', stroke: 'var(--color-canvas-bg)', strokeWidth: '3px', strokeLinejoin: 'round' }} className="pointer-events-none">
-                    {link.label}
-                </text>
+                <foreignObject x={midX - 75} y={midY - 15} width="150" height="30" style={{ pointerEvents: 'none' }}>
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center text-xs text-[var(--color-link)] bg-[var(--color-canvas-bg)] px-1 font-medium">
+                          {link.label}
+                      </div>
+                    </div>
+                </foreignObject>
             )}
         </g>
     );

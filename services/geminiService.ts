@@ -22,12 +22,13 @@ const responseSchema = {
         properties: {
           id: { type: Type.STRING, description: "A unique, kebab-case identifier for the node (e.g., 'web-server-1')." },
           label: { type: Type.STRING, description: "The human-readable name of the component (e.g., 'EC2 Instance')." },
-          type: { type: Type.STRING, description: "The type of component for icon mapping. Use one of the predefined types like 'aws-ec2', 'user', 'database', 'kubernetes', 'kafka', 'javascript', 'nginx', etc." },
-          description: { type: Type.STRING, description: "A brief, one-sentence description of the node's purpose." },
+          type: { type: Type.STRING, description: "The type of component for icon mapping. Use one of the predefined types like 'aws-ec2', 'user', 'database', 'neuron', 'layer-label'." },
+          description: { type: Type.STRING, description: "A brief, one-sentence description of the node's purpose. For 'neuron' and 'layer-label' types, this can be an empty string." },
           x: { type: Type.NUMBER, description: "The initial horizontal position of the node's center on a 1200x800 canvas." },
           y: { type: Type.NUMBER, description: "The initial vertical position of the node's center." },
-          width: { type: Type.NUMBER, description: "The initial width of the node, based on its label length. Minimum 120." },
-          height: { type: Type.NUMBER, description: "The initial height of the node, adjusted for wrapped text if necessary. Minimum 80." },
+          width: { type: Type.NUMBER, description: "The initial width of the node. For 'neuron' type, this should be small (e.g., 30). For 'layer-label' this should be wide enough for the text." },
+          height: { type: Type.NUMBER, description: "The initial height of the node. For 'neuron' type, this should be small (e.g., 30). For 'layer-label' this can be small (e.g., 20)." },
+          color: { type: Type.STRING, description: "Optional hex color code for the node. For 'neuron' type, use '#000000' for input/output layers and '#CCCCCC' for hidden layers." },
         },
         required: ["id", "label", "type", "description", "x", "y", "width", "height"],
       },
@@ -42,7 +43,7 @@ const responseSchema = {
           source: { type: Type.STRING, description: "The 'id' of the source node." },
           target: { type: Type.STRING, description: "The 'id' of the target node." },
           label: { type: Type.STRING, description: "Optional label for the connection to indicate data flow (e.g., 'HTTP Request')." },
-          style: { type: Type.STRING, description: "The line style. Can be 'solid' or 'dotted'." },
+          style: { type: Type.STRING, description: "The line style. Can be 'solid', 'dotted', or 'dashed'." },
         },
         required: ["id", "source", "target"],
       },
@@ -78,22 +79,51 @@ export const generateDiagramData = async (prompt: string): Promise<DiagramData> 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-pro",
-      contents: `Generate a professional, layered software architecture diagram based on the following prompt: "${prompt}".
+      contents: `Generate a professional software architecture diagram based on the following prompt: "${prompt}".
       The output must be a valid JSON object adhering to the specified schema.
-      Key requirements for the diagram structure:
-      1.  **Tiered Layout & Containers**: Organize components into logical tiers (e.g., "Web Tier", "Application Tier", "Data Tier") using the 'containers' array. Use containers also for cloud constructs like Regions and Availability Zones.
-      2.  **Grid Alignment & Sizing**: Position nodes and containers in a clean, grid-like, and evenly spaced layout with no overlaps. Calculate an appropriate initial 'width' and 'height' for each node based on its label length to prevent text overflow. Node positions are center-based. Container positions are top-left based.
-      3.  **Coordinates**: All 'x' and 'y' coordinates are absolute, based on a 1200x800 canvas with (0,0) at the top-left. Container dimensions must be large enough for their child nodes with adequate padding.
-      4.  **Connectivity & Descriptions**: Ensure all IDs are unique and valid in 'links' and 'childNodeIds'. Add descriptive labels to links where appropriate. Provide a concise, one-sentence 'description' for every node and container.
-      5.  **Advanced Architectures**:
-          - **Multi-Tier (4-6 Layers)**: If the prompt implies more than three tiers, create containers for layers like "Presentation Layer", "Edge/CDN Layer", "Application Layer", "Integration/Messaging Layer", "Data Layer", and "Analytics/Monitoring Layer".
-          - **Microservices**: If the prompt describes a microservices architecture, group individual services and their dedicated resources (e.g., a database) into separate 'tier' type containers. Label these containers appropriately, like "Service Domain: Payments" or "Inventory Microservice".
-      6.  **Icon Specificity**: Use the most specific icon 'type' available from the schema's list. For example, for containerized services use 'kubernetes' or 'docker'. For web servers use 'nginx'. For programming languages use 'javascript', 'python', 'go-lang', 'node-js'. For frontend frameworks, use 'react-js'. For messaging, use 'kafka', 'aws-sns', 'aws-sqs', or 'message-queue' as appropriate.
+      
+      **GENERAL RULES:**
+      1.  **Layout & Spacing**: Position all elements in a clean, grid-like, and evenly spaced layout. There must be NO overlaps between nodes or containers.
+      2.  **Coordinates**: All 'x' and 'y' coordinates are absolute, based on a 1200x800 canvas with (0,0) at the top-left. Node positions are center-based. Container positions are top-left based.
+      3.  **Sizing**: Calculate an appropriate 'width' and 'height' for each node based on its label to prevent text overflow. Min width 120, min height 80 (unless it's a special type like 'neuron').
+      4.  **IDs & Connectivity**: Ensure all IDs are unique and valid in 'links' and 'childNodeIds'. Provide concise, one-sentence 'description' for every node and container.
+      
+      **SPECIALIZED ARCHITECTURE RULES:**
+
+      **1. Neural Network / Deep Learning Architectures:**
+      - **Detection**: If the prompt contains keywords like "neural network", "deep learning model", "fully connected layers", "MLP", "input layer", "hidden layer", or "output layer", you MUST generate the diagram using this specific style.
+      - **Node Types**:
+        - Use the type \`neuron\` for all circular nodes representing individual neurons.
+        - Use the type \`layer-label\` for the text labels "Input", "Hidden", "Output" placed above the layers.
+      - **Layout**:
+        - Arrange all 'neuron' nodes in distinct, perfectly aligned vertical columns.
+        - Place a 'layer-label' node centered above each column of neurons.
+      - **Styling**:
+        - Input and Output layer neurons MUST have the 'color' property set to '#000000'.
+        - Hidden layer neurons MUST have the 'color' property set to '#CCCCCC'.
+        - All links between neurons should be 'solid' and have no label.
+      - **Connectivity**: For fully connected layers, create a 'link' from EVERY neuron in a layer to EVERY neuron in the subsequent layer.
+      - **Example**: For a prompt "a neural network with 1 input layer of 3 neurons, 2 hidden layers of 4 neurons each, and 1 output layer of 2 neurons", you will generate 3 black input neurons, 8 grey hidden neurons (in two columns), 2 black output neurons, and all the connecting links. You will also generate the 'layer-label' nodes for "Input", "Hidden", "Hidden", and "Output".
+
+      **2. RAG (Retrieval-Augmented Generation):**
+      - **Flow**: User -> App -> 'embedding-model' -> Search in 'vector-database' -> Context + Query to 'prompt-manager' -> 'llm'/'gemini' -> Answer.
+      - A 'knowledge-base' or 'document-loader' can be shown as the source for the vector database.
+      
+      **3. Standard Cloud/Microservice Architectures:**
+      - Use 'containers' to group components into logical tiers (e.g., "Web Tier", "Application Tier", "Data Tier") or cloud constructs like Regions and Availability Zones.
+      - Use the most specific icon 'type' available from the schema's list. Examples:
+        - **AI/ML**: 'llm', 'gemini', 'chat-gpt', 'vector-database', 'embedding-model', 'gpu'.
+        - **Cloud**: 'aws-ec2', 'aws-s3', 'azure-vm', 'gcp-compute-engine'.
+        - **Databases**: 'mongodb', 'mysql', 'postgresql', 'database'.
+        - **Dev**: 'javascript', 'python', 'react-js', 'next-js', 'node-js', 'nginx', 'kubernetes', 'docker'.
+        - **Security**: 'firewall', 'auth-service', 'secrets-manager'.
+        - **Generic**: 'cloud', 'api', 'web-server', 'user', 'mobile', 'web-app', 'cache'.
+
       Produce a diagram that looks like a polished, official reference architecture blueprint.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "You are an expert cloud solutions architect AI with deep expertise in modern cloud-native patterns like microservices, containerization, and event-driven architectures. Your task is to generate a JSON representation of a structured, professional-grade software architecture diagram from a natural language prompt. You must strictly follow the provided JSON schema, ensuring a clean, tiered, and grid-aligned layout suitable for formal presentations. Pay close attention to logical component grouping, positioning, sizing, and providing descriptions."
+        systemInstruction: "You are an expert cloud and AI solutions architect with deep expertise in modern cloud-native patterns and specialized AI/ML architectures like RAG and deep learning pipelines. Your task is to generate a JSON representation of a structured, professional-grade software architecture diagram from a natural language prompt. You must strictly follow the provided JSON schema, ensuring a clean, tiered, and grid-aligned layout suitable for formal presentations. When a neural network is requested, you must switch to a specific neuron-and-layer generation style."
       },
     });
 

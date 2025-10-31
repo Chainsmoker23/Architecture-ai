@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import { FOOTER_LINKS } from '../constants';
@@ -165,6 +163,26 @@ const demoArchitectures = [
       ],
     }
   },
+    {
+    title: 'RAG AI Chatbot',
+    caption: 'An intelligent chatbot that answers questions using a private knowledge base.',
+    animData: {
+      nodes: [
+        { x: 20, y: 125, w: 90, h: 40, icon: IconType.User, label: 'User', color: '#FF6B6B' },
+        { x: 120, y: 45, w: 100, h: 40, icon: IconType.WebApp, label: 'Chat UI', color: '#BDBDBD' },
+        { x: 120, y: 205, w: 100, h: 40, icon: IconType.EmbeddingModel, label: 'Embeddings', color: '#1E88E5' },
+        { x: 230, y: 125, w: 100, h: 40, icon: IconType.Gemini, label: 'LLM', color: '#8E44AD' },
+        { x: 230, y: 205, w: 100, h: 40, icon: IconType.VectorDatabase, label: 'Vector DB', color: '#43A047' },
+      ],
+      links: [
+        { source: { x: 110, y: 145 }, target: { x: 170, y: 85 } }, // User -> Chat UI
+        { source: { x: 170, y: 85 }, target: { x: 280, y: 125 } }, // Chat UI -> LLM
+        { source: { x: 170, y: 85 }, target: { x: 170, y: 205 } }, // Chat UI -> Embeddings
+        { source: { x: 170, y: 245 }, target: { x: 230, y: 225 } }, // Embeddings -> Vector DB
+        { source: { x: 280, y: 205 }, target: { x: 280, y: 165 } }, // Vector DB -> LLM
+      ],
+    }
+  },
   {
     title: 'Blockchain Network Topology',
     caption: 'A decentralized application showcasing interactions between users, contracts, and nodes.',
@@ -184,26 +202,6 @@ const demoArchitectures = [
       ],
     }
   },
-  {
-    title: 'AI/ML Data Pipeline',
-    caption: 'An automated pipeline for ingesting data, training models, and serving predictions.',
-    animData: {
-      containers: [ { x: 10, y: 10, width: 380, height: 280, fill: 'rgba(209, 250, 229, 0.4)' }, ],
-      nodes: [
-        { x: 30, y: 35, w: 100, h: 40, icon: IconType.AwsS3, label: 'Data Lake', color: '#56B9D0' },
-        { x: 30, y: 125, w: 100, h: 40, icon: IconType.Kafka, label: 'Ingestion', color: '#2B2B2B' },
-        { x: 150, y: 125, w: 100, h: 40, icon: IconType.Docker, label: 'Processing', color: '#2496ED' },
-        { x: 270, y: 125, w: 110, h: 40, icon: IconType.Kubernetes, label: 'Model Training', color: '#326CE5' },
-        { x: 150, y: 215, w: 100, h: 40, icon: IconType.Api, label: 'Prediction API', color: '#673AB7' },
-        { x: 270, y: 35, w: 110, h: 40, icon: IconType.Monitoring, label: 'Monitoring', color: '#4DB6AC' },
-      ],
-      links: [
-        { source: { x: 80, y: 75 }, target: { x: 80, y: 125 } }, { source: { x: 130, y: 145 }, target: { x: 150, y: 145 } },
-        { source: { x: 250, y: 145 }, target: { x: 270, y: 145 } }, { source: { x: 325, y: 165 }, target: { x: 200, y: 215 } },
-        { source: { x: 325, y: 165 }, target: { x: 325, y: 75 } },
-      ],
-    }
-  }
 ];
 
 const heroArchitectures = [

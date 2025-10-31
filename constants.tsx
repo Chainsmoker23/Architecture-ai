@@ -3,9 +3,9 @@ import { IconType } from './types';
 
 export const ICONS: Record<string, React.ReactNode> = {
   // --- Redesigned AWS Icons ---
-  [IconType.AwsEc2]: <path fillRule="evenodd" clipRule="evenodd" d="M2 5H22V8H2V5ZM2 11H22V14H2V11ZM2 17H22V20H2V17Z" fill="#FF9900" />,
-  [IconType.AwsS3]: <path fillRule="evenodd" clipRule="evenodd" d="M18.88 10.01C18.88 6.09 15.79 3 11.88 3C7.96 3 4.88 6.09 4.88 10.01C4.88 12.08 5.71 13.93 7.02 15.24L11.88 21L16.73 15.24C18.04 13.93 18.88 12.08 18.88 10.01ZM11.88 12.01C13.01 12.01 13.88 11.14 13.88 10.01C13.88 8.88 13.01 8.01 11.88 8.01C10.75 8.01 9.88 8.88 9.88 10.01C9.88 11.14 10.75 12.01 11.88 12.01Z" fill="#56B9D0" />,
-  [IconType.AwsRds]: <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.47 2 2 6.47 2 12C2 17.53 6.47 22 12 22C17.53 22 22 17.53 22 12C22 6.47 17.53 2 12 2ZM12 20C7.58 20 4 16.42 4 12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12C20 16.42 16.42 20 12 20ZM12 10C10.9 10 10 10.9 10 12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12C14 10.9 13.1 10 12 10Z" fill="#2E73B8" />,
+  [IconType.AwsEc2]: <path d="M4 4h16v16H4z M6 6h12v12H6z M8 8h8v2H8z M8 12h8v2H8z" fill="#FF9900" />,
+  [IconType.AwsS3]: <path d="M5 8h14v10H5z M19 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2z" fill="#56B9D0" />,
+  [IconType.AwsRds]: <path d="M12 2c-4.42 0-8 1.79-8 4v12c0 2.21 3.58 4 8 4s8-1.79 8-4V6c0-2.21-3.58-4-8-4zm0 18c-3.31 0-6-1.34-6-3V7.62c1.1.81 3.2 1.38 6 1.38s4.9-.57 6-1.38V17c0 1.66-2.69 3-6 3z" fill="#2E73B8" />,
   [IconType.AwsLambda]: <path d="M10 20.44L3.44 13.88L5.56 11.76L10 16.2L18.44 7.76L20.56 9.88L10 20.44Z" fill="#D86613" />,
   [IconType.AwsApiGateway]: <path d="M18 4H6V2H18V4ZM18 22H6V20H18V22ZM21 9H3V7H21V9ZM21 17H3V15H21V17ZM20 13H4V11H20V13Z" fill="#4B4B4B" />,
   [IconType.AwsLoadBalancer]: <path fillRule="evenodd" clipRule="evenodd" d="M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z" fill="#0073B8" />,
@@ -17,7 +17,6 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.AwsEventbridge]: <path d="M20 6h-2V4h2v2zm-4 0h-2V4h2v2zm-4 0H4v2h8V6zm4 8h-2v-2h2v2zm-4 0h-2v-2h2v2zm-4 0H4v2h8v-2zm-4 2h16v2H4v-2z" fill="#D86613"/>,
   [IconType.AwsCloudwatch]: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.29 13.29l-4.58-4.58V5h1.5v5.67l5 5L16.29 15.29z" fill="#2E73B8"/>,
   
-  // --- Redesigned Azure Icons ---
   [IconType.AzureVm]: <path fill="#0078D4" d="M5 3h14v18H5z M7 5h10v14H7z M9 7h6v2H9z M9 11h6v2H9z M9 15h6v2H9z"/>,
   [IconType.AzureBlobStorage]: <path fill="#0078D4" d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>,
   [IconType.AzureSqlDatabase]: <path fill="#0078D4" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>,
@@ -25,7 +24,6 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.AzureFunctionApp]: <path fill="#0078D4" d="M9 2v4H3v2h6V2zm12 0v6h-6V2h6zM9 14v6h6v-6H9zM3 14h6v6H3v-6z"/>,
   [IconType.AzureServiceBus]: <path fill="#0078D4" d="M15 1H9v6h6V1zm2 14h6V9h-6v6zm-18 0h6V9H-1v6zM1 15h22v2H-1z"/>,
 
-  // --- Redesigned GCP Icons ---
   [IconType.GcpComputeEngine]: <path fill="#4285F4" d="M4 4h16v2H4z M4 9h16v2H4z M4 14h16v2H4z M4 19h16v2H4z"/>,
   [IconType.GcpCloudStorage]: <path fill="#4285F4" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>,
   [IconType.GcpCloudSql]: <path fill="#4285F4" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>,
@@ -48,28 +46,63 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.Oracle]: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" />,
   [IconType.Ipfs]: <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm-1-12h2v4h-2v-4zm0 6h2v2h-2v-2z" />,
 
-  // --- New Icons ---
-  [IconType.Javascript]: <path d="M2 2h20v20H2z" fill="#F7DF1E" />,
-  [IconType.Nginx]: <path d="M12.01 2.02c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zM12 20.02c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1.12-11.45l-.71 5.04h1.49l-.71-5.04h-2.1l-.71 5.04h1.49l-.35-2.52h1.42l-.33 2.52h1.49l.7-5.04h-1.48z" fill="#009639" />,
-  [IconType.ReactJs]: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm5.5 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm5.5 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" fill="#61DAFB" />,
-  [IconType.NodeJs]: <path d="M12 2l-10 6v12l10 6 10-6V8l-10-6zm-1.04 15.46l-4.52-2.61v-5.22l4.52 2.61v5.22zm1.04 1.04l-4.52-2.61V8.65l4.52-2.61 4.52 2.61v6.22l-4.52 2.61z" fill="#339933" />,
-  [IconType.Python]: <path d="M16.5 7.5c0-1.66-1.34-3-3-3s-3 1.34-3 3v4.5h-1.5v-6H12V3H9v3h1.5v3H9c-1.66 0-3 1.34-3 3s1.34 3 3 3h4.5v1.5h-6V18h3v3h3v-3h-1.5v-3H15c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-1.5 3H9c-.83 0-1.5-.67-1.5-1.5S8.17 7.5 9 7.5h4.5v3z" fill="#3776AB" />,
+  [IconType.Javascript]: <g fill="#F7DF1E"><path d="M2 2h20v20H2z" /><path d="M9.82 17.54c.7 0 1.28-.22 1.7-.65s.63-1 .63-1.73c0-.6-.18-1.1-.53-1.5-.35-.4-.8-.6-1.35-.6-.56 0-1.02.2-1.38.6-.36.4-.54.9-.54 1.5 0 .73.2 1.34.6 1.8.4.48.95.73 1.63.73zm6.86-5.12c0 .76-.2 1.4-.6 1.9-.4.5-1 .75-1.75.75-.76 0-1.37-.25-1.84-.75-.47-.5-.7-1.14-.7-1.9 0-.78.23-1.43.7-1.95.47-.52 1.08-.78 1.84-.78.75 0 1.35.26 1.75.78.4.52.6 1.17.6 1.95z" fill="black" /></g>,
+  [IconType.Nginx]: <g><circle cx="12" cy="12" r="10" fill="#009639" /><path d="M8.21 6h2.23l3.35 6.78V6h2.1v12h-2.23L10.31 11.2V18H8.21V6z" fill="white" /></g>,
+  [IconType.ReactJs]: <g fill="none" stroke="#61DAFB" strokeWidth="1.5"><circle cx="12" cy="12" r="3"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/></g>,
+  [IconType.NodeJs]: <path d="M12 2l9.526 5.5v11L12 24l-9.526-5.5v-11L12 2z M11.13 14.04l-3.34-1.93v-3.84l3.34 1.93v3.84z m1.74 0l3.34-1.93v-3.84l-3.34 1.93v3.84z m-1.74 4.48l-3.34-1.93v-3.84l3.34 1.93v3.84z" fill="#339933" />,
+  [IconType.Python]: <g><path d="M12 2a10 10 0 100 20 10 10 0 000-20z M12 6.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5z" fill="#3776AB" /><path d="M12 22a10 10 0 100-20 10 10 0 000 20z M12 17.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="#FFD43B" /></g>,
   [IconType.GoLang]: <path d="M12 12c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0 2c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6 2.69-6 6-6z" fill="#00ADD8" />,
+  [IconType.NextJs]: <g><circle cx="12" cy="12" r="10" fill="black" /><path d="M15.68 7.26l-5.64 9.48h-1.59l5.65-9.48H15.68z M9.94 16.74V7.26H8.5v9.48h1.44z" fill="white" /></g>,
+  [IconType.ExpressJs]: <g><path d="M17.42 16.03l-1.12.33a.62.62 0 00-.47.8l.34 1.13-1.68.5-1.12-3.75h5.18v-1.5H12.9l1.12-3.75h4.4v-1.5h-5.93l-1.46-4.9h1.68l1.12 3.75h4.06v1.5h-3.7l-1.12 3.75h3.35v1.5H12.2l-1.12 3.75h-1.68l1.13-3.75-3.03-.9.34-1.13a.62.62 0 00-.47-.8l-1.12-.33-1.68.5.83 2.8 1.12.33c.27.08.45.3.52.57l.1.33-1.12 3.75-1.68-.5.34-1.13a.62.62 0 00-.47-.8l-1.12-.33 1.46 4.9h1.68l1.12-3.75h5.5l1.46 4.9h1.68l-.83-2.8-1.12-.33a.62.62 0 00-.7-.27z" fill="#888888" /></g>,
+  [IconType.Dotenv]: <g><rect x="3" y="3" width="18" height="18" rx="2" fill="#ECD53C"/><rect x="7" y="7" width="4" height="4" fill="#333" /><rect x="13" y="7" width="4" height="4" fill="#333" /><rect x="7" y="13" width="4" height="4" fill="#333" /><rect x="13" y="13" width="4" height="4" fill="#333" /></g>,
+  [IconType.C]: <g><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill="#A8B9CC"/><path d="M15.42 7.37A5.5 5.5 0 0012 6.5a5.5 5.5 0 00-3.42.97l.7.7A4.5 4.5 0 0112 7.5a4.5 4.5 0 013.18 1.32l.74-.75zM8.58 16.63A5.5 5.5 0 0012 17.5a5.5 5.5 0 003.42-.97l-.7-.7A4.5 4.5 0 0112 16.5a4.5 4.5 0 01-3.18-1.32l-.74.75z" fill="#5C6BC0"/></g>,
+  [IconType.Cpp]: <g><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill="#A8B9CC"/><path d="M15.42 7.37A5.5 5.5 0 0012 6.5a5.5 5.5 0 00-3.42.97l.7.7A4.5 4.5 0 0112 7.5a4.5 4.5 0 013.18 1.32l.74-.75zM8.58 16.63A5.5 5.5 0 0012 17.5a5.5 5.5 0 003.42-.97l-.7-.7A4.5 4.5 0 0112 16.5a4.5 4.5 0 01-3.18-1.32l-.74.75z" fill="#5C6BC0"/><path d="M17 11h2v2h-2zm3 0h2v2h-2zm-3-3h2v2h-2zm3 0h2v2h-2z" fill="#5C6BC0"/></g>,
+  [IconType.Swift]: <g><path d="M22 10.5c0-1-2.4-3.5-4-3.5-1.2 0-2.2.8-3 1.5-1-.8-2-1.5-3-1.5-1.5 0-4 2.5-4 3.5 0 2.2 3 3.7 5 4.5a3 3 0 01-2 2c-3 .8-3 3-3 3h14s0-2.2-3-3a3 3 0 01-2-2c2-.8 5-2.3 5-4.5z" fill="#F05138"/></g>,
 
-  // --- Redesigned Generic Icons ---
+  [IconType.ChatGpt]: <g><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill="#75A99C" /><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="white" /></g>,
+  [IconType.Gemini]: <path d="M12 2l2.12 7.88L22 12l-7.88 2.12L12 22l-2.12-7.88L2 12l7.88-2.12L12 2z" fill="#8E44AD" />,
+  [IconType.Anthropic]: <path d="M12 2a10 10 0 100 20 10 10 0 000-20z M12 18.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13z M12 17a5 5 0 100-10 5 5 0 000 10z" fill="#D36C45" />,
+  [IconType.Grok]: <path d="M12 2l-2.8 5.6L2 9.8l4.2 4.2L5.6 21 12 18l6.4 3-1-7 4.2-4.2-7.4-1.4z" fill="#4A90E2" />,
+  
+  [IconType.Llm]: <path d="M9 8c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2v-4c0-1.1-.9-2-2-2H9z m-2 3H5v2h2v-2z m12 0h-2v2h2v-2z M12 4c-1.1 0-2 .9-2 2v2h4V6c0-1.1-.9-2-2-2z m0 14c1.1 0 2-.9 2-2v-2h-4v2c0 1.1.9 2 2 2z" fill="#6E40C9"/>,
+  [IconType.VectorDatabase]: <g fill="#43A047"><path d="M12 3c-4.42 0-8 1.79-8 4v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4z"/><path d="M12 5c-3.31 0-6 1.34-6 3v8c0 1.66 2.69 3 6 3s6-1.34 6-3V8c0-1.66-2.69-3-6-3z"/><path d="m8 9 4 2 4-2-4-2-4 2zm0 4 4 2 4-2v-2l-4 2-4-2v2z" fill-opacity="0.5" fill="white"/></g>,
+  [IconType.EmbeddingModel]: <g fill="#1E88E5"><path d="M4 4h8v4H4zm2 8h4v2H6zm0 4h4v2H6z M14 4h6v2h-6zm0 4h6v2h-6zm0 4h6v2h-6z"/><path d="m11 12-2 2 2 2m3-4 2 2-2 2"/></g>,
+  [IconType.PromptManager]: <g fill="#F57C00"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/><path d="M9 16h6v2H9zm2-4h2v2h-2zm-2-2h1.5v-1h-1.5v-1.5h3v1.5h-1.5v1h1.5v1.5h-3z" fill-opacity="0.5" fill="white"/></g>,
+  [IconType.DocumentLoader]: <g fill="#757575"><path d="M6 2c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm8 7h5.5L14 3.5V9z"/><path d="m3 9 2-2h1v10H5l-2-2z"/></g>,
+  [IconType.KnowledgeBase]: <g fill="#0288D1"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h6v2H9V4zm6 16H9v-2h6v2zm-3-4h-2v-2h2v2zm-2-4V8h4v4h-4z"/></g>,
+  [IconType.Gpu]: <g fill="#D84315"><path d="M18 4H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM9 18H7v-2h2v2zm0-4H7v-2h2v2zm0-4H7V8h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V8h2v2z"/><path d="M12 6c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2s2-.9 2-2V8c0-1.1-.9-2-2-2z"/></g>,
+  [IconType.ModelRegistry]: <g fill="#5E35B1"><path d="M20 18H4V6h16M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/><path d="M7 14h2v-4H7m4 4h2v-2h-2m4 0h2V8h-2"/></g>,
+  [IconType.TrainingData]: <g fill="#00838F"><path d="M12 3c-4.42 0-8 1.79-8 4v2c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4z"/><path d="M4 12v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4z"/><path d="M4 17v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4z"/></g>,
+  [IconType.InferenceApi]: <g fill="#AD1457"><path d="M7 15h2V9H7v6zm4 0h2V9h-2v6zm4-10h-2V3h2v2zm-8-2v2H5V3h2zM7 21h10v-2H7v2z"/><path d="m17.5 13-1-1-1.5 1.5-1.5-1.5-1 1 1.5 1.5-1.5 1.5 1 1 1.5-1.5 1.5 1.5 1-1-1.5-1.5z"/></g>,
+  [IconType.DataPreprocessing]: <path d="M3 4h18v4l-7 8v5h-4v-5L3 8V4zm2.17 2L8 12.38V17h8v-4.62L18.83 6H5.17z" fill="#37474F"/>,
+  [IconType.Neuron]: <circle cx="12" cy="12" r="12" />,
+  [IconType.LayerLabel]: <></>,
+
+  [IconType.Database]: <path d="M12 3C7.03 3 3 5.36 3 8.25v7.5C3 18.64 7.03 21 12 21s9-2.36 9-5.25v-7.5C21 5.36 16.97 3 12 3zm0 16c-3.87 0-7-1.79-7-4v-1.52c1.22.86 3.89 1.52 7 1.52s5.78-.66 7-1.52V15c0 2.21-3.13 4-7 4zm0-6c-3.87 0-7-1.79-7-4s3.13-4 7-4 7 1.79 7 4-3.13 4-7 4z" />,
+  [IconType.Sql]: <g><path d="M4 4h16v16H4z M17 7h-5v10h2V9h3z M10 7H7v4h3v2H7v4h3v2H5V5h5z" fill="#F29111"/></g>,
+  [IconType.MySql]: <g><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill="#E48E00"/><path d="M11 7v3.5l-3-2V7H6v10h2v-4.5l3 2V17h2V7h-2z M17.5 12.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" fill="white"/></g>,
+  [IconType.Postgresql]: <path d="M12 6a1 1 0 00-1 1v2H9v2h2v7c0 1.1.9 2 2 2h1a1 1 0 000-2h-1v-7h3v-2h-3V7a1 1 0 00-1-1z M16 4.5c0 .8-.7 1.5-1.5 1.5h-1a1 1 0 100 2h1c.8 0 1.5.7 1.5 1.5v1a1 1 0 102 0v-1C18 6.5 16 4.5 14.5 4.5z M7.5 6C6.7 6 6 6.7 6 7.5v2a1 1 0 102 0v-2C8 6.7 7.3 6 6.5 6z" fill="#336791"/>,
+  [IconType.MongoDb]: <path d="M14.2 2.2c-.3-.2-.7-.2-1 0L8.5 5.4c-.3.2-.5.5-.5.9v11.4c0 .4.2.7.5.9l4.8 3.2c.3.2.7.2 1 0l4.8-3.2c.3-.2.5-.5-.5-.9V6.3c0-.4-.2-.7-.5-.9l-4.7-3.2z M11 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z" fill="#4DB33D" />,
+  [IconType.DataStore]: <g><path d="M12 11c-3.87 0-7-1.79-7-4s3.13-4 7-4 7 1.79 7 4-3.13 4-7 4z" /><path d="M5 11v4c0 2.21 3.13 4 7 4s7-1.79 7-4v-4c0 2.21-3.13 4-7 4s-7-1.79-7-4z" /><path d="M5 16v4c0 2.21 3.13 4 7 4s7-1.79 7-4v-4c0 2.21-3.13 4-7 4s-7-1.79-7-4z" /></g>,
+
+  [IconType.Firewall]: <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />,
+  [IconType.AuthService]: <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v2h-2zm0 4h2v6h-2z" fill="#4CAF50" />,
+  [IconType.SecretsManager]: <g><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z M14 15c0 1.1-.9 2-2 2s-2-.9-2-2v-2c0-1.1.9-2 2-2s2 .9 2 2v2z" fill="#FFC107" /></g>,
+
   [IconType.User]: <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />,
-  [IconType.Database]: <path d="M12 3C7.03 3 3 5.36 3 8.25V15.75C3 18.64 7.03 21 12 21s9-2.36 9-5.25V8.25C21 5.36 16.97 3 12 3zm0 2c3.48 0 6.3 1.57 6.82 3.5H5.18C5.7 6.57 8.52 5 12 5zm0 14c-4.97 0-9-2.36-9-5.25v-1.5c0 .3.02.6.05.89C3.62 15.64 7.35 18 12 18s8.38-2.36 8.95-4.86c.03-.29.05-.59.05-.89v1.5C21 16.64 16.97 19 12 19z" />,
   [IconType.WebServer]: <path d="M20 15v-2h-2V7h2V5h-4V3h-2v2h-4V3H8v2H4v2h2v6H4v2H2v2h2v-2h2v2h12v-2h2v2h2v-2h-2zm-4-2H8V7h8v6z" />,
   [IconType.Api]: <path d="M7 15h2V9H7v6zm4 0h2V9h-2v6zm4-10h-2V3h2v2zm-8-2v2H5V3h2zM7 21h10v-2H7v2z" />,
   [IconType.Mobile]: <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z" />,
   [IconType.WebApp]: <path d="M19 4H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H5V8h14v10z" />,
   [IconType.LoadBalancer]: <path d="M20 18H4v-2h16v2zm0-5H4V9h16v4zm0-7H4V4h16v2z" />,
-  [IconType.Firewall]: <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />,
   [IconType.Cache]: <path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8 2h8V3h-8v8zm2-6h4v4h-4V5zM3 21h8v-8H3v8zm2-6h4v4H5v-2z" />,
+  [IconType.Cloud]: <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>,
+  [IconType.ManagementConsole]: <path d="M13 3h-2v18h2zm4.5-2h-2v22h2zm-9 4h-2v14h2zM4 9h-2v6h2z" />,
+  [IconType.Microsoft]: <g><path d="M2 2h9.5v9.5H2z" fill="#F25022"/><path d="M12.5 2H22v9.5h-9.5z" fill="#7FBA00"/><path d="M2 12.5h9.5V22H2z" fill="#00A4EF"/><path d="M12.5 12.5H22V22h-9.5z" fill="#FFB900"/></g>,
   [IconType.Generic]: <path d="M22 11h-4.17l3.24-3.24-1.41-1.42L15 11h-2V9l4.66-4.66-1.42-1.41L13 6.17V2h-2v4.17L7.76 2.93 6.34 4.34 11 9v2H9L4.34 6.34 2.93 7.76 6.17 11H2v2h4.17l-3.24 3.24 1.41 1.42L9 13h2v2l-4.66 4.66 1.42 1.41L11 17.83V22h2v-4.17l3.24 3.24 1.42-1.41L13 15v-2h2l4.66 4.66 1.41-1.42L17.83 13H22z" />,
 };
 
-export const EXAMPLE_PROMPT = "Design an AWS-based architecture for a scalable fintech application using ECS Fargate, RDS Postgres, S3 for storage, and CloudFront for CDN. Include a user accessing the service from a web app.";
+export const EXAMPLE_PROMPT = "Design a RAG (Retrieval-Augmented Generation) system for a customer support chatbot. It should take user questions, use an embedding model to find relevant documents in a vector database, and then feed that context to a Gemini LLM to generate an answer.";
 
 export const FOOTER_LINKS = {
   socials: [

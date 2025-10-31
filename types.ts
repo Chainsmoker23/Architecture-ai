@@ -106,16 +106,57 @@ export enum IconType {
   NodeJs = 'node-js',
   Python = 'python',
   GoLang = 'go-lang',
+  NextJs = 'next-js',
+  ExpressJs = 'express-js',
+  Dotenv = 'dotenv',
+  C = 'c',
+  Cpp = 'cpp',
+  Swift = 'swift',
   
-  // --- Generic ---
-  User = 'user',
+  // --- AI Models ---
+  ChatGpt = 'chat-gpt',
+  Gemini = 'gemini',
+  Anthropic = 'anthropic',
+  Grok = 'grok',
+  
+  // --- AI / ML ---
+  Llm = 'llm',
+  VectorDatabase = 'vector-database',
+  EmbeddingModel = 'embedding-model',
+  PromptManager = 'prompt-manager',
+  DocumentLoader = 'document-loader',
+  KnowledgeBase = 'knowledge-base',
+  Gpu = 'gpu',
+  ModelRegistry = 'model-registry',
+  TrainingData = 'training-data',
+  InferenceApi = 'inference-api',
+  DataPreprocessing = 'data-preprocessing',
+  Neuron = 'neuron',
+  LayerLabel = 'layer-label',
+
+  // --- Databases ---
   Database = 'database',
+  Sql = 'sql',
+  MySql = 'mysql',
+  Postgresql = 'postgresql',
+  MongoDb = 'mongodb',
+  DataStore = 'data-store',
+  
+  // --- Security ---
+  Firewall = 'firewall',
+  AuthService = 'auth-service',
+  SecretsManager = 'secrets-manager',
+  
+  // --- Generic & Vendor ---
+  User = 'user',
   WebServer = 'web-server',
   Api = 'api',
   Mobile = 'mobile',
   WebApp = 'web-app',
   LoadBalancer = 'load-balancer',
-  Firewall = 'firewall',
   Cache = 'cache',
+  Cloud = 'cloud',
+  ManagementConsole = 'management-console',
+  Microsoft = 'microsoft',
   Generic = 'generic',
 }

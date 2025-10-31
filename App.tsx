@@ -1,7 +1,7 @@
 
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { DiagramData, Node, Container } from './types';
+import { DiagramData, Node, Container, Link } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
 import PromptInput from './components/PromptInput';
 import DiagramCanvas from './components/DiagramCanvas';
@@ -256,16 +256,20 @@ const App: React.FC = () => {
   const selectedItem = useMemo(() => {
     if (!diagramData || selectedIds.length !== 1) return null;
     const selectedId = selectedIds[0];
-    return [...(diagramData.nodes || []), ...(diagramData.containers || [])].find(
-      (item) => item.id === selectedId
-    );
+    const items: (Node | Container | Link)[] = [
+        ...(diagramData.nodes || []),
+        ...(diagramData.containers || []),
+        ...(diagramData.links || []),
+    ];
+    return items.find(item => item.id === selectedId) || null;
   }, [diagramData, selectedIds]);
 
-  const handlePropertyChange = (itemId: string, newProps: Partial<Node> | Partial<Container>) => {
+  const handlePropertyChange = (itemId: string, newProps: Partial<Node | Container | Link>) => {
     if (!diagramData) return;
     const newNodes = diagramData.nodes.map(n => n.id === itemId ? {...n, ...newProps} : n);
     const newContainers = diagramData.containers?.map(c => c.id === itemId ? {...c, ...newProps as Partial<Container>} : c);
-    handleDiagramUpdate({ ...diagramData, nodes: newNodes, containers: newContainers }, true);
+    const newLinks = diagramData.links.map(l => l.id === itemId ? {...l, ...newProps as Partial<Link>} : l);
+    handleDiagramUpdate({ ...diagramData, nodes: newNodes, containers: newContainers, links: newLinks }, true);
   }
   
   if (currentPage === 'landing') {
