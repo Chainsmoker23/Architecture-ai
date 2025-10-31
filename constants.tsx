@@ -31,7 +31,7 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.GcpPubsub]: <path fill="#4285F4" d="M4 11h5V6H4v5zm6-5v5h5V6h-5zm6 0v5h5V6h-5zM4 18h5v-5H4v5zm6 0h5v-5h-5v5zm6 0h5v-5h-5v5z"/>,
 
   [IconType.Kubernetes]: <path d="M12 2l8 4.5V10l-8 4.5L4 10V6.5L12 2zm-1 8.5v3.3l-5-2.8v-3.3l5 2.8z m2 0l5-2.8v3.3l-5 2.8v-3.3zM12 16.5l5-2.8v3.3l-5 2.8v-3.3z" fill="#326CE5"/>,
-  [IconType.Docker]: <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.19 2.58 7.78 6.2 9.25.13.03.26 0 .38-.06.12-.06.22-.16.27-.28.05-.12.05-.25.01-.38a.5.5 0 00-.36-.37c-.12-.05-2.82-.9-2.82-3.23h5.21v-1.5H5.69c0-2.34 2.7-3.18 2.82-3.23a.5.5 0 00.37-.36c.13-.13.12-.3-.02-.42-.13-.13-.3-.12-.42.02-1.03.4-3.17 1.4-3.17 4.98h-1.5c.01-5.05 4.02-9.25 9-9.25s8.99 4.2 9 9.25h-1.5c0-3.58-2.14-4.58-3.17-4.98-.12-.05-.29-.04-.42.02-.14.12-.15.3-.02.42.05.12.15.22.27.28.12.05 2.82.9 2.82 3.23H13v1.5h5.31c0 2.34-2.7 3.18-2.82 3.23a.5.5 0 00-.37.36c-.13.13-.12.3.02.42.13.13.3.12.42-.02 1.03-.4 3.17-1.4 3.17-4.98h-1.5z" fill="#2496ED" />,
+  [IconType.Docker]: <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.19 2.58 7.78 6.2 9.25.13.03.26 0 .38-.06.12-.06.22-.16.27-.28.05-.12.05-.25.01-.38a.5.5 0 00-.36-.37c-.12-.05-2.82-.9-2.82-3.23h5.21v-1.5H5.69c0-2.34 2.7-3.18 2.82-3.23a.5.5 0 00.37-.36c.13-.13.12-.3-.02-.42-.13-.13-.3-.12-.42.02-1.03.4-3.17 1.4-3.17 4.98h-1.5c.01-5.05 4.02-9.25 9-9.25s8.99 4.2 9 9.25h-1.5c0-3.58-2.14-4.58-3.17-4.98-.12-.05-.29-.04-.42.02-.14.12-.15.3-.02.42.05.12.15.22.27.28.12.05 2.82.9 2.82 3.23H13v1.5h5.31c0 2.34-2.7 3.18-2.82-3.23a.5.5 0 00-.37.36c-.13.13-.12.3.02.42.13.13.3.12.42-.02 1.03-.4 3.17-1.4 3.17-4.98h-1.5z" fill="#2496ED" />,
   [IconType.Kafka]: <path d="M10 9.1L6 5v14l4-4.1V9.1z m8 5.8l4 4V5l-4 4.1v5.8z m-2-5.8L12 5v14l4-4.1V9.1z" />,
   [IconType.MessageQueue]: <path d="M4 9h16v2H4zm0 4h10v2H4z M4 5h16v2H4z M16 13h4v6h-4v-6z" />,
   [IconType.EventBus]: <path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8 2h8V3h-8v8zm2-6h4v4h-4V5zm-8 14h8V11h-8v8zm2-6h4v4h-4v-2z" />,
@@ -99,10 +99,24 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.Cloud]: <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>,
   [IconType.ManagementConsole]: <path d="M13 3h-2v18h2zm4.5-2h-2v22h2zm-9 4h-2v14h2zM4 9h-2v6h2z" />,
   [IconType.Microsoft]: <g><path d="M2 2h9.5v9.5H2z" fill="#F25022"/><path d="M12.5 2H22v9.5h-9.5z" fill="#7FBA00"/><path d="M2 12.5h9.5V22H2z" fill="#00A4EF"/><path d="M12.5 12.5H22V22h-9.5z" fill="#FFB900"/></g>,
+  // Fix: Add icon definitions for landing page
+  [IconType.Google]: <g><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></g>,
+  [IconType.Playground]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" stroke="currentColor" fill="none"/>,
+  [IconType.FileCode]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke="currentColor" fill="none" />,
+  [IconType.Message]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" fill="none" />,
+  [IconType.Sparkles]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" stroke="currentColor" fill="none" />,
+  [IconType.Edit]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke="currentColor" fill="none"/>,
   [IconType.Generic]: <path d="M22 11h-4.17l3.24-3.24-1.41-1.42L15 11h-2V9l4.66-4.66-1.42-1.41L13 6.17V2h-2v4.17L7.76 2.93 6.34 4.34 11 9v2H9L4.34 6.34 2.93 7.76 6.17 11H2v2h4.17l-3.24 3.24 1.41 1.42L9 13h2v2l-4.66 4.66 1.42 1.41L11 17.83V22h2v-4.17l3.24 3.24 1.42-1.41L13 15v-2h2l4.66 4.66 1.41-1.42L17.83 13H22z" />,
 };
 
 export const EXAMPLE_PROMPT = "Design a RAG (Retrieval-Augmented Generation) system for a customer support chatbot. It should take user questions, use an embedding model to find relevant documents in a vector database, and then feed that context to a Gemini LLM to generate an answer.";
+
+export const EXAMPLE_PROMPTS_LIST = [
+    EXAMPLE_PROMPT,
+    "A 3-tier web application on AWS with a load balancer, multiple EC2 instances in an auto-scaling group, and an RDS database.",
+    "A serverless API on GCP using Cloud Functions, API Gateway, and Firestore for the database.",
+    "A simple neural network with 2 input neurons, one hidden layer of 3 neurons, and 1 output neuron."
+];
 
 export const FOOTER_LINKS = {
   socials: [
@@ -118,3 +132,54 @@ export const FOOTER_LINKS = {
     { name: 'Terms', href: '#' },
   ],
 };
+
+export const TESTIMONIALS = [
+  {
+    quote: "ArchiGen AI has become an indispensable tool. We now go from concept to a shareable diagram in minutes, not hours. It's a game-changer for rapid prototyping.",
+    name: 'Sarah Chen',
+    role: 'Lead Software Architect',
+    company: 'Innovate Inc.',
+    avatar: 'SC',
+    logoText: 'InnovateInc'
+  },
+  {
+    quote: "The ability to generate a baseline architecture and then jump into a playground to refine it is brilliant. It automates the tedious parts and lets us focus on creative design.",
+    name: 'Maria Rodriguez',
+    role: 'Senior DevOps Engineer',
+    company: 'CloudFlow Solutions',
+    avatar: 'MR',
+    logoText: 'CloudFlow'
+  },
+  {
+    quote: "As a product manager, I can now quickly create and iterate on architecture diagrams with my engineering team, which has massively improved our communication.",
+    name: 'Emily White',
+    role: 'Product Manager',
+    company: 'NextGen Apps',
+    avatar: 'EW',
+    logoText: 'NextGen'
+  },
+  {
+    quote: "As a student, understanding complex cloud architectures was daunting. ArchiGen makes it visual and interactive. I'm learning faster and creating portfolio-worthy projects.",
+    name: 'David Kim',
+    role: 'CS Student',
+    company: 'State University',
+    avatar: 'DK',
+    logoText: 'University'
+  },
+  {
+    quote: "This is the first tool that truly understands what I mean. I described a complex event-driven system, and it produced a near-perfect diagram on the first try.",
+    name: 'Michael B.',
+    role: 'Staff Engineer',
+    company: 'DataStream',
+    avatar: 'MB',
+    logoText: 'DataStream'
+  },
+  {
+    quote: "We use ArchiGen for client presentations. The diagrams are clean, professional, and easy to understand. It has elevated the quality of our proposals.",
+    name: 'Jessica Lee',
+    role: 'Solutions Consultant',
+    company: 'TechPro Services',
+    avatar: 'JL',
+    logoText: 'TechPro'
+  }
+];

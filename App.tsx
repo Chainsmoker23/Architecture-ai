@@ -1,7 +1,5 @@
-
-
-import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { DiagramData, Node, Container, Link } from './types';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { DiagramData, Node, Container, Link, IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
 import PromptInput from './components/PromptInput';
 import DiagramCanvas from './components/DiagramCanvas';
@@ -11,13 +9,14 @@ import Loader from './components/Loader';
 import PropertiesSidebar from './components/PropertiesSidebar';
 import SettingsSidebar from './components/SettingsSidebar';
 import { EXAMPLE_PROMPT } from './constants';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import LandingPage from './components/LandingPage';
 import ContactPage from './components/ContactPage';
 import AboutPage from './components/AboutPage';
 import SdkPage from './components/SdkPage';
 import AuthPage from './components/AuthPage';
 import Playground from './components/Playground';
+import ArchitectureIcon from './components/ArchitectureIcon';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -73,8 +72,19 @@ const App: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isPlaygroundMode, setIsPlaygroundMode] = useState<boolean>(false);
   
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitle, setEditingTitle] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  
   const svgRef = useRef<SVGSVGElement>(null);
   const fitScreenRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
 
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -272,6 +282,13 @@ const App: React.FC = () => {
     handleDiagramUpdate({ ...diagramData, nodes: newNodes, containers: newContainers, links: newLinks }, true);
   }
   
+  const handleTitleSave = () => {
+    if (diagramData && editingTitle && editingTitle !== diagramData.title) {
+        handleDiagramUpdate({ ...diagramData, title: editingTitle });
+    }
+    setIsEditingTitle(false);
+  };
+  
   if (currentPage === 'landing') {
     return <LandingPage 
       onLaunch={() => setCurrentPage('auth')} 
@@ -317,15 +334,34 @@ const App: React.FC = () => {
       />
     );
   }
+  
+  const headerText = "ArchiGen AI".split("");
+  const headerVariants: Variants = {
+    visible: { transition: { staggerChildren: 0.05 } }
+  };
+  const letterVariants: Variants = {
+    hidden: { opacity: 0, y: -20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex transition-colors duration-300">
       <SettingsSidebar />
       <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6">
         <header className="w-full max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
-            Archi<span className="text-[var(--color-accent-text)]">Gen</span> AI
-          </h1>
+          <motion.h1 
+            variants={headerVariants}
+            initial="hidden"
+            animate="visible"
+            className="text-4xl sm:text-5xl font-bold tracking-tight"
+          >
+            {headerText.map((letter, index) => (
+              <motion.span key={index} variants={letterVariants} style={{display: 'inline-block'}}>
+                {letter === " " ? "\u00A0" : letter}
+              </motion.span>
+            ))}
+          </motion.h1>
           <p className="mt-2 text-lg text-[var(--color-text-secondary)]">
             Generate and edit software architecture diagrams from natural language.
           </p>
@@ -376,20 +412,42 @@ const App: React.FC = () => {
                   animate={{ opacity: 1 }}
                   className="flex-1 flex flex-col relative"
               >
-                <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">{diagramData.title}</h2>
-                  <Toolbar 
-                      onExport={handleExport}
-                      onExplain={handleExplain}
-                      isExplaining={isExplaining}
-                      onUndo={handleUndo}
-                      onRedo={handleRedo}
-                      canUndo={historyIndex > 0}
-                      canRedo={historyIndex < history.length - 1}
-                      onFitToScreen={handleFitToScreen}
-                      onGoToPlayground={() => setIsPlaygroundMode(true)}
-                      canGoToPlayground={!!diagramData}
-                  />
+                <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center gap-4">
+                  <div className="group min-w-0 flex items-center gap-2">
+                    {isEditingTitle ? (
+                       <input
+                          ref={titleInputRef}
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onBlur={handleTitleSave}
+                          onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
+                          className="text-xl font-semibold bg-transparent border-b border-[var(--color-accent-soft)] focus:outline-none focus:border-[var(--color-accent-text)]"
+                       />
+                    ) : (
+                      <>
+                        <h2 className="text-xl font-semibold truncate" title={diagramData.title}>{diagramData.title}</h2>
+                        <button onClick={() => { setIsEditingTitle(true); setEditingTitle(diagramData.title); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ArchitectureIcon type={IconType.Edit} className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex-shrink-0">
+                    <Toolbar 
+                        onExport={handleExport}
+                        onExplain={handleExplain}
+                        isExplaining={isExplaining}
+                        onUndo={handleUndo}
+                        onRedo={handleRedo}
+                        canUndo={historyIndex > 0}
+                        canRedo={historyIndex < history.length - 1}
+                        onFitToScreen={handleFitToScreen}
+                        onGoToPlayground={() => setIsPlaygroundMode(true)}
+                        canGoToPlayground={!!diagramData}
+                    />
+                  </div>
                 </div>
                 <div className="flex-1 relative">
                   <DiagramCanvas 

@@ -7,7 +7,9 @@ import DiagramCanvas, { InteractionMode } from './DiagramCanvas';
 import PropertiesSidebar from './PropertiesSidebar';
 import PlaygroundToolbar from './PlaygroundToolbar';
 import AddNodePanel from './AddNodePanel';
+import ContextualActionBar from './ContextualActionBar';
 import { customAlphabet } from 'nanoid';
+import { zoomIdentity, ZoomTransform } from 'd3-zoom';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -34,10 +36,13 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     const [nodeToPlace, setNodeToPlace] = useState<IconType | null>(null);
     const [linkSourceNodeId, setLinkSourceNodeId] = useState<string | null>(null);
     const [linkPreviewCoords, setLinkPreviewCoords] = useState<{x: number, y: number} | null>(null);
+    const [actionBarPosition, setActionBarPosition] = useState<{ x: number; y: number } | null>(null);
+    const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
     
     const isPropertiesPanelOpen = selectedIds.length > 0;
 
     const svgRef = useRef<SVGSVGElement>(null);
+    const canvasContainerRef = useRef<HTMLDivElement>(null);
     const fitScreenRef = useRef<(() => void) | null>(null);
     
     const nodesAndContainersById = useMemo(() => {
@@ -47,6 +52,30 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         (data.links || []).forEach(link => map.set(link.id, link));
         return map;
     }, [data.nodes, data.containers, data.links]);
+
+    useEffect(() => {
+        if (selectedIds.length > 0 && data && svgRef.current && canvasContainerRef.current) {
+            const selectedNodes = data.nodes.filter(n => selectedIds.includes(n.id));
+            if (selectedNodes.length === 0) {
+                setActionBarPosition(null);
+                return;
+            }
+
+            let minX = Infinity, minY = Infinity;
+            selectedNodes.forEach(node => {
+                minX = Math.min(minX, node.x - node.width / 2);
+                minY = Math.min(minY, node.y - node.height / 2);
+            });
+            
+            const [screenX, screenY] = viewTransform.apply([minX, minY]);
+            const canvasRect = canvasContainerRef.current.getBoundingClientRect();
+            
+            setActionBarPosition({ x: screenX, y: screenY - canvasRect.top - 60 });
+
+        } else {
+            setActionBarPosition(null);
+        }
+    }, [selectedIds, data, viewTransform]);
 
     const handleFitToScreen = () => fitScreenRef.current?.();
 
@@ -141,6 +170,65 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         return { sourceNode, targetCoords: linkPreviewCoords };
     }, [linkSourceNodeId, linkPreviewCoords, data.nodes]);
 
+    const handleDeleteSelected = () => {
+        if (selectedIds.length === 0) return;
+        const selectedIdsSet = new Set(selectedIds);
+        const newNodes = data.nodes.filter(n => !selectedIdsSet.has(n.id));
+        const newContainers = data.containers?.filter(c => !selectedIdsSet.has(c.id));
+        const newLinks = data.links.filter(l => 
+            !selectedIdsSet.has(typeof l.source === 'string' ? l.source : l.source.id) && 
+            !selectedIdsSet.has(typeof l.target === 'string' ? l.target : l.target.id)
+        );
+        onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks });
+        setSelectedIds([]);
+    };
+
+    const handleDuplicateSelected = () => {
+        if (selectedIds.length === 0) return;
+        const offset = 30;
+        const idMap = new Map<string, string>();
+        const newNodes: Node[] = [];
+        const newLinks: Link[] = [];
+        const newSelectedIds: string[] = [];
+
+        const selectedNodes = data.nodes.filter(n => selectedIds.includes(n.id));
+        
+        selectedNodes.forEach(node => {
+            const newNodeId = `${node.type}-${nanoid()}`;
+            idMap.set(node.id, newNodeId);
+            newSelectedIds.push(newNodeId);
+            newNodes.push({
+                ...node,
+                id: newNodeId,
+                x: node.x + offset,
+                y: node.y + offset,
+            });
+        });
+
+        const selectedIdsSet = new Set(selectedIds);
+        data.links.forEach(link => {
+            const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+            const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+
+            if (selectedIdsSet.has(sourceId) && selectedIdsSet.has(targetId)) {
+                const newLinkId = `link-${nanoid()}`;
+                newLinks.push({
+                    ...link,
+                    id: newLinkId,
+                    source: idMap.get(sourceId)!,
+                    target: idMap.get(targetId)!,
+                });
+            }
+        });
+
+        onDataChange({ 
+            ...data, 
+            nodes: [...data.nodes, ...newNodes],
+            links: [...data.links, ...newLinks],
+        });
+        setSelectedIds(newSelectedIds);
+    };
+
     return (
         <div className="w-screen h-screen bg-[var(--color-bg)] flex flex-col md:flex-row overflow-hidden">
             <PlaygroundToolbar
@@ -158,7 +246,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         <span className="hidden md:inline">Exit Playground</span>
                     </button>
                 </header>
-                <div className="flex-1 relative pb-20 md:pb-0">
+                <div ref={canvasContainerRef} className="flex-1 relative pb-20 md:pb-0">
                      <DiagramCanvas
                         forwardedRef={svgRef}
                         fitScreenRef={fitScreenRef}
@@ -170,7 +258,18 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         onInteractionCanvasClick={handleCanvasClick}
                         onInteractionNodeClick={handleNodeClick}
                         linkPreview={linkPreview}
+                        onTransformChange={setViewTransform}
                     />
+                    <AnimatePresence>
+                        {actionBarPosition && (
+                            <ContextualActionBar 
+                                position={actionBarPosition}
+                                onDelete={handleDeleteSelected}
+                                onDuplicate={handleDuplicateSelected}
+                                selectedCount={selectedIds.length}
+                            />
+                        )}
+                    </AnimatePresence>
                 </div>
             </main>
             

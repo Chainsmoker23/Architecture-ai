@@ -33,6 +33,51 @@
       .pulse-subtle {
         animation: pulse-subtle 3s ease-in-out infinite;
       }
+      .hero-gradient-bg {
+          background-color: #ffffff;
+          background-image:
+              radial-gradient(at 20% 80%, hsla(333, 70%, 95%, 1) 0px, transparent 50%),
+              radial-gradient(at 80% 10%, hsla(333, 70%, 95%, 1) 0px, transparent 50%),
+              radial-gradient(at 85% 85%, hsla(218, 70%, 95%, 1) 0px, transparent 50%);
+      }
+
+      @keyframes background-pan {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+      }
+
+      .animated-gradient-text {
+          background-size: 200% auto;
+          background-image: linear-gradient(to right, #E91E63, #F06292, #E91E63);
+          animation: background-pan 5s linear infinite;
+      }
+      .header-blur {
+        backdrop-filter: saturate(180%) blur(5px);
+        -webkit-backdrop-filter: saturate(180%) blur(5px);
+      }
+      
+      /* Testimonial Marquee Styles */
+      .marquee-container {
+        overflow: hidden;
+        position: relative;
+        -webkit-mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+        mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+      }
+      .marquee-track {
+        display: flex;
+        animation: scroll 5s linear infinite;
+      }
+      .marquee-track-reverse {
+        animation-direction: reverse;
+      }
+      .marquee-container:hover .marquee-track {
+        animation-play-state: paused;
+  ì    }
+      @keyframes scroll {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
     </style>
   <script type="importmap">
 {

@@ -24,6 +24,7 @@ interface DiagramCanvasProps {
   onInteractionCanvasClick?: (coords: { x: number, y: number }) => void;
   onInteractionNodeClick?: (nodeId: string) => void;
   linkPreview?: { sourceNode: Node; targetCoords: { x: number; y: number } } | null;
+  onTransformChange?: (transform: ZoomTransform) => void;
 }
 
 interface Point { x: number; y: number; }
@@ -31,7 +32,8 @@ interface Rect { x: number; y: number; width: number; height: number; }
 
 const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ 
     data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
-    interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview
+    interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview,
+    onTransformChange
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
@@ -82,6 +84,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       })
       .on('zoom', (event) => {
         setViewTransform(event.transform);
+        if (onTransformChange) {
+            onTransformChange(event.transform);
+        }
       });
       
     svg.call(zoomBehavior).on("dblclick.zoom", null);
@@ -139,7 +144,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       svg.on('.zoom', null);
       if (fitScreenRef) fitScreenRef.current = null;
     }
-  }, [forwardedRef, setSelectedIds, data, fitScreenRef, viewTransform, interactionMode, onInteractionCanvasClick]);
+  }, [forwardedRef, setSelectedIds, data, fitScreenRef, interactionMode, onInteractionCanvasClick, onTransformChange]);
 
   const handleLinkContextMenu = (e: React.MouseEvent, link: Link) => {
     e.preventDefault();

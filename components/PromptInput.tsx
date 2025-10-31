@@ -1,6 +1,8 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { EXAMPLE_PROMPTS_LIST } from '../constants';
+import { IconType } from '../types';
+import ArchitectureIcon from './ArchitectureIcon';
 
 interface PromptInputProps {
   prompt: string;
@@ -10,9 +12,27 @@ interface PromptInputProps {
 }
 
 const PromptInput: React.FC<PromptInputProps> = ({ prompt, setPrompt, onGenerate, isLoading }) => {
+  const [promptIndex, setPromptIndex] = useState(0);
+
+  const handleCyclePrompt = () => {
+    const nextIndex = (promptIndex + 1) % EXAMPLE_PROMPTS_LIST.length;
+    setPromptIndex(nextIndex);
+    setPrompt(EXAMPLE_PROMPTS_LIST[nextIndex]);
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <h2 className="text-xl font-semibold mb-4">Describe Your Architecture</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Describe Your Architecture</h2>
+        <motion.button 
+          title="Get a prompt idea"
+          onClick={handleCyclePrompt}
+          className="p-2 rounded-full text-[var(--color-accent-text)] hover:bg-[var(--color-accent-soft)] transition-colors"
+          animate={{ scale: [1, 1.1, 1], transition: { duration: 1.5, repeat: Infinity } }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h.01a1 1 0 100-2H11zM10 14a1 1 0 01.832.445l.5 1.5a.5.5 0 01-.866.5L10 15.586l-.466.909a.5.5 0 01-.866-.5l.5-1.5A1 1 0 0110 14zm-3 0a1 1 0 01.832.445l.5 1.5a.5.5 0 01-.866.5L7 15.586l-.466.909a.5.5 0 01-.866-.5l.5-1.5A1 1 0 017 14z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.032 10.968a5.976 5.976 0 011.66-3.235 5.97 5.97 0 014.242-1.732 5.97 5.97 0 014.243 1.732 5.976 5.976 0 011.66 3.235A6.03 6.03 0 0116 11.732V13a1 1 0 11-2 0v-1.268a4.018 4.018 0 00-1.032-2.734 4.01 4.01 0 00-2.828-1.032 4.01 4.01 0 00-2.828 1.032A4.018 4.018 0 006 11.732V13a1 1 0 11-2 0v-1.268a6.03 6.03 0 01.032-.764z" clipRule="evenodd" /></svg>
+        </motion.button>
+      </div>
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
@@ -23,7 +43,7 @@ const PromptInput: React.FC<PromptInputProps> = ({ prompt, setPrompt, onGenerate
       <motion.button
         onClick={onGenerate}
         disabled={isLoading}
-        className="mt-4 w-full bg-[var(--color-accent-soft)] text-[var(--color-accent-text-strong)] font-semibold py-3 px-4 rounded-xl flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:bg-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-panel-bg)] focus:ring-[var(--color-accent)]"
+        className="mt-4 w-full bg-gradient-to-br from-[var(--color-accent-soft)] to-[var(--color-accent)] text-[var(--color-accent-text-strong)] font-semibold py-3 px-4 rounded-xl flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-soft)]"
         style={{
           boxShadow: '0 4px 14px 0 rgba(0,0,0,0.05)'
         }}
@@ -38,7 +58,10 @@ const PromptInput: React.FC<PromptInputProps> = ({ prompt, setPrompt, onGenerate
             Generating...
           </>
         ) : (
-          'Generate Diagram'
+          <>
+            <ArchitectureIcon type={IconType.Sparkles} className="w-5 h-5 mr-2" />
+            Generate Diagram
+          </>
         )}
       </motion.button>
     </div>

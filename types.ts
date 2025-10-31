@@ -9,6 +9,7 @@ export interface Node {
   description?: string;
   locked?: boolean;
   color?: string;
+  animationOrder?: number;
 }
 
 export interface Link {
@@ -158,5 +159,12 @@ export enum IconType {
   Cloud = 'cloud',
   ManagementConsole = 'management-console',
   Microsoft = 'microsoft',
+  // Fix: Add new IconType members for landing page icons
+  Google = 'google',
+  Playground = 'playground',
+  FileCode = 'file-code',
+  Message = 'message',
+  Sparkles = 'sparkles',
+  Edit = 'edit',
   Generic = 'generic',
 }
