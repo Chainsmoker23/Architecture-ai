@@ -11,6 +11,8 @@ interface ToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   onFitToScreen: () => void;
+  onGoToPlayground: () => void;
+  canGoToPlayground: boolean;
 }
 
 const ToolbarButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {children: React.ReactNode}> = ({ children, ...props }) => (
@@ -22,10 +24,13 @@ const ToolbarButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {c
     </button>
 );
 
-const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, onUndo, onRedo, canUndo, canRedo, onFitToScreen }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, onUndo, onRedo, canUndo, canRedo, onFitToScreen, onGoToPlayground, canGoToPlayground }) => {
   
   return (
     <div className="flex items-center space-x-2">
+      <ToolbarButton onClick={onGoToPlayground} disabled={!canGoToPlayground} title="Enter Playground Mode">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" /></svg>
+      </ToolbarButton>
       <ToolbarButton onClick={onUndo} disabled={!canUndo} title="Undo">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" /></svg>
       </ToolbarButton>
@@ -33,7 +38,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, on
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 15l3-3m0 0l-3-3m3 3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
       </ToolbarButton>
       <ToolbarButton onClick={onFitToScreen} title="Fit to Screen">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 10a.01.01 0 01.01-.01H10a.01.01 0 010 .01z" /></svg>
       </ToolbarButton>
 
       <div className="w-px h-6 bg-[var(--color-border)] mx-1"></div>

@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { select } from 'd3-selection';
 import { drag } from 'd3-drag';
 import { zoom, zoomIdentity, ZoomTransform } from 'd3-zoom';
-// FIX: Import d3-transition to add the .transition() method to d3 selections.
 import 'd3-transition';
 import { DiagramData, Node, Link, Container } from '../types';
 import ArchitectureIcon from './ArchitectureIcon';
@@ -13,6 +12,8 @@ import ContextMenu from './ContextMenu';
 const GRID_SIZE = 10;
 const MARGIN = 20;
 
+export type InteractionMode = 'select' | 'addNode' | 'connect';
+
 interface DiagramCanvasProps {
   data: DiagramData;
   onDataChange: (newData: DiagramData, fromHistory?: boolean) => void;
@@ -20,12 +21,19 @@ interface DiagramCanvasProps {
   setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   forwardedRef: React.RefObject<SVGSVGElement>;
   fitScreenRef: React.RefObject<(() => void) | null>;
+  interactionMode?: InteractionMode;
+  onInteractionCanvasClick?: (coords: { x: number, y: number }) => void;
+  onInteractionNodeClick?: (nodeId: string) => void;
+  linkPreview?: { sourceNode: Node; targetCoords: { x: number; y: number } } | null;
 }
 
 interface Point { x: number; y: number; }
 interface Rect { x: number; y: number; width: number; height: number; }
 
-const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef }) => {
+const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ 
+    data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
+    interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview 
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; link: Link; } | null>(null);
@@ -51,6 +59,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
   }, [data.containers]);
 
   const handleSelection = (e: React.MouseEvent, id: string) => {
+    if (interactionMode !== 'select') return;
     e.stopPropagation();
     if (e.shiftKey) {
       setSelectedIds(prev =>
@@ -102,9 +111,19 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
       fitScreenRef.current = fitToScreen;
     }
 
-    const handleCanvasClick = () => {
-        setSelectedIds([]);
-        setContextMenu(null);
+    const handleCanvasClick = (event: MouseEvent) => {
+        if (interactionMode === 'addNode' && onInteractionCanvasClick) {
+            const svgNode = svg.node();
+            if (!svgNode) return;
+            const svgPoint = svgNode.createSVGPoint();
+            svgPoint.x = event.clientX;
+            svgPoint.y = event.clientY;
+            const transformedPoint = svgPoint.matrixTransform((svgNode.getScreenCTM() as DOMMatrix).inverse());
+            onInteractionCanvasClick(transformedPoint);
+        } else {
+            setSelectedIds([]);
+            setContextMenu(null);
+        }
     };
     svg.on('click', handleCanvasClick);
 
@@ -112,7 +131,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
         svg.on('click', null).on('.zoom', null);
         if (fitScreenRef) fitScreenRef.current = null;
     }
-  }, [forwardedRef, setSelectedIds, data, fitScreenRef]);
+  }, [forwardedRef, setSelectedIds, data, fitScreenRef, interactionMode, onInteractionCanvasClick]);
 
   const handleLinkContextMenu = (e: React.MouseEvent, link: Link) => {
     e.preventDefault();
@@ -141,10 +160,27 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
         ...(data.containers?.map(c => ({ x: c.x, y: c.y, width: c.width, height: c.height })) || [])
     ];
   }, [data.nodes, data.containers]);
+  
+  const handleNodeClick = (e: React.MouseEvent, id: string) => {
+      if (interactionMode === 'connect' && onInteractionNodeClick) {
+          e.stopPropagation();
+          onInteractionNodeClick(id);
+      } else {
+          handleSelection(e, id);
+      }
+  };
+  
+  const getCursor = () => {
+    switch(interactionMode) {
+      case 'addNode': return 'crosshair';
+      case 'connect': return 'pointer';
+      default: return 'grab';
+    }
+  };
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-[var(--color-canvas-bg)] rounded-b-2xl">
-      <svg ref={forwardedRef} className="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing">
+      <svg ref={forwardedRef} className="w-full h-full absolute inset-0 active:cursor-grabbing" style={{ cursor: getCursor() }}>
         <defs>
           <pattern id="grid" width={GRID_SIZE} height={GRID_SIZE} patternUnits="userSpaceOnUse">
             <circle cx="1" cy="1" r="1" fill="var(--color-grid-dot)"></circle>
@@ -156,9 +192,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
               <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="var(--color-shadow)" floodOpacity="0.1" />
           </filter>
         </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" transform={viewTransform.toString()} onClick={() => { setSelectedIds([]); setContextMenu(null); }} />
+        <rect width="100%" height="100%" fill="url(#grid)" transform={viewTransform.toString()} />
 
-        <g id="diagram-content" transform={viewTransform.toString()} onClick={(e) => e.stopPropagation()}>
+        <g id="diagram-content" transform={viewTransform.toString()}>
           {data.containers?.map(container => {
               const fillColor = container.type === 'tier'
                   ? tierColors.get(container.id) || 'var(--color-tier-default)'
@@ -196,10 +232,20 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ data, onDataChange, selec
               data={data}
               onDataChange={onDataChange}
               isSelected={isSelected(node.id)}
-              onSelect={handleSelection}
+              onSelect={handleNodeClick}
               selectedIds={selectedIds}
+              interactionMode={interactionMode}
             />
           ))}
+          {linkPreview && (
+            <path 
+                d={`M ${linkPreview.sourceNode.x} ${linkPreview.sourceNode.y} L ${linkPreview.targetCoords.x} ${linkPreview.targetCoords.y}`}
+                stroke="var(--color-accent)"
+                strokeWidth="2"
+                strokeDasharray="6 6"
+                className="pointer-events-none"
+            />
+          )}
         </g>
       </svg>
       {contextMenu && (
@@ -286,10 +332,11 @@ const DiagramContainer = ({ container, isSelected, onSelect, fillColor, ...props
     );
 }
 
-const DiagramNode = ({ node, isSelected, onSelect, ...props }: {
+const DiagramNode = ({ node, isSelected, onSelect, interactionMode, ...props }: {
     node: Node;
     isSelected: boolean;
     onSelect: (e: React.MouseEvent, id: string) => void;
+    interactionMode: InteractionMode;
 } & DraggableProps) => {
     const ref = useRef<SVGGElement>(null);
 
@@ -315,10 +362,16 @@ const DiagramNode = ({ node, isSelected, onSelect, ...props }: {
         select(ref.current).call(dragHandler);
     }, [node, props]);
 
+    const getCursor = () => {
+        if (node.locked) return 'default';
+        if (interactionMode === 'connect') return 'pointer';
+        return 'move';
+    };
+
     return (
         <g ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
-           className={node.locked ? 'cursor-default' : 'cursor-move'}
-           onClick={(e) => onSelect(e, node.id)} style={{ filter: 'url(#drop-shadow)' }}>
+           style={{ cursor: getCursor(), filter: 'url(#drop-shadow)' }}
+           onClick={(e) => onSelect(e, node.id)} >
             <rect width={node.width} height={node.height} rx={12} ry={12} fill="var(--color-node-bg)"
                   stroke={isSelected ? 'var(--color-accent)' : 'var(--color-border)'} strokeWidth={2} className="transition-all" />
             <foreignObject x="12" y="12" width="32" height="32">

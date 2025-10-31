@@ -17,6 +17,7 @@ import ContactPage from './components/ContactPage';
 import AboutPage from './components/AboutPage';
 import SdkPage from './components/SdkPage';
 import AuthPage from './components/AuthPage';
+import Playground from './components/Playground';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -70,6 +71,7 @@ const App: React.FC = () => {
   const [summary, setSummary] = useState<string | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isPlaygroundMode, setIsPlaygroundMode] = useState<boolean>(false);
   
   const svgRef = useRef<SVGSVGElement>(null);
   const fitScreenRef = useRef<(() => void) | null>(null);
@@ -293,6 +295,25 @@ const App: React.FC = () => {
     return <SdkPage onBack={() => setCurrentPage('landing')} />;
   }
 
+  if (isPlaygroundMode && diagramData) {
+    return (
+      <Playground
+        data={diagramData}
+        onDataChange={handleDiagramUpdate}
+        onExit={() => setIsPlaygroundMode(false)}
+        selectedIds={selectedIds}
+        setSelectedIds={setSelectedIds}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={historyIndex > 0}
+        canRedo={historyIndex < history.length - 1}
+        onExplain={handleExplain}
+        isExplaining={isExplaining}
+        onExport={handleExport}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex transition-colors duration-300">
       <SettingsSidebar />
@@ -362,6 +383,8 @@ const App: React.FC = () => {
                       canUndo={historyIndex > 0}
                       canRedo={historyIndex < history.length - 1}
                       onFitToScreen={handleFitToScreen}
+                      onGoToPlayground={() => setIsPlaygroundMode(true)}
+                      canGoToPlayground={!!diagramData}
                   />
                 </div>
                 <div className="flex-1 relative">
