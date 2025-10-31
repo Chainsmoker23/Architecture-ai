@@ -7,7 +7,6 @@ import DiagramCanvas, { InteractionMode } from './DiagramCanvas';
 import PropertiesSidebar from './PropertiesSidebar';
 import PlaygroundToolbar from './PlaygroundToolbar';
 import AddNodePanel from './AddNodePanel';
-import ContextualActionBar from './ContextualActionBar';
 import { customAlphabet } from 'nanoid';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
@@ -32,25 +31,24 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
 
     const [interactionMode, setInteractionMode] = useState<InteractionMode>('select');
     const [isAddNodePanelOpen, setIsAddNodePanelOpen] = useState(false);
-    const [isPropertiesPanelOpen, setIsPropertiesPanelOpen] = useState(true);
     const [nodeToPlace, setNodeToPlace] = useState<IconType | null>(null);
     const [linkSourceNodeId, setLinkSourceNodeId] = useState<string | null>(null);
     const [linkPreviewCoords, setLinkPreviewCoords] = useState<{x: number, y: number} | null>(null);
-    const [lassoRect, setLassoRect] = useState<{x: number, y: number, width: number, height: number} | null>(null);
+    
+    const isPropertiesPanelOpen = selectedIds.length > 0;
 
     const svgRef = useRef<SVGSVGElement>(null);
     const fitScreenRef = useRef<(() => void) | null>(null);
-    const centerViewRef = useRef<(() => void) | null>(null);
     
     const nodesAndContainersById = useMemo(() => {
-        const map = new Map<string, Node | Container>();
+        const map = new Map<string, Node | Container | Link>();
         data.nodes.forEach(node => map.set(node.id, node));
         (data.containers || []).forEach(container => map.set(container.id, container));
+        (data.links || []).forEach(link => map.set(link.id, link));
         return map;
-    }, [data.nodes, data.containers]);
+    }, [data.nodes, data.containers, data.links]);
 
     const handleFitToScreen = () => fitScreenRef.current?.();
-    const handleCenterView = () => centerViewRef.current?.();
 
     const handleSetInteractionMode = (mode: InteractionMode) => {
         setInteractionMode(mode);
@@ -105,74 +103,17 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         }
     };
     
-    const handleDeleteSelected = () => {
-        if (selectedIds.length === 0) return;
-        
-        const newNodes = data.nodes.filter(n => !selectedIds.includes(n.id));
-        const newContainers = data.containers?.filter(c => !selectedIds.includes(c.id)) || [];
-        const newLinks = data.links.filter(l => 
-            !selectedIds.includes(typeof l.source === 'string' ? l.source : l.source.id) &&
-            !selectedIds.includes(typeof l.target === 'string' ? l.target : l.target.id)
-        );
-
-        onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks });
-        setSelectedIds([]);
-    };
-    
-    const handleDuplicateSelected = () => {
-        if (selectedIds.length === 0) return;
-        const newNodes: Node[] = [];
-        const newContainers: Container[] = [];
-        const newSelectedIds: string[] = [];
-        const offset = 20;
-
-        selectedIds.forEach(id => {
-            const item = nodesAndContainersById.get(id);
-            if (!item) return;
-
-            if (!('childNodeIds' in item)) { // It's a Node
-                const newNode: Node = {
-                    ...(item as Node),
-                    id: `${item.type}-${nanoid()}`,
-                    x: (item as Node).x + offset,
-                    y: (item as Node).y + offset,
-                };
-                newNodes.push(newNode);
-                newSelectedIds.push(newNode.id);
-            }
-        });
-        
-        onDataChange({ ...data, nodes: [...data.nodes, ...newNodes], containers: [...(data.containers || []), ...newContainers] });
-        setSelectedIds(newSelectedIds);
-    };
-    
     const selectedItem = useMemo(() => {
         if (!data || selectedIds.length !== 1) return null;
         return nodesAndContainersById.get(selectedIds[0]) || null;
     }, [data, selectedIds, nodesAndContainersById]);
 
-    const handlePropertyChange = (itemId: string, newProps: Partial<Node> | Partial<Container>) => {
+    const handlePropertyChange = (itemId: string, newProps: Partial<Node> | Partial<Container> | Partial<Link>) => {
         if (!data) return;
         const newNodes = data.nodes.map(n => n.id === itemId ? { ...n, ...(newProps as Partial<Node>) } : n);
         const newContainers = data.containers?.map(c => c.id === itemId ? { ...c, ...(newProps as Partial<Container>) } : c);
-        onDataChange({ ...data, nodes: newNodes, containers: newContainers }, true);
-    };
-    
-    const handleNudge = (itemId: string, direction: 'up' | 'down' | 'left' | 'right') => {
-         if (!data) return;
-         const nudgeAmount = 5;
-         const newNodes = data.nodes.map(n => {
-             if (n.id === itemId) {
-                 const updatedNode = {...n};
-                 if (direction === 'up') updatedNode.y -= nudgeAmount;
-                 if (direction === 'down') updatedNode.y += nudgeAmount;
-                 if (direction === 'left') updatedNode.x -= nudgeAmount;
-                 if (direction === 'right') updatedNode.x += nudgeAmount;
-                 return updatedNode;
-             }
-             return n;
-         });
-         onDataChange({ ...data, nodes: newNodes }, true);
+        const newLinks = data.links.map(l => l.id === itemId ? { ...l, ...(newProps as Partial<Link>) } : l);
+        onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks }, true);
     };
 
     const handleMouseMove = useCallback((event: MouseEvent) => {
@@ -199,35 +140,13 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         if (!sourceNode) return null;
         return { sourceNode, targetCoords: linkPreviewCoords };
     }, [linkSourceNodeId, linkPreviewCoords, data.nodes]);
-    
-    const actionBarPosition = useMemo(() => {
-        if (selectedIds.length === 0) return null;
-        let minX = Infinity, minY = Infinity;
-        
-        selectedIds.forEach(id => {
-            const item = nodesAndContainersById.get(id);
-            if (!item) return;
-            const itemX = 'x' in item && 'width' in item ? (item as Node).x - (item as Node).width / 2 : (item as Container).x;
-            const itemY = 'y' in item && 'height' in item ? (item as Node).y - (item as Node).height / 2 : (item as Container).y;
-            if(itemX < minX) minX = itemX;
-            if(itemY < minY) minY = itemY;
-        });
-
-        if (minX === Infinity) return null;
-
-        return { x: minX, y: minY - 50 };
-    }, [selectedIds, nodesAndContainersById]);
 
     return (
         <div className="w-screen h-screen bg-[var(--color-bg)] flex flex-col md:flex-row overflow-hidden">
             <PlaygroundToolbar
                 interactionMode={interactionMode}
                 onSetInteractionMode={handleSetInteractionMode}
-                onDeleteSelected={handleDeleteSelected}
-                isPropertiesPanelOpen={isPropertiesPanelOpen}
-                onToggleProperties={() => setIsPropertiesPanelOpen(p => !p)}
                 onFitToScreen={handleFitToScreen}
-                onCenterView={handleCenterView}
                 {...props}
             />
 
@@ -243,7 +162,6 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                      <DiagramCanvas
                         forwardedRef={svgRef}
                         fitScreenRef={fitScreenRef}
-                        centerViewRef={centerViewRef}
                         data={data}
                         onDataChange={onDataChange}
                         selectedIds={selectedIds}
@@ -252,32 +170,10 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         onInteractionCanvasClick={handleCanvasClick}
                         onInteractionNodeClick={handleNodeClick}
                         linkPreview={linkPreview}
-                        lassoRect={lassoRect}
-                        setLassoRect={setLassoRect}
                     />
-                     {actionBarPosition && (
-                        <ContextualActionBar 
-                            position={actionBarPosition}
-                            onDelete={handleDeleteSelected}
-                            onDuplicate={handleDuplicateSelected}
-                            onToggleProperties={() => setIsPropertiesPanelOpen(p => !p)}
-                            selectedCount={selectedIds.length}
-                        />
-                    )}
                 </div>
             </main>
             
-            {/* Desktop Sidebars & Mobile Overlays */}
-            <AnimatePresence>
-                {isAddNodePanelOpen && (
-                    <motion.div 
-                        key="add-node-backdrop"
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 z-20 md:hidden"
-                        onClick={() => { setIsAddNodePanelOpen(false); setInteractionMode('select'); }}
-                    />
-                )}
-            </AnimatePresence>
             <div className="fixed md:relative inset-0 md:inset-auto z-30 md:z-10 pointer-events-none">
                  <AnimatePresence>
                     {isAddNodePanelOpen && (
@@ -310,7 +206,6 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                             item={selectedItem}
                             onPropertyChange={handlePropertyChange}
                             selectedCount={selectedIds.length}
-                            onNudge={handleNudge}
                         />
                     </motion.aside>
                 )}
@@ -322,7 +217,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         key="properties-backdrop"
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/30 z-30 md:hidden"
-                        onClick={() => setIsPropertiesPanelOpen(false)}
+                        onClick={() => setSelectedIds([])}
                     />
                 )}
                 {isPropertiesPanelOpen && (
@@ -338,7 +233,6 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                                 item={selectedItem}
                                 onPropertyChange={handlePropertyChange}
                                 selectedCount={selectedIds.length}
-                                onNudge={handleNudge}
                             />
                          </div>
                     </motion.div>

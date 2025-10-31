@@ -22,7 +22,7 @@ const responseSchema = {
         properties: {
           id: { type: Type.STRING, description: "A unique, kebab-case identifier for the node (e.g., 'web-server-1')." },
           label: { type: Type.STRING, description: "The human-readable name of the component (e.g., 'EC2 Instance')." },
-          type: { type: Type.STRING, description: "The type of component for icon mapping. Use one of the predefined types like 'aws-ec2', 'user', 'database', 'kubernetes', 'kafka', etc." },
+          type: { type: Type.STRING, description: "The type of component for icon mapping. Use one of the predefined types like 'aws-ec2', 'user', 'database', 'kubernetes', 'kafka', 'javascript', 'nginx', etc." },
           description: { type: Type.STRING, description: "A brief, one-sentence description of the node's purpose." },
           x: { type: Type.NUMBER, description: "The initial horizontal position of the node's center on a 1200x800 canvas." },
           y: { type: Type.NUMBER, description: "The initial vertical position of the node's center." },
@@ -88,7 +88,7 @@ export const generateDiagramData = async (prompt: string): Promise<DiagramData> 
       5.  **Advanced Architectures**:
           - **Multi-Tier (4-6 Layers)**: If the prompt implies more than three tiers, create containers for layers like "Presentation Layer", "Edge/CDN Layer", "Application Layer", "Integration/Messaging Layer", "Data Layer", and "Analytics/Monitoring Layer".
           - **Microservices**: If the prompt describes a microservices architecture, group individual services and their dedicated resources (e.g., a database) into separate 'tier' type containers. Label these containers appropriately, like "Service Domain: Payments" or "Inventory Microservice".
-      6.  **Icon Specificity**: Use the most specific icon 'type' available from the schema's list. For example, for containerized services use 'kubernetes' or 'docker'. For messaging, use 'kafka', 'aws-sns', 'aws-sqs', or 'message-queue' as appropriate.
+      6.  **Icon Specificity**: Use the most specific icon 'type' available from the schema's list. For example, for containerized services use 'kubernetes' or 'docker'. For web servers use 'nginx'. For programming languages use 'javascript', 'python', 'go-lang', 'node-js'. For frontend frameworks, use 'react-js'. For messaging, use 'kafka', 'aws-sns', 'aws-sqs', or 'message-queue' as appropriate.
       Produce a diagram that looks like a polished, official reference architecture blueprint.`,
       config: {
         responseMimeType: "application/json",

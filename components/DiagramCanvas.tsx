@@ -10,9 +10,8 @@ import ArchitectureIcon from './ArchitectureIcon';
 import ContextMenu from './ContextMenu';
 
 const GRID_SIZE = 10;
-const MARGIN = 20;
 
-export type InteractionMode = 'select' | 'addNode' | 'connect' | 'pan' | 'lasso';
+export type InteractionMode = 'select' | 'addNode' | 'connect';
 
 interface DiagramCanvasProps {
   data: DiagramData;
@@ -21,28 +20,22 @@ interface DiagramCanvasProps {
   setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   forwardedRef: React.RefObject<SVGSVGElement>;
   fitScreenRef: React.RefObject<(() => void) | null>;
-  centerViewRef: React.RefObject<(() => void) | null>;
   interactionMode?: InteractionMode;
   onInteractionCanvasClick?: (coords: { x: number, y: number }) => void;
   onInteractionNodeClick?: (nodeId: string) => void;
   linkPreview?: { sourceNode: Node; targetCoords: { x: number; y: number } } | null;
-  lassoRect?: {x: number, y: number, width: number, height: number} | null;
-  setLassoRect?: React.Dispatch<React.SetStateAction<{x: number, y: number, width: number, height: number} | null>>;
 }
 
 interface Point { x: number; y: number; }
 interface Rect { x: number; y: number; width: number; height: number; }
 
 const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ 
-    data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef, centerViewRef,
-    interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview,
-    lassoRect, setLassoRect
+    data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
+    interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; link: Link; } | null>(null);
-  const isLassoingRef = useRef(false);
-  const lassoStartPointRef = useRef({x: 0, y: 0});
   
   const nodesById = useMemo(() => new Map(data.nodes.map(node => [node.id, node])), [data.nodes]);
   const isSelected = (id: string) => selectedIds.includes(id);
@@ -64,7 +57,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     return colorMap;
   }, [data.containers]);
 
-  const handleSelection = (e: React.MouseEvent, id: string) => {
+  const handleItemSelection = (e: React.MouseEvent, id: string) => {
     if (interactionMode !== 'select') return;
     e.stopPropagation();
     if (e.shiftKey) {
@@ -83,14 +76,8 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
-      .filter((event) => {
-        if (interactionMode === 'pan') return !event.button; // allow pan with left click
-        return event.ctrlKey || event.metaKey || event.button === 1; // allow zoom with wheel/middle click
-      })
       .on('zoom', (event) => {
-        if (interactionMode === 'pan' || event.sourceEvent?.type === 'wheel') {
-            setViewTransform(event.transform);
-        }
+        setViewTransform(event.transform);
       });
       
     svg.call(zoomBehavior).on("dblclick.zoom", null);
@@ -119,33 +106,10 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
         .call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(scale));
     };
     
-    const centerView = () => {
-      const contentGroup = svg.select<SVGGElement>('#diagram-content').node();
-      if (!contentGroup || !parent || data.nodes.length === 0) return;
-
-      const bounds = contentGroup.getBBox();
-      const parentWidth = parent.clientWidth;
-      const parentHeight = parent.clientHeight;
-      const { width: diagramWidth, height: diagramHeight, x: diagramX, y: diagramY } = bounds;
-      
-      if (diagramWidth <= 0 || diagramHeight <= 0) return;
-
-      const currentScale = viewTransform.k;
-      const tx = parentWidth / 2 - (diagramX + diagramWidth / 2) * currentScale;
-      const ty = parentHeight / 2 - (diagramY + diagramHeight / 2) * currentScale;
-
-      svg.transition()
-        .duration(750)
-        .call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(currentScale));
-    };
-
     if (fitScreenRef) {
       fitScreenRef.current = fitToScreen;
     }
-    if (centerViewRef) {
-        centerViewRef.current = centerView;
-    }
-
+    
     const getTransformedPoint = (event: MouseEvent) => {
         const svgNode = svg.node();
         if (!svgNode) return { x: 0, y: 0 };
@@ -156,69 +120,25 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     };
 
     const handleCanvasClick = (event: MouseEvent) => {
-        const transformedPoint = getTransformedPoint(event);
-        if (interactionMode === 'addNode' && onInteractionCanvasClick) {
-            onInteractionCanvasClick(transformedPoint);
-        } else {
-            setSelectedIds([]);
-            setContextMenu(null);
-        }
-    };
-    
-    const handleMouseDown = (event: MouseEvent) => {
-        if (interactionMode === 'lasso' && setLassoRect) {
-            event.preventDefault();
-            isLassoingRef.current = true;
-            const startPoint = getTransformedPoint(event);
-            lassoStartPointRef.current = startPoint;
-            setLassoRect({ x: startPoint.x, y: startPoint.y, width: 0, height: 0 });
-        }
-    };
-
-    const handleMouseMove = (event: MouseEvent) => {
-        if (interactionMode === 'lasso' && isLassoingRef.current && setLassoRect) {
-            event.preventDefault();
-            const currentPoint = getTransformedPoint(event);
-            const startPoint = lassoStartPointRef.current;
-            const x = Math.min(startPoint.x, currentPoint.x);
-            const y = Math.min(startPoint.y, currentPoint.y);
-            const width = Math.abs(startPoint.x - currentPoint.x);
-            const height = Math.abs(startPoint.y - currentPoint.y);
-            setLassoRect({ x, y, width, height });
-        }
-    };
-
-    const handleMouseUp = (event: MouseEvent) => {
-        if (interactionMode === 'lasso' && isLassoingRef.current && lassoRect && setLassoRect) {
-            isLassoingRef.current = false;
-            setLassoRect(null);
-
-            const selected = data.nodes.filter(node => {
-                const nodeX = node.x - node.width / 2;
-                const nodeY = node.y - node.height / 2;
-                return (
-                    nodeX < lassoRect.x + lassoRect.width &&
-                    nodeX + node.width > lassoRect.x &&
-                    nodeY < lassoRect.y + lassoRect.height &&
-                    nodeY + node.height > lassoRect.y
-                );
-            });
-            setSelectedIds(selected.map(n => n.id));
+        // Prevent deselecting when panning
+        if (event.detail > 0 && (event.target as SVGSVGElement).tagName === 'svg') {
+            const transformedPoint = getTransformedPoint(event);
+            if (interactionMode === 'addNode' && onInteractionCanvasClick) {
+                onInteractionCanvasClick(transformedPoint);
+            } else {
+                setSelectedIds([]);
+                setContextMenu(null);
+            }
         }
     };
     
     svg.on('click', handleCanvasClick);
-    svg.on('mousedown', handleMouseDown);
-    svg.on('mousemove', handleMouseMove);
-    svg.on('mouseup', handleMouseUp);
-    svg.on('mouseleave', handleMouseUp); // End lasso if mouse leaves svg
 
     return () => {
-        svg.on('click', null).on('.zoom', null).on('mousedown', null).on('mousemove', null).on('mouseup', null).on('mouseleave', null);
+        svg.on('click', null).on('.zoom', null);
         if (fitScreenRef) fitScreenRef.current = null;
-        if (centerViewRef) centerViewRef.current = null;
     }
-  }, [forwardedRef, setSelectedIds, data, fitScreenRef, centerViewRef, viewTransform, interactionMode, onInteractionCanvasClick, lassoRect, setLassoRect]);
+  }, [forwardedRef, setSelectedIds, data, fitScreenRef, viewTransform, interactionMode, onInteractionCanvasClick]);
 
   const handleLinkContextMenu = (e: React.MouseEvent, link: Link) => {
     e.preventDefault();
@@ -253,7 +173,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
           e.stopPropagation();
           onInteractionNodeClick(id);
       } else {
-          handleSelection(e, id);
+          handleItemSelection(e, id);
       }
   };
   
@@ -261,8 +181,6 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     switch(interactionMode) {
       case 'addNode': return 'crosshair';
       case 'connect': return 'pointer';
-      case 'pan': return 'grab';
-      case 'lasso': return 'crosshair';
       default: return 'default';
     }
   };
@@ -275,7 +193,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
             <circle cx="1" cy="1" r="1" fill="var(--color-grid-dot)"></circle>
           </pattern>
           <marker id="arrowhead" viewBox="-0 -5 10 10" refX="5" refY="0" orient="auto" markerWidth="6" markerHeight="6" overflow="visible">
-            <path d="M 0,-5 L 10 ,0 L 0,5" fill="var(--color-link)" style={{ stroke: 'none' }}></path>
+            <path d="M 0,-5 L 10 ,0 L 0,5" style={{ stroke: 'none' }}></path>
           </marker>
           <filter id="drop-shadow" x="-50%" y="-50%" width="200%" height="200%">
               <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="var(--color-shadow)" floodOpacity="0.1" />
@@ -285,9 +203,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 
         <g id="diagram-content" transform={viewTransform.toString()}>
           {data.containers?.map(container => {
-              const fillColor = container.type === 'tier'
+              const fillColor = container.color || (container.type === 'tier'
                   ? tierColors.get(container.id) || 'var(--color-tier-default)'
-                  : 'var(--color-tier-default)';
+                  : 'var(--color-tier-default)');
               return (
                   <DiagramContainer 
                       key={container.id} 
@@ -295,7 +213,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                       data={data}
                       onDataChange={onDataChange}
                       isSelected={isSelected(container.id)}
-                      onSelect={handleSelection}
+                      onSelect={handleItemSelection}
                       selectedIds={selectedIds}
                       fillColor={fillColor}
                       interactionMode={interactionMode}
@@ -313,6 +231,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
               target={targetNode} 
               obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))}
               onContextMenu={handleLinkContextMenu}
+              onSelect={handleItemSelection}
             />;
           })}
           {data.nodes.map(node => (
@@ -334,15 +253,6 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                 strokeWidth="2"
                 strokeDasharray="6 6"
                 className="pointer-events-none"
-            />
-          )}
-          {lassoRect && (
-            <rect 
-                {...lassoRect}
-                fill="rgba(249, 215, 227, 0.2)"
-                stroke="var(--color-accent)"
-                strokeWidth="1"
-                strokeDasharray="4 4"
             />
           )}
         </g>
@@ -474,7 +384,7 @@ const DiagramNode = ({ node, isSelected, onSelect, ...props }: {
         <g ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
            style={{ cursor: getCursor(), filter: 'url(#drop-shadow)' }}
            onClick={(e) => onSelect(e, node.id)} >
-            <rect width={node.width} height={node.height} rx={12} ry={12} fill="var(--color-node-bg)"
+            <rect width={node.width} height={node.height} rx={12} ry={12} fill={node.color || "var(--color-node-bg)"}
                   stroke={isSelected ? 'var(--color-accent)' : 'var(--color-border)'} strokeWidth={2} className="transition-all" />
             <foreignObject x="12" y="12" width="32" height="32">
                 <ArchitectureIcon type={node.type} className="w-8 h-8" />
@@ -551,7 +461,16 @@ const pointsToPath = (points: Point[], radius: number): string => {
     return path;
 };
 
-const DiagramLink = ({ link, source, target, obstacles, onContextMenu }: { link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, link: Link) => void }) => {
+const getDashArray = (style?: 'solid' | 'dotted' | 'dashed') => {
+    switch (style) {
+        case 'dotted': return '2 5';
+        case 'dashed': return '10 5';
+        case 'solid':
+        default: return 'none';
+    }
+}
+
+const DiagramLink = ({ link, source, target, obstacles, onContextMenu, onSelect }: { link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, link: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void }) => {
     const pathPoints = useMemo(() => getOrthogonalPath(source, target, obstacles), [source, target, obstacles]);
     
     if (pathPoints.length < 2) return null;
@@ -579,14 +498,16 @@ const DiagramLink = ({ link, source, target, obstacles, onContextMenu }: { link:
 
     const midX = (midPoint1.x + midPoint2.x) / 2;
     const midY = (midPoint1.y + midPoint2.y) / 2;
+    const strokeColor = link.color || 'var(--color-link)';
 
     return (
-        <g onContextMenu={(e) => onContextMenu(e, link)}>
-            <path d={pathD} stroke="none" strokeWidth="15" fill="none" className="cursor-pointer" />
-            <path d={pathD} stroke="var(--color-link)" strokeOpacity="0.8" strokeWidth="2"
+        <g onContextMenu={(e) => onContextMenu(e, link)} onClick={(e) => onSelect(e, link.id)}>
+            <path d={pathD} stroke="transparent" strokeWidth="15" fill="none" className="cursor-pointer" />
+            <path d={pathD} stroke={strokeColor} strokeOpacity="0.8" strokeWidth="2"
                   fill="none"
-                  strokeDasharray={link.style === 'dotted' ? '5 5' : 'none'}
+                  strokeDasharray={getDashArray(link.style)}
                   markerEnd="url(#arrowhead)" />
+             <style>{`#arrowhead path { fill: ${strokeColor}; }`}</style>
             {link.label && (
                 <text x={midX} y={midY} dy="-6" fill="var(--color-text-secondary)" textAnchor="middle"
                       style={{ fontSize: '10px', paintOrder: 'stroke', stroke: 'var(--color-canvas-bg)', strokeWidth: '3px', strokeLinejoin: 'round' }} className="pointer-events-none">

@@ -8,6 +8,7 @@ export interface Node {
   height: number;
   description?: string;
   locked?: boolean;
+  color?: string;
 }
 
 export interface Link {
@@ -15,11 +16,12 @@ export interface Link {
   source: string | Node;
   target: string | Node;
   label?: string;
-  style?: 'solid' | 'dotted';
+  style?: 'solid' | 'dotted' | 'dashed';
+  color?: string;
 }
 
 export interface Container {
-  id: string;
+  id:string;
   label: string;
   type: 'region' | 'availability-zone' | 'tier';
   x: number;
@@ -28,6 +30,7 @@ export interface Container {
   height: number;
   childNodeIds: string[];
   description?: string;
+  color?: string;
 }
 
 export interface DiagramData {
@@ -95,6 +98,14 @@ export enum IconType {
   Wallet = 'wallet',
   Oracle = 'oracle',
   Ipfs = 'ipfs',
+  
+  // --- Development & Web ---
+  Javascript = 'javascript',
+  Nginx = 'nginx',
+  ReactJs = 'react-js',
+  NodeJs = 'node-js',
+  Python = 'python',
+  GoLang = 'go-lang',
   
   // --- Generic ---
   User = 'user',

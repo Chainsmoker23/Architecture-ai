@@ -75,7 +75,6 @@ const App: React.FC = () => {
   
   const svgRef = useRef<SVGSVGElement>(null);
   const fitScreenRef = useRef<(() => void) | null>(null);
-  const centerViewRef = useRef<(() => void) | null>(null);
 
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -254,10 +253,6 @@ const App: React.FC = () => {
     fitScreenRef.current?.();
   };
 
-  const handleCenterView = () => {
-    centerViewRef.current?.();
-  };
-
   const selectedItem = useMemo(() => {
     if (!diagramData || selectedIds.length !== 1) return null;
     const selectedId = selectedIds[0];
@@ -388,7 +383,6 @@ const App: React.FC = () => {
                       canUndo={historyIndex > 0}
                       canRedo={historyIndex < history.length - 1}
                       onFitToScreen={handleFitToScreen}
-                      onCenterView={handleCenterView}
                       onGoToPlayground={() => setIsPlaygroundMode(true)}
                       canGoToPlayground={!!diagramData}
                   />
@@ -397,7 +391,6 @@ const App: React.FC = () => {
                   <DiagramCanvas 
                     forwardedRef={svgRef}
                     fitScreenRef={fitScreenRef}
-                    centerViewRef={centerViewRef}
                     data={diagramData} 
                     onDataChange={handleDiagramUpdate} 
                     selectedIds={selectedIds}
@@ -415,7 +408,6 @@ const App: React.FC = () => {
               item={selectedItem}
               onPropertyChange={handlePropertyChange}
               selectedCount={selectedIds.length}
-              onNudge={() => {}}
             />
           </aside>
 

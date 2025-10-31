@@ -2,12 +2,13 @@ import React from 'react';
 import { IconType } from './types';
 
 export const ICONS: Record<string, React.ReactNode> = {
-  [IconType.AwsEc2]: <path d="M4 2h16v3H4zm0 17h16v3H4zm3-6.41V9.41l-3 1.74v3.69zm10 0V9.41l-3 1.74v3.69zM8.5 8.27L12 6.29l3.5 1.98v4.04L12 14.29l-3.5-1.98z" fill="#FF9900" />,
-  [IconType.AwsS3]: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-12h2v8h-2z" fill="#56B9D0" />,
-  [IconType.AwsRds]: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" fill="#2E73B8" />,
-  [IconType.AwsLambda]: <path d="M11 2h2v5h-2zm-6.5 6.5L6.21 10l-1.71 1.71L2.79 10zm13 0L17.79 10l1.71 1.71L21.21 10zM12 11c-2.76 0-5 2.24-5 5h10c0-2.76-2.24-5-5-5z" fill="#D86613" />,
-  [IconType.AwsApiGateway]: <path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V8h4v2z" fill="#4B4B4B" />,
-  [IconType.AwsLoadBalancer]: <path d="M20 18H4v-2h16v2zm0-5H4V9h16v4zm0-7H4V4h16v2z" fill="#0073B8" />,
+  // --- Redesigned AWS Icons ---
+  [IconType.AwsEc2]: <path fillRule="evenodd" clipRule="evenodd" d="M2 5H22V8H2V5ZM2 11H22V14H2V11ZM2 17H22V20H2V17Z" fill="#FF9900" />,
+  [IconType.AwsS3]: <path fillRule="evenodd" clipRule="evenodd" d="M18.88 10.01C18.88 6.09 15.79 3 11.88 3C7.96 3 4.88 6.09 4.88 10.01C4.88 12.08 5.71 13.93 7.02 15.24L11.88 21L16.73 15.24C18.04 13.93 18.88 12.08 18.88 10.01ZM11.88 12.01C13.01 12.01 13.88 11.14 13.88 10.01C13.88 8.88 13.01 8.01 11.88 8.01C10.75 8.01 9.88 8.88 9.88 10.01C9.88 11.14 10.75 12.01 11.88 12.01Z" fill="#56B9D0" />,
+  [IconType.AwsRds]: <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.47 2 2 6.47 2 12C2 17.53 6.47 22 12 22C17.53 22 22 17.53 22 12C22 6.47 17.53 2 12 2ZM12 20C7.58 20 4 16.42 4 12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12C20 16.42 16.42 20 12 20ZM12 10C10.9 10 10 10.9 10 12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12C14 10.9 13.1 10 12 10Z" fill="#2E73B8" />,
+  [IconType.AwsLambda]: <path d="M10 20.44L3.44 13.88L5.56 11.76L10 16.2L18.44 7.76L20.56 9.88L10 20.44Z" fill="#D86613" />,
+  [IconType.AwsApiGateway]: <path d="M18 4H6V2H18V4ZM18 22H6V20H18V22ZM21 9H3V7H21V9ZM21 17H3V15H21V17ZM20 13H4V11H20V13Z" fill="#4B4B4B" />,
+  [IconType.AwsLoadBalancer]: <path fillRule="evenodd" clipRule="evenodd" d="M3 4H21V6H3V4ZM3 11H21V13H3V11ZM3 18H21V20H3V18Z" fill="#0073B8" />,
   [IconType.AwsCloudfront]: <path d="M13 13.9a1 1 0 010-1.8h5v-1h-5a1 1 0 010-1.8h6v6.6h-6v-2zm-8.8.1l4-4-4-4L6 4l5 5-5 5-1.8-1.8z" fill="#8C4FFF" />,
   [IconType.AwsEcs]: <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z" fill="#FF9900" />,
   [IconType.AwsDynamoDb]: <path d="M12 2l8 4.5V10l-8 4.5L4 10V6.5L12 2zm0 13.5L4 11v4l8 4.5 8-4.5v-4l-8 4.5z" fill="#2E73B8"/>,
@@ -16,6 +17,7 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.AwsEventbridge]: <path d="M20 6h-2V4h2v2zm-4 0h-2V4h2v2zm-4 0H4v2h8V6zm4 8h-2v-2h2v2zm-4 0h-2v-2h2v2zm-4 0H4v2h8v-2zm-4 2h16v2H4v-2z" fill="#D86613"/>,
   [IconType.AwsCloudwatch]: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.29 13.29l-4.58-4.58V5h1.5v5.67l5 5L16.29 15.29z" fill="#2E73B8"/>,
   
+  // --- Redesigned Azure Icons ---
   [IconType.AzureVm]: <path fill="#0078D4" d="M5 3h14v18H5z M7 5h10v14H7z M9 7h6v2H9z M9 11h6v2H9z M9 15h6v2H9z"/>,
   [IconType.AzureBlobStorage]: <path fill="#0078D4" d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>,
   [IconType.AzureSqlDatabase]: <path fill="#0078D4" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>,
@@ -23,6 +25,7 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.AzureFunctionApp]: <path fill="#0078D4" d="M9 2v4H3v2h6V2zm12 0v6h-6V2h6zM9 14v6h6v-6H9zM3 14h6v6H3v-6z"/>,
   [IconType.AzureServiceBus]: <path fill="#0078D4" d="M15 1H9v6h6V1zm2 14h6V9h-6v6zm-18 0h6V9H-1v6zM1 15h22v2H-1z"/>,
 
+  // --- Redesigned GCP Icons ---
   [IconType.GcpComputeEngine]: <path fill="#4285F4" d="M4 4h16v2H4z M4 9h16v2H4z M4 14h16v2H4z M4 19h16v2H4z"/>,
   [IconType.GcpCloudStorage]: <path fill="#4285F4" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>,
   [IconType.GcpCloudSql]: <path fill="#4285F4" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>,
@@ -45,6 +48,15 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.Oracle]: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" />,
   [IconType.Ipfs]: <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm-1-12h2v4h-2v-4zm0 6h2v2h-2v-2z" />,
 
+  // --- New Icons ---
+  [IconType.Javascript]: <path d="M2 2h20v20H2z" fill="#F7DF1E" />,
+  [IconType.Nginx]: <path d="M12.01 2.02c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zM12 20.02c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1.12-11.45l-.71 5.04h1.49l-.71-5.04h-2.1l-.71 5.04h1.49l-.35-2.52h1.42l-.33 2.52h1.49l.7-5.04h-1.48z" fill="#009639" />,
+  [IconType.ReactJs]: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm5.5 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm5.5 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" fill="#61DAFB" />,
+  [IconType.NodeJs]: <path d="M12 2l-10 6v12l10 6 10-6V8l-10-6zm-1.04 15.46l-4.52-2.61v-5.22l4.52 2.61v5.22zm1.04 1.04l-4.52-2.61V8.65l4.52-2.61 4.52 2.61v6.22l-4.52 2.61z" fill="#339933" />,
+  [IconType.Python]: <path d="M16.5 7.5c0-1.66-1.34-3-3-3s-3 1.34-3 3v4.5h-1.5v-6H12V3H9v3h1.5v3H9c-1.66 0-3 1.34-3 3s1.34 3 3 3h4.5v1.5h-6V18h3v3h3v-3h-1.5v-3H15c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-1.5 3H9c-.83 0-1.5-.67-1.5-1.5S8.17 7.5 9 7.5h4.5v3z" fill="#3776AB" />,
+  [IconType.GoLang]: <path d="M12 12c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0 2c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6 2.69-6 6-6z" fill="#00ADD8" />,
+
+  // --- Redesigned Generic Icons ---
   [IconType.User]: <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />,
   [IconType.Database]: <path d="M12 3C7.03 3 3 5.36 3 8.25V15.75C3 18.64 7.03 21 12 21s9-2.36 9-5.25V8.25C21 5.36 16.97 3 12 3zm0 2c3.48 0 6.3 1.57 6.82 3.5H5.18C5.7 6.57 8.52 5 12 5zm0 14c-4.97 0-9-2.36-9-5.25v-1.5c0 .3.02.6.05.89C3.62 15.64 7.35 18 12 18s8.38-2.36 8.95-4.86c.03-.29.05-.59.05-.89v1.5C21 16.64 16.97 19 12 19z" />,
   [IconType.WebServer]: <path d="M20 15v-2h-2V7h2V5h-4V3h-2v2h-4V3H8v2H4v2h2v6H4v2H2v2h2v-2h2v2h12v-2h2v2h2v-2h-2zm-4-2H8V7h8v6z" />,
