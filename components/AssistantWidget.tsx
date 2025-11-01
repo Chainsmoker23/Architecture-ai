@@ -281,7 +281,7 @@ const AssistantWidget: React.FC = () => {
           >
             <div className="p-3 py-6 border-b border-pink-500/20 flex justify-center items-center relative bg-transparent">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(244,114,182,0.15)_0%,_transparent_70%)] -z-1" />
-              <QuantumCore isGlowing={isAiActive} size={120} />
+              <QuantumCore isGlowing={isAiActive} size={100} />
             </div>
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
               {messages.map((msg, index) => {
