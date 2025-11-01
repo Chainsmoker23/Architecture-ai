@@ -83,10 +83,15 @@ export const generateDiagramData = async (prompt: string): Promise<DiagramData> 
       The output must be a valid JSON object adhering to the specified schema.
       
       **GENERAL RULES:**
-      1.  **Layout & Spacing**: Position all elements in a clean, grid-like, and evenly spaced layout. There must be NO overlaps between nodes or containers.
+      1.  **Aesthetic Layout Principles**:
+          *   **Clarity and Flow**: Arrange components to represent a clear, logical data flow, typically from left-to-right or top-to-bottom.
+          *   **Symmetry and Balance**: Strive for a balanced and symmetrical layout. Align nodes both vertically and horizontally to create a clean, grid-like structure.
+          *   **Grouping**: Use 'containers' effectively to group related components into logical zones like 'tiers', 'regions', or 'services'. Containers should be sized appropriately to enclose their children with ample padding.
+          *   **Spacing**: Ensure generous and consistent spacing between all elements (nodes, containers) to avoid clutter. There must be NO overlaps.
       2.  **Coordinates**: All 'x' and 'y' coordinates are absolute, based on a 1200x800 canvas with (0,0) at the top-left. Node positions are center-based. Container positions are top-left based.
       3.  **Sizing**: Calculate an appropriate 'width' and 'height' for each node based on its label to prevent text overflow. Min width 120, min height 80 (unless it's a special type like 'neuron').
       4.  **IDs & Connectivity**: Ensure all IDs are unique and valid in 'links' and 'childNodeIds'. Provide concise, one-sentence 'description' for every node and container.
+      5.  **Link Labeling**: For links, add a \`label\` property where it adds clarity to the interaction, such as 'API Call', 'Data Sync', or 'User Request'. Keep labels brief.
       
       **SPECIALIZED ARCHITECTURE RULES:**
 
@@ -123,7 +128,7 @@ export const generateDiagramData = async (prompt: string): Promise<DiagramData> 
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "You are an expert cloud and AI solutions architect with deep expertise in modern cloud-native patterns and specialized AI/ML architectures like RAG and deep learning pipelines. Your task is to generate a JSON representation of a structured, professional-grade software architecture diagram from a natural language prompt. You must strictly follow the provided JSON schema, ensuring a clean, tiered, and grid-aligned layout suitable for formal presentations. When a neural network is requested, you must switch to a specific neuron-and-layer generation style."
+        systemInstruction: "You are an expert cloud and AI solutions architect with a keen eye for visual design. Your task is to generate a JSON representation of a structured, professional-grade software architecture diagram from a natural language prompt. You must strictly follow the provided JSON schema. The final diagram should look like a polished, official reference architecture blueprint, emphasizing clarity, symmetry, and logical flow. Pay meticulous attention to creating a clean, tiered, and grid-aligned layout suitable for formal presentations. When a neural network is requested, you must switch to a specific neuron-and-layer generation style."
       },
     });
 
