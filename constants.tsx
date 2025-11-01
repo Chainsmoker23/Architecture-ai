@@ -140,6 +140,7 @@ export const FOOTER_LINKS = {
   links: [
     { name: 'About', href: '#' },
     { name: 'SDK', href: '#' },
+    { name: 'Docs', href: '#' },
     { name: 'Contact', href: '#' },
     { name: 'Privacy', href: '#' },
     { name: 'Terms', href: '#' },

@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 
 type Theme = 'light' | 'medium' | 'dark';
@@ -121,8 +120,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (error instanceof Error) {
         console.error(`Could not save theme to localStorage: ${error.message}`);
       } else {
-        // Fix: Log the error object directly to avoid type issues with template literals
-        // and provide better debugging information in the console.
+        // Fix: The 'error' object in a catch block is of type 'unknown'. To safely log it, we pass it as a separate argument to console.error.
         console.error('An unknown error occurred while saving theme to localStorage:', error);
       }
     }

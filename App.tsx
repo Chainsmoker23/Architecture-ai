@@ -18,6 +18,10 @@ import AuthPage from './components/AuthPage';
 import Playground from './components/Playground';
 import ArchitectureIcon from './components/ArchitectureIcon';
 import ApiKeyModal from './components/ApiKeyModal';
+import ApiKeyPage from './components/ApiKeyPage';
+import PrivacyPage from './components/PrivacyPage';
+import TermsPage from './components/TermsPage';
+import DocsPage from './components/DocsPage';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -59,7 +63,7 @@ const getFontStyles = async (): Promise<string> => {
 
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'landing' | 'app' | 'contact' | 'about' | 'sdk' | 'auth'>('landing');
+  const [currentPage, setCurrentPage] = useState<'landing' | 'app' | 'contact' | 'about' | 'sdk' | 'auth' | 'apiKey' | 'privacy' | 'terms' | 'docs'>('landing');
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [history, setHistory] = useState<(DiagramData | null)[]>([null]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -338,14 +342,14 @@ const App: React.FC = () => {
     setIsEditingTitle(false);
   };
   
+  const onNavigate = (page: 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs') => {
+    setCurrentPage(page);
+  };
+
   if (currentPage === 'landing') {
     return <LandingPage 
       onLaunch={() => setCurrentPage('auth')} 
-      onNavigate={(page) => {
-        if (page === 'contact') setCurrentPage('contact');
-        if (page === 'about') setCurrentPage('about');
-        if (page === 'sdk') setCurrentPage('sdk');
-      }} 
+      onNavigate={onNavigate} 
     />;
   }
   
@@ -354,15 +358,36 @@ const App: React.FC = () => {
   }
 
   if (currentPage === 'contact') {
-    return <ContactPage onBack={() => setCurrentPage('landing')} />;
+    return <ContactPage onBack={() => setCurrentPage('landing')} onNavigate={onNavigate} />;
   }
   
   if (currentPage === 'about') {
-    return <AboutPage onBack={() => setCurrentPage('landing')} onLaunch={() => setCurrentPage('auth')} />;
+    return <AboutPage onBack={() => setCurrentPage('landing')} onLaunch={() => setCurrentPage('auth')} onNavigate={onNavigate} />;
   }
   
   if (currentPage === 'sdk') {
-    return <SdkPage onBack={() => setCurrentPage('landing')} />;
+    return <SdkPage onBack={() => setCurrentPage('landing')} onNavigate={onNavigate} />;
+  }
+
+  if (currentPage === 'apiKey') {
+    return <ApiKeyPage onBack={() => setCurrentPage('landing')} onLaunch={() => setCurrentPage('auth')} onNavigate={onNavigate} />;
+  }
+
+  if (currentPage === 'privacy') {
+    return <PrivacyPage onBack={() => setCurrentPage('landing')} onNavigate={onNavigate} />;
+  }
+
+  if (currentPage === 'terms') {
+    return <TermsPage onBack={() => setCurrentPage('landing')} onNavigate={onNavigate} />;
+  }
+
+  if (currentPage === 'docs') {
+    return <DocsPage 
+      onBack={() => setCurrentPage('landing')} 
+      onLaunch={() => setCurrentPage('auth')} 
+      onNavigateToSdk={() => setCurrentPage('sdk')}
+      onNavigate={onNavigate}
+    />;
   }
 
   if (isPlaygroundMode && diagramData) {

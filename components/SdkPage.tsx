@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FOOTER_LINKS } from '../constants';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
+import SharedFooter from './SharedFooter';
+
+type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey';
 
 interface SdkPageProps {
   onBack: () => void;
+  onNavigate: (page: Page) => void;
 }
 
 const useTypewriter = (text: string, enabled: boolean, speed = 10) => {
@@ -137,7 +140,7 @@ print(response.json())`
 };
 
 
-const SdkPage: React.FC<SdkPageProps> = ({ onBack }) => {
+const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     const [apiKey, setApiKey] = useState('');
     const [isKeyLoading, setIsKeyLoading] = useState(false);
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'lifetime'>('monthly');
@@ -313,40 +316,12 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack }) => {
                         </motion.div>
                     ))}
                 </div>
-                 <p className="text-xs text-gray-400 mt-8">For custom enterprise needs, please <button className="underline hover:text-[#D6336C]">contact sales</button>.</p>
+                 <p className="text-xs text-gray-400 mt-8">For custom enterprise needs, please <button onClick={() => onNavigate('contact')} className="underline hover:text-[#D6336C]">contact sales</button>.</p>
             </div>
         </section>
       </main>
 
-      <footer className="bg-white">
-        <div className="container mx-auto px-6 py-12">
-          <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-left">
-            <div className="mb-6 md:mb-0">
-                <h3 className="text-2xl font-bold">Archi<span className="text-[#D6336C]">Gen</span> AI</h3>
-                <p className="text-[#555555]">Instant Architecture Design.</p>
-            </div>
-            <div className="flex items-center space-x-6 text-[#555555]">
-                {FOOTER_LINKS.links.map((link) => {
-                    if (link.name.toLowerCase() === 'sdk') {
-                        return <span key={link.name} className="font-semibold text-[#2B2B2B] cursor-default">{link.name}</span>;
-                    }
-                    return <a key={link.name} href={link.href} className="hover:text-[#2B2B2B] transition-colors">{link.name}</a>
-                })}
-            </div>
-          </div>
-          <div className="mt-8 border-t border-[#EAEAEA] pt-8 flex flex-col sm:flex-row justify-between items-center">
-            <p className="text-[#555555] text-sm">&copy; {new Date().getFullYear()} ArchiGen AI. All rights reserved.</p>
-            <div className="flex items-center space-x-4 mt-4 sm:mt-0">
-                {FOOTER_LINKS.socials.map((social) => (
-                    <a key={social.name} href={social.href} className="text-[#555555] hover:text-[#2B2B2B] transition-colors">
-                        <span className="sr-only">{social.name}</span>
-                        <social.icon className="h-6 w-6" aria-hidden="true" />
-                    </a>
-                ))}
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SharedFooter onNavigate={onNavigate} activePage="sdk" />
     </div>
   );
 };
