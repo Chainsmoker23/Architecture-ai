@@ -121,8 +121,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (error instanceof Error) {
         console.error(`Could not save theme to localStorage: ${error.message}`);
       } else {
-        // Explicitly convert the unknown error to a string for logging to prevent type errors.
-        console.error(`An unknown error occurred while saving theme to localStorage: ${String(error)}`);
+        // Fix: Log the error object directly to avoid type issues with template literals
+        // and provide better debugging information in the console.
+        console.error('An unknown error occurred while saving theme to localStorage:', error);
       }
     }
   }, [theme]);
