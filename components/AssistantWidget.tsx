@@ -41,17 +41,28 @@ const useTypewriter = (text: string, enabled: boolean, onComplete: () => void) =
     return displayedText;
 };
 
-const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowing, size = 120 }) => {
+const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowing, size = 80 }) => {
   return (
     <div className="quantum-core-wrapper" style={{ '--size': `${size}px` } as React.CSSProperties}>
       <style>{`
         .quantum-core-wrapper {
-          width: var(--size, 120px);
-          height: var(--size, 120px);
+          width: var(--size, 80px);
+          height: var(--size, 80px);
           perspective: 800px;
           position: relative;
           flex-shrink: 0;
           transform-style: preserve-3d;
+        }
+        
+        .quantum-core-nucleus-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0; left: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-style: preserve-3d;
         }
 
         .quantum-core-container {
@@ -69,11 +80,9 @@ const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowin
         }
 
         .quantum-core-nucleus {
-          position: absolute;
-          width: 40%;
-          height: 40%;
-          top: 30%;
-          left: 30%;
+          position: relative;
+          width: 45%;
+          height: 45%;
           border-radius: 50%;
           background: radial-gradient(circle, #fff 0%, #fbcfe8 50%, #f472b6 100%);
           box-shadow: 0 0 5px #fff, 0 0 10px #fbcfe8, 0 0 20px #f472b6, inset 0 0 5px #fff;
@@ -90,7 +99,7 @@ const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowin
           top: 0; left: 0;
           width: 100%; height: 100%;
           border-radius: 50%;
-          border: 3px solid rgba(50, 50, 50, 0.8);
+          border: 4px solid rgba(50, 50, 50, 0.8);
           box-shadow: 0 0 8px rgba(244, 114, 182, 0.3), inset 0 0 8px rgba(244, 114, 182, 0.2);
           transform-style: preserve-3d;
         }
@@ -99,23 +108,6 @@ const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowin
         .ring-2 { transform: rotateX(70deg) rotateY(60deg); }
         .ring-3 { transform: rotateX(70deg) rotateY(120deg); }
         
-        .quantum-core-particle {
-          position: absolute;
-          width: 4px;
-          height: 4px;
-          top: 50%; left: 50%;
-          margin-top: -2px; margin-left: -2px;
-          background: #fff;
-          border-radius: 50%;
-          box-shadow: 0 0 6px #fff, 0 0 12px #fbcfe8;
-          animation: particle-orbit var(--duration) infinite linear;
-        }
-
-        @keyframes particle-orbit {
-            from { transform: rotateZ(0deg) translateX(calc(var(--size, 120px) * 0.5)) rotateZ(0deg); }
-            to   { transform: rotateZ(360deg) translateX(calc(var(--size, 120px) * 0.5)) rotateZ(-360deg); }
-        }
-
         /* Glowing state */
         .quantum-core-container.glowing { animation-duration: 10s; }
         .quantum-core-nucleus.glowing { animation: nucleus-pulse-fast 1.2s infinite ease-in-out; }
@@ -137,20 +129,14 @@ const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowin
             border-color: rgba(244, 114, 182, 1);
             box-shadow: 0 0 10px #f472b6, 0 0 20px #f472b6, inset 0 0 10px rgba(244, 114, 182, 0.5);
         }
-
-        .glowing .quantum-core-particle { animation-duration: calc(var(--duration) / 3) !important; }
       `}</style>
-      <div className={`quantum-core-nucleus ${isGlowing ? 'glowing' : ''}`}></div>
+      <div className="quantum-core-nucleus-container">
+        <div className={`quantum-core-nucleus ${isGlowing ? 'glowing' : ''}`}></div>
+      </div>
       <div className={`quantum-core-container ${isGlowing ? 'glowing' : ''}`}>
-        <div className="quantum-core-ring ring-1">
-          <div className="quantum-core-particle" style={{'--duration': '5s'} as React.CSSProperties}></div>
-        </div>
-        <div className="quantum-core-ring ring-2">
-          <div className="quantum-core-particle" style={{'--duration': '4s'} as React.CSSProperties}></div>
-        </div>
-        <div className="quantum-core-ring ring-3">
-          <div className="quantum-core-particle" style={{'--duration': '6s'} as React.CSSProperties}></div>
-        </div>
+        <div className="quantum-core-ring ring-1"></div>
+        <div className="quantum-core-ring ring-2"></div>
+        <div className="quantum-core-ring ring-3"></div>
       </div>
     </div>
   );
@@ -281,7 +267,7 @@ const AssistantWidget: React.FC = () => {
           >
             <div className="p-3 py-6 border-b border-pink-500/20 flex justify-center items-center relative bg-transparent">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(244,114,182,0.15)_0%,_transparent_70%)] -z-1" />
-              <QuantumCore isGlowing={isAiActive} size={100} />
+              <QuantumCore isGlowing={isAiActive} size={80} />
             </div>
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
               {messages.map((msg, index) => {
