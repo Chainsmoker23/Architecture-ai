@@ -22,8 +22,8 @@ const responseSchema = {
         properties: {
           id: { type: Type.STRING, description: "A unique, kebab-case identifier for the node (e.g., 'web-server-1')." },
           label: { type: Type.STRING, description: "The human-readable name of the component (e.g., 'EC2 Instance')." },
-          type: { type: Type.STRING, description: "The type of component for icon mapping. Use one of the predefined types like 'aws-ec2', 'user', 'database', 'neuron', 'layer-label'." },
-          description: { type: Type.STRING, description: "A brief, one-sentence description of the node's purpose. For 'neuron' and 'layer-label' types, this can be an empty string." },
+          type: { type: Type.STRING, description: "The type of component for icon mapping. Use one of the predefined types like 'aws-ec2', 'user', 'database', 'neuron', 'layer-label', 'group-label'." },
+          description: { type: Type.STRING, description: "A brief, one-sentence description of the node's purpose. For 'neuron', 'layer-label', or 'group-label' types, this can be an empty string." },
           x: { type: Type.NUMBER, description: "The initial horizontal position of the node's center on a 1200x800 canvas." },
           y: { type: Type.NUMBER, description: "The initial vertical position of the node's center." },
           width: { type: Type.NUMBER, description: "The initial width of the node. For 'neuron' type, this should be small (e.g., 30). For 'layer-label' this should be wide enough for the text." },
@@ -44,6 +44,8 @@ const responseSchema = {
           target: { type: Type.STRING, description: "The 'id' of the target node." },
           label: { type: Type.STRING, description: "Optional label for the connection to indicate data flow (e.g., 'HTTP Request')." },
           style: { type: Type.STRING, description: "The line style. Can be 'solid', 'dotted', or 'dashed'." },
+          thickness: { type: Type.STRING, description: "The thickness of the link. Can be 'thin', 'medium', or 'thick'." },
+          bidirectional: { type: Type.BOOLEAN, description: "If true, the link will have arrowheads on both ends." },
         },
         required: ["id", "source", "target"],
       },
@@ -86,42 +88,40 @@ export const generateDiagramData = async (prompt: string): Promise<DiagramData> 
       1.  **Aesthetic Layout Principles**:
           *   **Clarity and Flow**: Arrange components to represent a clear, logical data flow, typically from left-to-right or top-to-bottom.
           *   **Symmetry and Balance**: Strive for a balanced and symmetrical layout. Align nodes both vertically and horizontally to create a clean, grid-like structure.
-          *   **Grouping**: Use 'containers' effectively to group related components into logical zones like 'tiers', 'regions', or 'services'. Containers should be sized appropriately to enclose their children with ample padding.
+          *   **Grouping**: Use 'containers' effectively to group related components into logical zones. For conceptual groupings within a container (e.g., a "Decision-Making Process" section), use a node of type \`group-label\` to act as a text heading.
+          *   **Hierarchy**: Create visual hierarchy by nesting 'tier' containers and using different link thicknesses.
           *   **Spacing**: Ensure generous and consistent spacing between all elements (nodes, containers) to avoid clutter. There must be NO overlaps.
       2.  **Coordinates**: All 'x' and 'y' coordinates are absolute, based on a 1200x800 canvas with (0,0) at the top-left. Node positions are center-based. Container positions are top-left based.
-      3.  **Sizing**: Calculate an appropriate 'width' and 'height' for each node based on its label to prevent text overflow. Min width 120, min height 80 (unless it's a special type like 'neuron').
+      3.  **Sizing**: Calculate an appropriate 'width' and 'height' for each node based on its label to prevent text overflow. Min width 120, min height 80 (unless it's a special type like 'neuron' or 'group-label').
       4.  **IDs & Connectivity**: Ensure all IDs are unique and valid in 'links' and 'childNodeIds'. Provide concise, one-sentence 'description' for every node and container.
-      5.  **Link Labeling**: For links, add a \`label\` property where it adds clarity to the interaction, such as 'API Call', 'Data Sync', or 'User Request'. Keep labels brief.
+      
+      **LINK & ARROW RULES:**
+      1.  **Thickness**: Use the optional 'thickness' property on links. Use \`'thick'\` for major connections between high-level containers/groups. Use \`'medium'\` or \`'thin'\` for internal connections. Default is 'medium' if unspecified.
+      2.  **Bidirectional**: For feedback loops or mutual interactions, set \`bidirectional: true\` on the link.
+      3.  **Labeling**: Add a \`label\` where it adds clarity, such as 'API Call', 'Data Sync', or 'User Request'. Keep labels brief.
       
       **SPECIALIZED ARCHITECTURE RULES:**
 
-      **1. Neural Network / Deep Learning Architectures:**
+      **1. Conceptual & Agent-Based Architectures (like the "Agent Safety" example):**
+      - **Hierarchical Containers**: Use large 'tier' containers for top-level concepts (e.g., 'Agent Intrinsic Safety'). Place smaller 'tier' containers inside for sub-sections ('Perception', 'Brain', 'Action').
+      - **Group Labels**: Inside containers like 'Brain', use a \`group-label\` node to create text headings for different processes (e.g., "LLM Training", "Decision-Making Process").
+      - **Icons**: Use conceptual icons from the list like 'brain', 'perception', 'action', 'planning', 'memory', 'environment'.
+      - **Flow**: Use thick arrows to connect the main stages. Use bidirectional arrows for interaction loops.
+
+      **2. Neural Network / Deep Learning Architectures:**
       - **Detection**: If the prompt contains keywords like "neural network", "deep learning model", "fully connected layers", "MLP", "input layer", "hidden layer", or "output layer", you MUST generate the diagram using this specific style.
       - **Node Types**:
         - Use the type \`neuron\` for all circular nodes representing individual neurons.
         - Use the type \`layer-label\` for the text labels "Input", "Hidden", "Output" placed above the layers.
-      - **Layout**:
-        - Arrange all 'neuron' nodes in distinct, perfectly aligned vertical columns.
-        - Place a 'layer-label' node centered above each column of neurons.
-      - **Styling**:
-        - Input and Output layer neurons MUST have the 'color' property set to '#000000'.
-        - Hidden layer neurons MUST have the 'color' property set to '#CCCCCC'.
-        - All links between neurons should be 'solid' and have no label.
+      - **Layout**: Arrange all 'neuron' nodes in distinct, perfectly aligned vertical columns. Place a 'layer-label' node centered above each column.
+      - **Styling**: Input/Output layer neurons MUST have 'color' set to '#000000'. Hidden layer neurons MUST have 'color' set to '#CCCCCC'. Links should be 'thin' and 'solid'.
       - **Connectivity**: For fully connected layers, create a 'link' from EVERY neuron in a layer to EVERY neuron in the subsequent layer.
-      - **Example**: For a prompt "a neural network with 1 input layer of 3 neurons, 2 hidden layers of 4 neurons each, and 1 output layer of 2 neurons", you will generate 3 black input neurons, 8 grey hidden neurons (in two columns), 2 black output neurons, and all the connecting links. You will also generate the 'layer-label' nodes for "Input", "Hidden", "Hidden", and "Output".
 
-      **2. RAG (Retrieval-Augmented Generation):**
-      - **Flow**: User -> App -> 'embedding-model' -> Search in 'vector-database' -> Context + Query to 'prompt-manager' -> 'llm'/'gemini' -> Answer.
-      - A 'knowledge-base' or 'document-loader' can be shown as the source for the vector database.
-      
       **3. Standard Cloud/Microservice Architectures:**
-      - Use 'containers' to group components into logical tiers (e.g., "Web Tier", "Application Tier", "Data Tier") or cloud constructs like Regions and Availability Zones.
-      - Use the most specific icon 'type' available from the schema's list. Examples:
+      - Use 'containers' to group components into logical tiers (e.g., "Web Tier", "Application Tier", "Data Tier").
+      - Use the most specific icon 'type' available. Examples:
         - **AI/ML**: 'llm', 'gemini', 'chat-gpt', 'vector-database', 'embedding-model', 'gpu'.
         - **Cloud**: 'aws-ec2', 'aws-s3', 'azure-vm', 'gcp-compute-engine'.
-        - **Databases**: 'mongodb', 'mysql', 'postgresql', 'database'.
-        - **Dev**: 'javascript', 'python', 'react-js', 'next-js', 'node-js', 'nginx', 'kubernetes', 'docker'.
-        - **Security**: 'firewall', 'auth-service', 'secrets-manager'.
         - **Generic**: 'cloud', 'api', 'web-server', 'user', 'mobile', 'web-app', 'cache'.
 
       Produce a diagram that looks like a polished, official reference architecture blueprint.`,
@@ -146,7 +146,10 @@ export const generateDiagramData = async (prompt: string): Promise<DiagramData> 
     return parsedData as DiagramData;
   } catch (error) {
     console.error("Error generating diagram data:", error);
-    throw new Error("Failed to generate diagram. The model may have returned an invalid format.");
+    if (error instanceof Error && (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429'))) {
+        throw new Error("API quota exceeded. Please check your Gemini API plan and billing details.");
+    }
+    throw new Error("Failed to generate diagram. The model may have returned an invalid format or an unexpected error occurred.");
   }
 };
 
@@ -164,7 +167,10 @@ export const explainArchitecture = async (diagramData: DiagramData): Promise<str
         return response.text;
     } catch (error) {
         console.error("Error explaining architecture:", error);
-        throw new Error("Failed to generate explanation.");
+        if (error instanceof Error && (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429'))) {
+            throw new Error("API quota exceeded. Please check your Gemini API plan and billing details.");
+        }
+        throw new Error("Failed to generate explanation due to an unexpected error.");
     }
 }
 
@@ -183,6 +189,9 @@ export const chatWithAssistant = async (history: Content[]): Promise<string> => 
     return response.text;
   } catch (error) {
     console.error("Error with assistant chat:", error);
+    if (error instanceof Error && (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429'))) {
+        throw new Error("I seem to have hit my API quota limit. Please check your Gemini API plan and billing details.");
+    }
     throw new Error("Sorry, I'm having trouble connecting right now.");
   }
 };

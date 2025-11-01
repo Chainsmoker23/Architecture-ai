@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { select, pointer } from 'd3-selection';
 import { drag } from 'd3-drag';
@@ -201,6 +199,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
           <marker id="arrowhead" viewBox="-0 -5 10 10" refX="5" refY="0" orient="auto" markerWidth="6" markerHeight="6" overflow="visible">
             <path d="M 0,-5 L 10 ,0 L 0,5" style={{ stroke: 'none' }}></path>
           </marker>
+          <marker id="arrowhead-reverse" viewBox="-10 -5 10 10" refX="-5" refY="0" orient="auto" markerWidth="6" markerHeight="6" overflow="visible">
+            <path d="M 0,-5 L -10 ,0 L 0,5" style={{ stroke: 'none' }}></path>
+          </marker>
           <filter id="drop-shadow" x="-50%" y="-50%" width="200%" height="200%">
               <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="var(--color-shadow)" floodOpacity="0.1" />
           </filter>
@@ -287,8 +288,6 @@ interface DraggableProps {
     interactionMode: InteractionMode;
 }
 
-// Fix: Converted to React.FC to correctly handle props like 'key'.
-// Fix: Replaced non-functional 'className' for cursor with 'style.cursor' for correct behavior on SVG elements.
 const DiagramContainer: React.FC<{
     container: Container;
     isSelected: boolean;
@@ -368,7 +367,6 @@ const DiagramContainer: React.FC<{
     );
 }
 
-// Fix: Converted to React.FC to correctly handle props like 'key' and resolve potential type inference issues.
 const DiagramNode: React.FC<{
     node: Node;
     isSelected: boolean;
@@ -459,7 +457,7 @@ const DiagramNode: React.FC<{
         );
     }
 
-    if (node.type === 'layer-label') {
+    if (node.type === 'layer-label' || node.type === 'group-label') {
         return (
              <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x}, ${node.y})`}
                style={{ cursor: getCursor(), pointerEvents: 'none' }} >
@@ -467,7 +465,7 @@ const DiagramNode: React.FC<{
                     textAnchor="middle" 
                     dominantBaseline="middle"
                     fill="var(--color-text-primary)"
-                    fontSize="16"
+                    fontSize={node.type === 'group-label' ? "18" : "16"}
                     fontWeight="600"
                 >
                     {node.label}
@@ -571,28 +569,49 @@ const getDashArray = (style?: 'solid' | 'dotted' | 'dashed') => {
     }
 }
 
-// Fix: Converted to React.FC to correctly handle props like 'key'.
+const getStrokeWidth = (thickness?: 'thin' | 'medium' | 'thick', isSelected?: boolean) => {
+    const baseWidth = { thin: 1.5, medium: 2, thick: 3.5 }[thickness || 'medium'];
+    return isSelected ? baseWidth + 1.5 : baseWidth;
+}
+
 const DiagramLink: React.FC<{ link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, link: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void, isSelected: boolean }> = ({ link, source, target, obstacles, onContextMenu, onSelect, isSelected }) => {
     const isNeuronLink = source.type === 'neuron' && target.type === 'neuron';
     const pathPoints = useMemo(() => getOrthogonalPath(source, target, obstacles), [source, target, obstacles]);
     
     if (pathPoints.length < 2) return null;
 
+    const startPoint = pathPoints[0];
+    const nextToStartPoint = pathPoints[1];
     const endPoint = pathPoints[pathPoints.length - 1];
     const prevPoint = pathPoints[pathPoints.length - 2];
     
-    const dx = endPoint.x - prevPoint.x;
-    const dy = endPoint.y - prevPoint.y;
-    const length = Math.sqrt(dx*dx + dy*dy);
+    const dxEnd = endPoint.x - prevPoint.x;
+    const dyEnd = endPoint.y - prevPoint.y;
+    const lengthEnd = Math.sqrt(dxEnd*dxEnd + dyEnd*dyEnd);
     
-    if (length > 0) {
-        const unitDx = dx/length;
-        const unitDy = dy/length;
+    if (lengthEnd > 0) {
+        const unitDx = dxEnd/lengthEnd;
+        const unitDy = dyEnd/lengthEnd;
         const targetRadius = isNeuronLink ? target.width / 2 : Math.max(target.width, target.height) / 2;
         const inset = isNeuronLink ? 0 : 0.5;
         pathPoints[pathPoints.length - 1] = {
             x: endPoint.x - unitDx * (targetRadius * inset),
             y: endPoint.y - unitDy * (targetRadius * inset)
+        };
+    }
+
+    const dxStart = startPoint.x - nextToStartPoint.x;
+    const dyStart = startPoint.y - nextToStartPoint.y;
+    const lengthStart = Math.sqrt(dxStart * dxStart + dyStart * dyStart);
+
+    if (link.bidirectional && lengthStart > 0) {
+        const unitDx = dxStart / lengthStart;
+        const unitDy = dyStart / lengthStart;
+        const sourceRadius = isNeuronLink ? source.width / 2 : Math.max(source.width, source.height) / 2;
+        const inset = isNeuronLink ? 0 : 0.5;
+        pathPoints[0] = {
+            x: startPoint.x - unitDx * (sourceRadius * inset),
+            y: startPoint.y - unitDy * (sourceRadius * inset)
         };
     }
     
@@ -606,12 +625,13 @@ const DiagramLink: React.FC<{ link: Link, source: Node, target: Node, obstacles:
     const midX = (midPoint1.x + midPoint2.x) / 2;
     const midY = (midPoint1.y + midPoint2.y) / 2;
     const strokeColor = link.color || (isNeuronLink ? '#000000' : 'var(--color-link)');
-    const strokeWidth = isSelected ? 3 : (isNeuronLink ? 1 : 2);
+    const strokeWidth = getStrokeWidth(isNeuronLink ? 'thin' : link.thickness, isSelected);
 
     return (
         <g onContextMenu={(e) => onContextMenu(e, link)} onClick={(e) => onSelect(e, link.id)}>
             <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none"
                   strokeDasharray={getDashArray(link.style)}
+                  markerStart={link.bidirectional ? "url(#arrowhead-reverse)" : undefined}
                   markerEnd={isNeuronLink ? undefined : "url(#arrowhead)"}
                   className="transition-all" />
             <path d={pathD} stroke="transparent" strokeWidth="15" fill="none" className="cursor-pointer" />

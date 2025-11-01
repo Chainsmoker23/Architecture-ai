@@ -19,6 +19,8 @@ export interface Link {
   label?: string;
   style?: 'solid' | 'dotted' | 'dashed';
   color?: string;
+  thickness?: 'thin' | 'medium' | 'thick';
+  bidirectional?: boolean;
 }
 
 export interface Container {
@@ -134,6 +136,20 @@ export enum IconType {
   DataPreprocessing = 'data-preprocessing',
   Neuron = 'neuron',
   LayerLabel = 'layer-label',
+
+  // --- Conceptual ---
+  Brain = 'brain',
+  Planning = 'planning',
+  Perception = 'perception',
+  Action = 'action',
+  Environment = 'environment',
+  Memory = 'memory',
+  Interaction = 'interaction',
+  WorldKnowledge = 'world-knowledge',
+  InputEncoder = 'input-encoder',
+  Simulation = 'simulation',
+  Embody = 'embody',
+  GroupLabel = 'group-label',
 
   // --- Databases ---
   Database = 'database',
