@@ -175,12 +175,12 @@ export enum IconType {
   Cloud = 'cloud',
   ManagementConsole = 'management-console',
   Microsoft = 'microsoft',
-  // Fix: Add new IconType members for landing page icons
   Google = 'google',
   Playground = 'playground',
   FileCode = 'file-code',
   Message = 'message',
   Sparkles = 'sparkles',
   Edit = 'edit',
+  Gear = 'gear',
   Generic = 'generic',
 }

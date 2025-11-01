@@ -17,6 +17,7 @@ import SdkPage from './components/SdkPage';
 import AuthPage from './components/AuthPage';
 import Playground from './components/Playground';
 import ArchitectureIcon from './components/ArchitectureIcon';
+import ApiKeyModal from './components/ApiKeyModal';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -78,6 +79,24 @@ const App: React.FC = () => {
   
   const svgRef = useRef<SVGSVGElement>(null);
   const fitScreenRef = useRef<(() => void) | null>(null);
+  
+  const [userApiKey, setUserApiKey] = useState<string | null>(() => {
+    try { return window.localStorage.getItem('user-api-key'); } catch { return null; }
+  });
+  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
+  const [lastAction, setLastAction] = useState<{ type: 'generate' | 'explain', payload: any } | null>(null);
+
+  useEffect(() => {
+    try {
+        if (userApiKey) {
+            window.localStorage.setItem('user-api-key', userApiKey);
+        } else {
+            window.localStorage.removeItem('user-api-key');
+        }
+    } catch (error) {
+        console.error("Could not access localStorage to save API key:", error);
+    }
+  }, [userApiKey]);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -219,7 +238,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleGenerate = useCallback(async () => {
+  const handleGenerate = useCallback(async (keyOverride?: string) => {
     if (!prompt) {
       setError("Please enter a prompt.");
       return;
@@ -231,33 +250,63 @@ const App: React.FC = () => {
     setSelectedIds([]);
 
     try {
-      const data = await generateDiagramData(prompt);
+      const apiKeyToUse = keyOverride || userApiKey;
+      const data = await generateDiagramData(prompt, apiKeyToUse || undefined);
       setHistory([data]);
       setHistoryIndex(0);
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "An unknown error occurred during generation.");
-      setHistory([null]);
-      setHistoryIndex(0);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+      if (errorMessage.includes('quota exceeded')) {
+          setLastAction({ type: 'generate', payload: prompt });
+          setShowApiKeyModal(true);
+          setError(null);
+      } else {
+          setError(errorMessage);
+          setHistory([null]);
+          setHistoryIndex(0);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [prompt]);
+  }, [prompt, userApiKey]);
   
-  const handleExplain = useCallback(async () => {
+  const handleExplain = useCallback(async (keyOverride?: string) => {
     if (!diagramData) return;
     setIsExplaining(true);
+    setError(null);
     try {
-      const explanation = await explainArchitecture(diagramData);
+      const apiKeyToUse = keyOverride || userApiKey;
+      const explanation = await explainArchitecture(diagramData, apiKeyToUse || undefined);
       setSummary(explanation);
       setShowSummaryModal(true);
     } catch (err) {
        console.error(err);
-       setError(err instanceof Error ? err.message : "An unknown error occurred during explanation.");
+       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+       if (errorMessage.includes('quota exceeded')) {
+            setLastAction({ type: 'explain', payload: diagramData });
+            setShowApiKeyModal(true);
+            setError(null);
+       } else {
+           setError(errorMessage);
+       }
     } finally {
         setIsExplaining(false);
     }
-  }, [diagramData]);
+  }, [diagramData, userApiKey]);
+
+  const handleSaveAndRetryApiKey = (key: string) => {
+    setUserApiKey(key);
+    setShowApiKeyModal(false);
+    setError(null);
+
+    if (lastAction?.type === 'generate') {
+      handleGenerate(key);
+    } else if (lastAction?.type === 'explain') {
+      handleExplain(key);
+    }
+    setLastAction(null);
+  };
 
   const handleFitToScreen = () => {
     fitScreenRef.current?.();
@@ -347,7 +396,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex transition-colors duration-300">
-      <SettingsSidebar />
+      <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
       <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6">
         <header className="w-full max-w-7xl mx-auto text-center">
           <motion.h1 
@@ -372,7 +421,7 @@ const App: React.FC = () => {
             <PromptInput
               prompt={prompt}
               setPrompt={setPrompt}
-              onGenerate={handleGenerate}
+              onGenerate={() => handleGenerate()}
               isLoading={isLoading}
             />
           </aside>
@@ -437,7 +486,7 @@ const App: React.FC = () => {
                   <div className="flex-shrink-0">
                     <Toolbar 
                         onExport={handleExport}
-                        onExplain={handleExplain}
+                        onExplain={() => handleExplain()}
                         isExplaining={isExplaining}
                         onUndo={handleUndo}
                         onRedo={handleRedo}
@@ -479,6 +528,19 @@ const App: React.FC = () => {
       <AnimatePresence>
         {showSummaryModal && summary && (
           <SummaryModal summary={summary} onClose={() => setShowSummaryModal(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showApiKeyModal && (
+            <ApiKeyModal
+                onClose={() => {
+                    setShowApiKeyModal(false);
+                    setLastAction(null);
+                    setError("Generation cancelled. Please provide an API key in settings to proceed.");
+                }}
+                onSave={handleSaveAndRetryApiKey}
+            />
         )}
       </AnimatePresence>
     </div>

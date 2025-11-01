@@ -40,6 +40,14 @@
               radial-gradient(at 80% 10%, hsla(333, 70%, 95%, 1) 0px, transparent 50%),
               radial-gradient(at 85% 85%, hsla(218, 70%, 95%, 1) 0px, transparent 50%);
       }
+      .sdk-hero-bg {
+          background-color: #ffffff;
+          background-image:
+              radial-gradient(at 10% 20%, hsla(333, 70%, 95%, 0.8) 0px, transparent 50%),
+              radial-gradient(at 80% 10%, hsla(218, 70%, 95%, 0.6) 0px, transparent 50%),
+              radial-gradient(at 75% 80%, hsla(333, 70%, 95%, 0.7) 0px, transparent 50%),
+              radial-gradient(at 20% 90%, hsla(190, 60%, 95%, 0.5) 0px, transparent 50%);
+      }
 
       @keyframes background-pan {
           0% { background-position: 0% 50%; }
@@ -78,6 +86,16 @@
         from { transform: translateX(0); }
         to { transform: translateX(-50%); }
       }
+
+      /* Syntax Highlighting for SDK Page */
+      .token.punctuation { color: #A8A8A8; }
+      .token.keyword { color: #FC5FA3; }
+      .token.string { color: #91F3C4; }
+      .token.number { color: #91F3C4; }
+      .token.property-access, .token.property { color: #82AAFF; }
+      .token.function { color: #61DAFB; }
+      .token.operator { color: #FC5FA3; }
+      .token.plain-text { color: #E5E5E5; }
     </style>
   <script type="importmap">
 {

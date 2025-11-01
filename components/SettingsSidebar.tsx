@@ -1,11 +1,26 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeProvider';
 
-const SettingsSidebar = () => {
+interface SettingsSidebarProps {
+  userApiKey: string | null;
+  setUserApiKey: (key: string | null) => void;
+}
+
+const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserApiKey }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  
+  // State for managing the API key form
+  const [isEditing, setIsEditing] = useState(!userApiKey);
+  const [editingKey, setEditingKey] = useState(userApiKey || '');
+  const [showSaved, setShowSaved] = useState(false);
+
+  useEffect(() => {
+    // Sync local state if the userApiKey prop changes from outside
+    setIsEditing(!userApiKey);
+    setEditingKey(userApiKey || '');
+  }, [userApiKey]);
 
   const sidebarVariants: Variants = {
     closed: { x: '-100%', transition: { type: 'spring', stiffness: 400, damping: 40 } },
@@ -18,6 +33,31 @@ const SettingsSidebar = () => {
     { value: 'dark', label: 'Dark' },
   ] as const;
 
+  const handleKeySave = () => {
+    const trimmedKey = editingKey.trim();
+    setUserApiKey(trimmedKey ? trimmedKey : null);
+    setShowSaved(true);
+    setTimeout(() => setShowSaved(false), 2000);
+    if (trimmedKey) {
+        setIsEditing(false); // Switch to view mode on successful save
+    }
+  };
+
+  const handleClearKey = () => {
+      setUserApiKey(null);
+      // The useEffect will handle setting isEditing and editingKey
+  };
+  
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingKey(userApiKey || ''); // Reset any changes
+  };
+  
+  const formVariants: Variants = {
+    hidden: { opacity: 0, y: -10, transition: { duration: 0.2 } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, delay: 0.1 } },
+    exit: { opacity: 0, y: 10, transition: { duration: 0.2 } },
+  };
 
   return (
     <>
@@ -46,7 +86,7 @@ const SettingsSidebar = () => {
               initial="closed"
               animate="open"
               exit="closed"
-              className="fixed top-0 left-0 bottom-0 w-72 bg-gradient-to-b from-[var(--color-accent-soft)] to-[var(--color-panel-bg)] border-r border-[var(--color-border)] shadow-xl z-50 p-6 flex flex-col"
+              className="fixed top-0 left-0 bottom-0 w-80 bg-[var(--color-panel-bg)] border-r border-[var(--color-border)] shadow-xl z-50 p-6 flex flex-col"
             >
               <div className="flex justify-between items-center mb-8">
                 <h2 className="text-2xl font-bold">Settings</h2>
@@ -61,7 +101,7 @@ const SettingsSidebar = () => {
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-8">
                  <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Theme</h3>
                     <div className="flex items-center space-x-2 bg-[var(--color-bg-input)] p-1 rounded-xl border border-[var(--color-border)]">
@@ -76,6 +116,69 @@ const SettingsSidebar = () => {
                              {option.label}
                            </button>
                         ))}
+                    </div>
+                 </div>
+
+                 <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">API Key</h3>
+                    <div className="bg-[var(--color-bg-input)] p-4 rounded-xl border border-[var(--color-border)]">
+                      <AnimatePresence mode="wait">
+                        {userApiKey && !isEditing ? (
+                          <motion.div
+                            key="view"
+                            variants={formVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                          >
+                             <p className="text-sm text-[var(--color-text-secondary)]">Your personal key is active.</p>
+                             <div className="bg-[var(--color-bg)] p-3 rounded-lg my-2 border border-[var(--color-border)]">
+                                <p className="font-mono text-sm text-[var(--color-text-primary)]" aria-label={`API key ending in ${userApiKey.slice(-4)}`}>
+                                    ••••••••••••••••••••{userApiKey.slice(-4)}
+                                </p>
+                             </div>
+                             <div className="flex items-center gap-2 mt-3">
+                                <button onClick={() => setIsEditing(true)} className="flex-1 bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">Change</button>
+                                <button onClick={handleClearKey} className="text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">Remove</button>
+                            </div>
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="edit"
+                            variants={formVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                          >
+                            <p className="text-sm text-[var(--color-text-secondary)] mb-2">
+                               {userApiKey ? 'Update your key or clear to use the shared key.' : 'Add your own key to bypass usage limits.'}
+                            </p>
+                            <div>
+                               <input
+                                    id="api-key-input"
+                                    type="password"
+                                    value={editingKey}
+                                    onChange={(e) => setEditingKey(e.target.value)}
+                                    placeholder="Paste your API key here"
+                                    className="w-full mt-1 p-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
+                               />
+                               <a href="https://ai.google.dev/" target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--color-accent-text)] hover:underline mt-1 inline-block">
+                                    Get a key from Google AI Studio
+                               </a>
+                            </div>
+                             <div className="flex items-center gap-2 mt-3">
+                                 <button onClick={handleKeySave} className="flex-1 bg-[var(--color-accent)] text-[var(--color-accent-text-strong)] text-sm font-semibold py-2 px-3 rounded-lg hover:opacity-90 transition-opacity relative">
+                                    {showSaved ? 'Saved!' : (userApiKey ? 'Update Key' : 'Save Key')}
+                                 </button>
+                                 {userApiKey && isEditing && (
+                                    <button onClick={handleCancelEdit} className="bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">
+                                        Cancel
+                                    </button>
+                                 )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                  </div>
               </div>

@@ -1,13 +1,23 @@
 import { GoogleGenAI, Type, Content } from "@google/genai";
 import { DiagramData } from "../types";
 
-const API_KEY = process.env.API_KEY;
+// Helper function to get a Gemini AI client instance.
+// It prioritizes a user-provided API key. If not present, it falls back to the environment variable.
+const getGenAIClient = (userApiKey?: string) => {
+  // A non-empty user API key takes precedence.
+  if (userApiKey) {
+    return new GoogleGenAI({ apiKey: userApiKey });
+  }
 
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
+  // Otherwise, use the shared environment key.
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API_KEY is not configured. Please set it in environment variables or provide one.");
+  }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+  return new GoogleGenAI({ apiKey });
+};
+
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -77,8 +87,9 @@ const responseSchema = {
 };
 
 
-export const generateDiagramData = async (prompt: string): Promise<DiagramData> => {
+export const generateDiagramData = async (prompt: string, userApiKey?: string): Promise<DiagramData> => {
   try {
+    const ai = getGenAIClient(userApiKey);
     const response = await ai.models.generateContent({
       model: "gemini-2.5-pro",
       contents: `Generate a professional software architecture diagram based on the following prompt: "${prompt}".
@@ -146,16 +157,26 @@ export const generateDiagramData = async (prompt: string): Promise<DiagramData> 
     return parsedData as DiagramData;
   } catch (error) {
     console.error("Error generating diagram data:", error);
-    if (error instanceof Error && (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429'))) {
-        throw new Error("API quota exceeded. Please check your Gemini API plan and billing details.");
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {
+        throw new Error("Your API key is invalid. Please check it in the settings and try again.");
+    }
+    if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('429')) {
+        if (userApiKey) {
+            throw new Error("Your API key has exceeded its quota. Please check your usage on the Google AI platform.");
+        }
+        // This specific message triggers the modal in App.tsx for the shared key.
+        throw new Error("API quota exceeded. Please provide your own API key or try again later.");
     }
     throw new Error("Failed to generate diagram. The model may have returned an invalid format or an unexpected error occurred.");
   }
 };
 
 
-export const explainArchitecture = async (diagramData: DiagramData): Promise<string> => {
+export const explainArchitecture = async (diagramData: DiagramData, userApiKey?: string): Promise<string> => {
     try {
+        const ai = getGenAIClient(userApiKey);
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `Please provide a concise but comprehensive explanation of the following software architecture, which is provided in JSON format. Describe the role of each component and how they interact with each other based on the connections. Explain the overall purpose and flow of the system. Format the output as clean markdown.\n\nArchitecture Data:\n${JSON.stringify(diagramData, null, 2)}`,
@@ -167,15 +188,24 @@ export const explainArchitecture = async (diagramData: DiagramData): Promise<str
         return response.text;
     } catch (error) {
         console.error("Error explaining architecture:", error);
-        if (error instanceof Error && (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429'))) {
-            throw new Error("API quota exceeded. Please check your Gemini API plan and billing details.");
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {
+            throw new Error("Your API key is invalid. Please check it in the settings and try again.");
+        }
+        if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('429')) {
+            if (userApiKey) {
+                throw new Error("Your API key has exceeded its quota. Please check your usage on the Google AI platform.");
+            }
+            throw new Error("API quota exceeded. Please provide your own API key or try again later.");
         }
         throw new Error("Failed to generate explanation due to an unexpected error.");
     }
 }
 
-export const chatWithAssistant = async (history: Content[]): Promise<string> => {
+export const chatWithAssistant = async (history: Content[], userApiKey?: string): Promise<string> => {
   try {
+    const ai = getGenAIClient(userApiKey);
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: history,
@@ -189,8 +219,16 @@ export const chatWithAssistant = async (history: Content[]): Promise<string> => 
     return response.text;
   } catch (error) {
     console.error("Error with assistant chat:", error);
-    if (error instanceof Error && (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429'))) {
-        throw new Error("I seem to have hit my API quota limit. Please check your Gemini API plan and billing details.");
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {
+        throw new Error("Your API key seems to be invalid. Please check it and try again.");
+    }
+    if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('429')) {
+        if (userApiKey) {
+            throw new Error("Your API key seems to have hit its usage limit.");
+        }
+        throw new Error("I seem to have hit my API quota limit. You can add your own key in the main app's settings.");
     }
     throw new Error("Sorry, I'm having trouble connecting right now.");
   }
