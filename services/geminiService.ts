@@ -167,7 +167,7 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
             throw new Error("Your API key has exceeded its quota. Please check your usage on the Google AI platform.");
         }
         // This specific message triggers the modal in App.tsx for the shared key.
-        throw new Error("API quota exceeded. Please provide your own API key or try again later.");
+        throw new Error("SHARED_KEY_QUOTA_EXCEEDED");
     }
     throw new Error("Failed to generate diagram. The model may have returned an invalid format or an unexpected error occurred.");
   }
@@ -197,7 +197,7 @@ export const explainArchitecture = async (diagramData: DiagramData, userApiKey?:
             if (userApiKey) {
                 throw new Error("Your API key has exceeded its quota. Please check your usage on the Google AI platform.");
             }
-            throw new Error("API quota exceeded. Please provide your own API key or try again later.");
+            throw new Error("SHARED_KEY_QUOTA_EXCEEDED");
         }
         throw new Error("Failed to generate explanation due to an unexpected error.");
     }

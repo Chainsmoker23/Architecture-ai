@@ -257,7 +257,7 @@ const App: React.FC = () => {
     } catch (err) {
       console.error(err);
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      if (errorMessage.includes('quota exceeded')) {
+      if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
           setLastAction({ type: 'generate', payload: prompt });
           setShowApiKeyModal(true);
           setError(null);
@@ -283,7 +283,7 @@ const App: React.FC = () => {
     } catch (err) {
        console.error(err);
        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-       if (errorMessage.includes('quota exceeded')) {
+       if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
             setLastAction({ type: 'explain', payload: diagramData });
             setShowApiKeyModal(true);
             setError(null);
@@ -384,36 +384,49 @@ const App: React.FC = () => {
     );
   }
   
-  const headerText = "ArchiGen AI".split("");
-  const headerVariants: Variants = {
-    visible: { transition: { staggerChildren: 0.05 } }
-  };
-  const letterVariants: Variants = {
-    hidden: { opacity: 0, y: -20 },
-    visible: { opacity: 1, y: 0 }
+  const headerContainerVariants: Variants = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.2 } },
   };
 
+  const headerItemVariants: Variants = {
+    hidden: { opacity: 0, y: 20, scale: 0.9 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      scale: 1,
+      transition: { type: 'spring', damping: 12, stiffness: 100 } 
+    },
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex transition-colors duration-300">
       <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
       <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6">
-        <header className="w-full max-w-7xl mx-auto text-center">
-          <motion.h1 
-            variants={headerVariants}
-            initial="hidden"
-            animate="visible"
-            className="text-4xl sm:text-5xl font-bold tracking-tight"
-          >
-            {headerText.map((letter, index) => (
-              <motion.span key={index} variants={letterVariants} style={{display: 'inline-block'}}>
-                {letter === " " ? "\u00A0" : letter}
-              </motion.span>
-            ))}
-          </motion.h1>
-          <p className="mt-2 text-lg text-[var(--color-text-secondary)]">
-            Generate and edit software architecture diagrams from natural language.
-          </p>
+        <header className="w-full max-w-7xl mx-auto text-center relative py-4">
+            <div className="absolute inset-0 flex items-center justify-center -z-10 pointer-events-none">
+                <div className="header-glow-effect" />
+            </div>
+            <motion.h1 
+                variants={headerContainerVariants}
+                initial="hidden"
+                animate="visible"
+                className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-x-2 sm:gap-x-4"
+            >
+                <motion.span variants={headerItemVariants}>ArchiGen</motion.span>
+                <motion.div variants={headerItemVariants} className="pulse-subtle">
+                    <ArchitectureIcon type={IconType.Sparkles} className="h-8 w-8 sm:h-10 sm:w-10 text-[var(--color-accent-text)]" />
+                </motion.div>
+                <motion.span variants={headerItemVariants}>AI</motion.span>
+            </motion.h1>
+            <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+                className="mt-2 text-lg text-[var(--color-text-secondary)]"
+            >
+                Generate and edit software architecture diagrams from natural language.
+            </motion.p>
         </header>
         
         <main className="w-full max-w-7xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">

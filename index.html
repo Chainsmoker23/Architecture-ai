@@ -96,6 +96,22 @@
       .token.function { color: #61DAFB; }
       .token.operator { color: #FC5FA3; }
       .token.plain-text { color: #E5E5E5; }
+
+      /* Creative Header Glow for App Page */
+      .header-glow-effect {
+        width: 30%;
+        min-width: 200px;
+        height: 100px;
+        background-image: radial-gradient(ellipse at center, var(--color-accent-soft) 0%, transparent 70%);
+        opacity: 0.6;
+        filter: blur(30px);
+        animation: header-glow-anim 10s ease-in-out infinite alternate;
+      }
+
+      @keyframes header-glow-anim {
+        from { transform: scale(0.9); opacity: 0.5; }
+        to { transform: scale(1.1); opacity: 0.7; }
+      }
     </style>
   <script type="importmap">
 {
