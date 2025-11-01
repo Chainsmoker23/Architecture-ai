@@ -287,12 +287,14 @@ interface DraggableProps {
     interactionMode: InteractionMode;
 }
 
-const DiagramContainer = ({ container, isSelected, onSelect, fillColor, ...props }: {
+// Fix: Converted to React.FC to correctly handle props like 'key'.
+// Fix: Replaced non-functional 'className' for cursor with 'style.cursor' for correct behavior on SVG elements.
+const DiagramContainer: React.FC<{
     container: Container;
     isSelected: boolean;
     onSelect: (e: React.MouseEvent, id: string) => void;
     fillColor: string;
-} & DraggableProps) => {
+} & DraggableProps> = ({ container, isSelected, onSelect, fillColor, ...props }) => {
     const ref = useRef<SVGGElement>(null);
     const { label, type, x, y, width, height } = container;
     
@@ -359,18 +361,19 @@ const DiagramContainer = ({ container, isSelected, onSelect, fillColor, ...props
     }
 
     return (
-        <g ref={ref} transform={`translate(${x}, ${y})`} className={props.interactionMode === 'select' ? 'cursor-move' : ''} onClick={(e) => onSelect(e, container.id)} style={{ filter: 'url(#drop-shadow)' }}>
+        <g ref={ref} transform={`translate(${x}, ${y})`} onClick={(e) => onSelect(e, container.id)} style={{ cursor: props.interactionMode === 'select' ? 'move' : 'default', filter: 'url(#drop-shadow)' }}>
             <rect width={width} height={height} {...style} />
             <text x="15" y="25" fill="var(--color-text-secondary)" style={{ fontSize: '14px', fontWeight: 600, textTransform: 'uppercase' }}>{label}</text>
         </g>
     );
 }
 
-const DiagramNode = ({ node, isSelected, onSelect, ...props }: {
+// Fix: Converted to React.FC to correctly handle props like 'key' and resolve potential type inference issues.
+const DiagramNode: React.FC<{
     node: Node;
     isSelected: boolean;
     onSelect: (e: React.MouseEvent, id: string) => void;
-} & DraggableProps) => {
+} & DraggableProps> = ({ node, isSelected, onSelect, ...props }) => {
     const ref = useRef<SVGGElement>(null);
 
     useEffect(() => {
@@ -568,7 +571,8 @@ const getDashArray = (style?: 'solid' | 'dotted' | 'dashed') => {
     }
 }
 
-const DiagramLink = ({ link, source, target, obstacles, onContextMenu, onSelect, isSelected }: { link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, link: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void, isSelected: boolean }) => {
+// Fix: Converted to React.FC to correctly handle props like 'key'.
+const DiagramLink: React.FC<{ link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, link: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void, isSelected: boolean }> = ({ link, source, target, obstacles, onContextMenu, onSelect, isSelected }) => {
     const isNeuronLink = source.type === 'neuron' && target.type === 'neuron';
     const pathPoints = useMemo(() => getOrthogonalPath(source, target, obstacles), [source, target, obstacles]);
     

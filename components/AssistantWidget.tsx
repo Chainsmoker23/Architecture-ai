@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { chatWithAssistant } from '../services/geminiService';
 import type { Content } from '@google/genai';
@@ -8,67 +8,177 @@ interface Message {
   text: string;
 }
 
-const AssistantWidget: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: "Hi! I'm Archie. Ask me about ArchiGen AI or for a prompt idea!" }
-  ]);
-  const [userInput, setUserInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+// Custom hook for typewriter effect
+const useTypewriter = (text: string, enabled: boolean, onComplete: () => void) => {
+    const [displayedText, setDisplayedText] = useState('');
+    const onCompleteRef = useRef(onComplete);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    useEffect(() => {
+        onCompleteRef.current = onComplete;
+    }, [onComplete]);
+
+    useEffect(() => {
+        if (enabled && text) {
+            setDisplayedText('');
+            let i = 0;
+            const intervalId = setInterval(() => {
+                setDisplayedText(text.substring(0, i + 1));
+                i++;
+                if (i >= text.length) {
+                    clearInterval(intervalId);
+                    if (onCompleteRef.current) {
+                      onCompleteRef.current();
+                    }
+                }
+            }, 30); // Typing speed
+
+            return () => clearInterval(intervalId);
+        } else {
+            setDisplayedText(text);
+        }
+    }, [text, enabled]);
+
+    return displayedText;
+};
+
+const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowing, size = 120 }) => {
+  return (
+    <div className="quantum-core-wrapper" style={{ '--size': `${size}px` } as React.CSSProperties}>
+      <style>{`
+        .quantum-core-wrapper {
+          width: var(--size, 120px);
+          height: var(--size, 120px);
+          perspective: 800px;
+          position: relative;
+          flex-shrink: 0;
+          transform-style: preserve-3d;
+        }
+
+        .quantum-core-container {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0; left: 0;
+          transform-style: preserve-3d;
+          animation: core-rotate 30s infinite linear;
+        }
+
+        @keyframes core-rotate {
+          from { transform: rotateY(0deg) rotateX(10deg); }
+          to   { transform: rotateY(360deg) rotateX(10deg); }
+        }
+
+        .quantum-core-nucleus {
+          position: absolute;
+          width: 40%;
+          height: 40%;
+          top: 30%;
+          left: 30%;
+          border-radius: 50%;
+          background: radial-gradient(circle, #fff 0%, #fbcfe8 50%, #f472b6 100%);
+          box-shadow: 0 0 5px #fff, 0 0 10px #fbcfe8, 0 0 20px #f472b6, inset 0 0 5px #fff;
+          animation: nucleus-pulse 3s infinite ease-in-out;
+        }
+
+        @keyframes nucleus-pulse {
+          0%, 100% { transform: scale(1); filter: brightness(1); }
+          50% { transform: scale(1.15); filter: brightness(1.15); }
+        }
+
+        .quantum-core-ring {
+          position: absolute;
+          top: 0; left: 0;
+          width: 100%; height: 100%;
+          border-radius: 50%;
+          border: 3px solid rgba(50, 50, 50, 0.8);
+          box-shadow: 0 0 8px rgba(244, 114, 182, 0.3), inset 0 0 8px rgba(244, 114, 182, 0.2);
+          transform-style: preserve-3d;
+        }
+        
+        .ring-1 { transform: rotateX(70deg) rotateY(0deg); }
+        .ring-2 { transform: rotateX(70deg) rotateY(60deg); }
+        .ring-3 { transform: rotateX(70deg) rotateY(120deg); }
+        
+        .quantum-core-particle {
+          position: absolute;
+          width: 4px;
+          height: 4px;
+          top: 50%; left: 50%;
+          margin-top: -2px; margin-left: -2px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 0 6px #fff, 0 0 12px #fbcfe8;
+          animation: particle-orbit var(--duration) infinite linear;
+        }
+
+        @keyframes particle-orbit {
+            from { transform: rotateZ(0deg) translateX(calc(var(--size, 120px) * 0.5)) rotateZ(0deg); }
+            to   { transform: rotateZ(360deg) translateX(calc(var(--size, 120px) * 0.5)) rotateZ(-360deg); }
+        }
+
+        /* Glowing state */
+        .quantum-core-container.glowing { animation-duration: 10s; }
+        .quantum-core-nucleus.glowing { animation: nucleus-pulse-fast 1.2s infinite ease-in-out; }
+
+        @keyframes nucleus-pulse-fast {
+          0%, 100% { 
+            transform: scale(1.2); 
+            filter: brightness(1.2); 
+            box-shadow: 0 0 8px #fff, 0 0 20px #fbcfe8, 0 0 30px #f472b6, inset 0 0 8px #fff; 
+          }
+          50% { 
+            transform: scale(1.35); 
+            filter: brightness(1.5); 
+            box-shadow: 0 0 12px #fff, 0 0 30px #fbcfe8, 0 0 45px #f472b6, inset 0 0 12px #fff;
+          }
+        }
+        
+        .glowing .quantum-core-ring {
+            border-color: rgba(244, 114, 182, 1);
+            box-shadow: 0 0 10px #f472b6, 0 0 20px #f472b6, inset 0 0 10px rgba(244, 114, 182, 0.5);
+        }
+
+        .glowing .quantum-core-particle { animation-duration: calc(var(--duration) / 3) !important; }
+      `}</style>
+      <div className={`quantum-core-nucleus ${isGlowing ? 'glowing' : ''}`}></div>
+      <div className={`quantum-core-container ${isGlowing ? 'glowing' : ''}`}>
+        <div className="quantum-core-ring ring-1">
+          <div className="quantum-core-particle" style={{'--duration': '5s'} as React.CSSProperties}></div>
+        </div>
+        <div className="quantum-core-ring ring-2">
+          <div className="quantum-core-particle" style={{'--duration': '4s'} as React.CSSProperties}></div>
+        </div>
+        <div className="quantum-core-ring ring-3">
+          <div className="quantum-core-particle" style={{'--duration': '6s'} as React.CSSProperties}></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+const PromptDisplay: React.FC<{ text: string }> = ({ text }) => {
+  const [isCopied, setIsCopied] = useState(false);
+  const match = text.match(/```prompt\n([\s\S]*?)\n```/);
+
+  if (!match) {
+    return <p className="text-sm text-inherit whitespace-pre-wrap">{text}</p>;
+  }
+
+  const promptText = match[1];
+  const precedingText = text.substring(0, match.index);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(promptText).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    });
   };
 
-  useEffect(scrollToBottom, [messages]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userInput.trim() || isLoading) return;
-
-    const newUserMessage: Message = { role: 'user', text: userInput };
-    setMessages(prev => [...prev, newUserMessage]);
-    setUserInput('');
-    setIsLoading(true);
-
-    try {
-      const history: Content[] = messages.map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }));
-      history.push({ role: 'user', parts: [{ text: userInput }] });
-
-      const responseText = await chatWithAssistant(history);
-      const newModelMessage: Message = { role: 'model', text: responseText };
-      setMessages(prev => [...prev, newModelMessage]);
-    } catch (error) {
-      const errorMessage: Message = { role: 'model', text: error instanceof Error ? error.message : "Something went wrong." };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const PromptDisplay = ({ text }: { text: string }) => {
-    const [isCopied, setIsCopied] = useState(false);
-    const match = text.match(/```prompt\n([\s\S]*?)\n```/);
-  
-    if (!match) {
-      return <p className="text-sm text-[#333] whitespace-pre-wrap">{text}</p>;
-    }
-  
-    const promptText = match[1];
-  
-    const handleCopy = () => {
-      navigator.clipboard.writeText(promptText).then(() => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-      });
-    };
-  
-    return (
-      <div className="bg-[#FFF0F5] border border-[#F9D7E3] p-3 rounded-lg mt-2">
+  return (
+    <div>
+      {precedingText && <p className="text-sm text-inherit whitespace-pre-wrap">{precedingText}</p>}
+      <div className="bg-[#FFF0F5]/80 border border-[#F9D7E3] p-3 rounded-lg mt-2">
         <p className="text-sm font-mono text-[#555] whitespace-pre-wrap">{promptText}</p>
         <button
           onClick={handleCopy}
@@ -77,8 +187,66 @@ const AssistantWidget: React.FC = () => {
           {isCopied ? 'Copied!' : 'Copy Prompt'}
         </button>
       </div>
-    );
+    </div>
+  );
+};
+
+const MessageContent: React.FC<{ message: Message, isTyping: boolean, onTypingComplete: () => void }> = ({ message, isTyping, onTypingComplete }) => {
+    const typedText = useTypewriter(message.text, isTyping, onTypingComplete);
+    
+    if (message.role === 'model') {
+        return <PromptDisplay text={typedText} />;
+    }
+    return <p className="text-sm whitespace-pre-wrap">{message.text}</p>;
+};
+
+const AssistantWidget: React.FC = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'model', text: "Hi! I'm Archie. Ask me for a prompt idea!" }
+  ]);
+  const [userInput, setUserInput] = useState('');
+  const [isAiActive, setIsAiActive] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(scrollToBottom, [messages]);
+  useEffect(() => { if (isAiActive) scrollToBottom(); }, [isAiActive]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userInput.trim() || isAiActive) return;
+
+    const currentInput = userInput;
+    const newUserMessage: Message = { role: 'user', text: currentInput };
+    
+    setMessages(prev => [...prev, newUserMessage]);
+    setUserInput('');
+    setIsAiActive(true);
+
+    try {
+      const history: Content[] = messages.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      }));
+      history.push({ role: 'user', parts: [{ text: currentInput }] });
+
+      const responseText = await chatWithAssistant(history);
+      const newModelMessage: Message = { role: 'model', text: responseText };
+      setMessages(prev => [...prev, newModelMessage]);
+    } catch (error) {
+      const errorMessage: Message = { role: 'model', text: error instanceof Error ? error.message : "Something went wrong." };
+      setMessages(prev => [...prev, errorMessage]);
+      setIsAiActive(false);
+    }
+  };
+  
+  const handleTypingComplete = useCallback(() => {
+    setIsAiActive(false);
+  }, []);
 
   return (
     <>
@@ -109,42 +277,42 @@ const AssistantWidget: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="fixed bottom-24 right-6 w-[350px] h-[500px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden z-50"
+            className="fixed bottom-24 right-6 w-[350px] h-[500px] bg-white/70 backdrop-blur-md rounded-2xl shadow-[0_0_30px_rgba(236,72,153,0.25),_0_0_10px_rgba(236,72,153,0.2)] border border-pink-500/20 flex flex-col overflow-hidden z-50"
           >
-            <div className="p-4 bg-gradient-to-r from-[#FFF0F5] to-white border-b border-gray-200">
-              <h3 className="font-bold text-lg text-[#333]">Archie Assistant</h3>
-              <p className="text-xs text-[#555]">Powered by Gemini</p>
+            <div className="p-3 py-6 border-b border-pink-500/20 flex justify-center items-center relative bg-transparent">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(244,114,182,0.15)_0%,_transparent_70%)] -z-1" />
+              <QuantumCore isGlowing={isAiActive} size={120} />
             </div>
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              {messages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`rounded-xl px-4 py-2 max-w-[80%] ${msg.role === 'user' ? 'bg-[#F9D7E3] text-[#A61E4D]' : 'bg-gray-100 text-[#333]'}`}>
-                    {msg.role === 'model' ? <PromptDisplay text={msg.text} /> : <p className="text-sm whitespace-pre-wrap">{msg.text}</p>}
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                 <div className="flex justify-start">
-                    <div className="rounded-xl px-4 py-2 bg-gray-100 text-[#333] flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+              {messages.map((msg, index) => {
+                  const isLastMessage = index === messages.length - 1;
+                  const enableTyping = isLastMessage && msg.role === 'model' && isAiActive;
+                  
+                  return (
+                    <div key={index} className={`flex gap-3 items-start ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`rounded-xl px-4 py-2 max-w-[80%] ${msg.role === 'user' ? 'bg-pink-100/80 text-[#A61E4D]' : 'bg-white/60 text-[#333] border border-gray-200/50'}`}>
+                        <MessageContent
+                          message={msg}
+                          isTyping={enableTyping}
+                          onTypingComplete={handleTypingComplete}
+                        />
+                      </div>
                     </div>
-                </div>
-              )}
+                  );
+              })}
               <div ref={messagesEndRef} />
             </div>
-            <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
+            <form onSubmit={handleSendMessage} className="p-4 border-t border-pink-500/20 bg-white/50">
               <div className="relative">
                 <input
                   type="text"
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   placeholder="Ask me anything..."
-                  className="w-full p-3 pr-12 bg-gray-100 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F06292] outline-none transition"
-                  disabled={isLoading}
+                  className="w-full p-3 pr-12 bg-gray-100/80 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-[#F06292] outline-none transition"
+                  disabled={isAiActive}
                 />
-                <button type="submit" disabled={isLoading} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#F06292] text-white hover:bg-[#E91E63] disabled:opacity-50 transition">
+                <button type="submit" disabled={isAiActive} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#F06292] text-white hover:bg-[#E91E63] disabled:opacity-50 transition">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                 </button>
               </div>

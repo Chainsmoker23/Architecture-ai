@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 
 type Theme = 'light' | 'medium' | 'dark';
@@ -118,7 +119,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
-      console.error("Could not save theme to localStorage:", error);
+      // FIX: The `error` object in a catch block is of type 'unknown' and cannot be directly used in a template literal.
+      // Explicitly casting it to a string ensures type safety.
+      console.error(`Could not save theme to localStorage: ${String(error)}`);
     }
   }, [theme]);
 
