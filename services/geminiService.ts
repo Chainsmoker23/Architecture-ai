@@ -97,9 +97,9 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
       The output must be a valid JSON object adhering to the specified schema.
       
       **Layout Guidelines:**
-      1.  **Logical Flow**: Arrange components to represent a clear data flow, typically left-to-right or top-to-bottom.
-      2.  **Grouping**: Use 'containers' of type 'tier' or 'region' to group related components. Ensure containers do not overlap and that all nodes listed in 'childNodeIds' fit comfortably within the container's dimensions.
-      3.  **Spacing & Alignment**: Ensure adequate and consistent spacing between all elements. Align nodes where possible to create a clean, grid-like structure. There must be NO overlaps between nodes or containers.
+      1.  **Logical Flow & Symmetry**: Arrange components to represent a clear data flow, typically left-to-right. Strive for a visually balanced and symmetrical layout where possible.
+      2.  **Proactive Grouping**: You MUST proactively use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components. For example, if the prompt mentions "web tier" and "data tier," create distinct container boxes for them. If the prompt implies logical separation (e.g., 'public subnet', 'private subnet'), create containers for these. This is critical for a logical diagram.
+      3.  **Spacing & Alignment**: Ensure generous and consistent spacing between all elements. Align nodes vertically and horizontally to create a clean, grid-like structure. There must be absolutely NO overlaps between any nodes or containers.
       4.  **Sizing**: Choose an appropriate 'width' and 'height' for each node based on its label length to avoid text overflow. Minimum width should be 120 and minimum height 80, unless it's a special type.
       5.  **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left. Node 'x' and 'y' are the center of the node. Container 'x' and 'y' are the top-left corner.
       6.  **IDs**: Ensure all 'id' fields are unique, kebab-case strings.
@@ -110,7 +110,7 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "You are an expert solutions architect. Your task is to generate a valid JSON representation of a software architecture diagram based on a user's prompt. You must strictly adhere to the provided JSON schema. The layout should be clean, logical, and visually appealing, resembling a professional blueprint."
+        systemInstruction: "You are an expert solutions architect and a talented graphic designer. Your task is to generate a valid JSON representation of a software architecture diagram based on a user's prompt. You must strictly adhere to the provided JSON schema. The layout must be clean, logical, symmetrical, and exceptionally visually appealing, resembling a professional, publication-quality blueprint."
       },
     });
 
