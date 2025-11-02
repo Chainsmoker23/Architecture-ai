@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { IconType } from '../types';
-import { ICONS } from '../constants';
+import { ICONS } from './constants';
 
 interface ArchitectureIconProps {
   type: string;

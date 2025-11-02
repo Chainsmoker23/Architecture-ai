@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
-import { FOOTER_LINKS, TESTIMONIALS } from '../constants';
+import { FOOTER_LINKS, TESTIMONIALS } from './constants';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import AssistantWidget from './AssistantWidget';
@@ -287,7 +287,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
               </button>
             </motion.div>
           </div>
-        </motion.section>
+        </section>
       </main>
 
       <SharedFooter onNavigate={onNavigate} />

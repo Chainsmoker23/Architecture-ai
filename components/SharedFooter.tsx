@@ -1,5 +1,5 @@
 import React from 'react';
-import { FOOTER_LINKS } from '../constants';
+import { FOOTER_LINKS } from './constants';
 import Logo from './Logo';
 
 type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs';

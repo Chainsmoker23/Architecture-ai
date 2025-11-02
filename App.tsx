@@ -8,7 +8,7 @@ import SummaryModal from './components/SummaryModal';
 import Loader from './components/Loader';
 import PropertiesSidebar from './components/PropertiesSidebar';
 import SettingsSidebar from './components/SettingsSidebar';
-import { EXAMPLE_PROMPT, EXAMPLE_PROMPTS_LIST } from './constants';
+import { EXAMPLE_PROMPT, EXAMPLE_PROMPTS_LIST } from './components/constants';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import LandingPage from './components/LandingPage';
 import ContactPage from './components/ContactPage';
