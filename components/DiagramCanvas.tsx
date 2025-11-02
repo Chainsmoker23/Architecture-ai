@@ -232,16 +232,22 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <g id="diagram-content" transform={viewTransform.toString()}>
-          {data.containers?.map(container => ( <DiagramContainer key={container.id} container={container} data={data} onDataChange={onDataChange} isSelected={isSelected(container.id)} onSelect={handleItemSelection} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} fillColor={container.color || (container.type === 'tier' ? tierColors.get(container.id) || 'var(--color-tier-default)' : 'var(--color-tier-default)')} interactionMode={interactionMode} /> ))}
-          {data.links.map((link) => {
-            const sourceNode = nodesById.get(typeof link.source === 'string' ? link.source : link.source.id);
-            const targetNode = nodesById.get(typeof link.target === 'string' ? link.target : link.target.id);
-            if (!sourceNode || !targetNode) return null;
-            return <DiagramLink key={link.id} link={link} source={sourceNode} target={targetNode} obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))} onContextMenu={handleItemContextMenu} isSelected={isSelected(link.id)} onSelect={handleItemSelection} />;
-          })}
-          {data.nodes.map(node => ( <DiagramNode key={node.id} node={node} data={data} onDataChange={onDataChange} isSelected={isSelected(node.id)} onSelect={handleNodeClick} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} interactionMode={interactionMode} onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd} hoveredNodeId={hoveredNodeId} /> ))}
-          {linkPreview && ( <path d={`M ${linkPreview.sourceNode.x} ${linkPreview.sourceNode.y} L ${linkPreview.targetCoords.x} ${linkPreview.targetCoords.y}`} stroke="var(--color-accent)" strokeWidth="2" strokeDasharray="6 6" className="pointer-events-none" markerEnd="url(#arrowhead)" /> )}
-          {finalContainerCreationRect && ( <rect x={finalContainerCreationRect.x} y={finalContainerCreationRect.y} width={finalContainerCreationRect.width} height={finalContainerCreationRect.height} fill="rgba(249, 215, 227, 0.3)" stroke="var(--color-accent)" strokeWidth="2" strokeDasharray="4 4" className="pointer-events-none"/> )}
+            <g> {/* Containers Layer */}
+                {data.containers?.map(container => ( <DiagramContainer key={container.id} container={container} data={data} onDataChange={onDataChange} isSelected={isSelected(container.id)} onSelect={handleItemSelection} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} fillColor={container.color || (container.type === 'tier' ? tierColors.get(container.id) || 'var(--color-tier-default)' : 'var(--color-tier-default)')} interactionMode={interactionMode} /> ))}
+            </g>
+            <g> {/* Links Layer */}
+                {data.links.map((link) => {
+                    const sourceNode = nodesById.get(typeof link.source === 'string' ? link.source : link.source.id);
+                    const targetNode = nodesById.get(typeof link.target === 'string' ? link.target : link.target.id);
+                    if (!sourceNode || !targetNode) return null;
+                    return <DiagramLink key={link.id} link={link} source={sourceNode} target={targetNode} obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))} onContextMenu={handleItemContextMenu} isSelected={isSelected(link.id)} onSelect={handleItemSelection} />;
+                })}
+            </g>
+            <g> {/* Nodes Layer */}
+                {data.nodes.map(node => ( <DiagramNode key={node.id} node={node} data={data} onDataChange={onDataChange} isSelected={isSelected(node.id)} onSelect={handleNodeClick} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} interactionMode={interactionMode} onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd} hoveredNodeId={hoveredNodeId} /> ))}
+            </g>
+            {linkPreview && ( <path d={`M ${linkPreview.sourceNode.x} ${linkPreview.sourceNode.y} L ${linkPreview.targetCoords.x} ${linkPreview.targetCoords.y}`} stroke="var(--color-accent)" strokeWidth="2" strokeDasharray="6 6" className="pointer-events-none" markerEnd="url(#arrowhead)" /> )}
+            {finalContainerCreationRect && ( <rect x={finalContainerCreationRect.x} y={finalContainerCreationRect.y} width={finalContainerCreationRect.width} height={finalContainerCreationRect.height} fill="rgba(249, 215, 227, 0.3)" stroke="var(--color-accent)" strokeWidth="2" strokeDasharray="4 4" className="pointer-events-none"/> )}
         </g>
       </svg>
       {contextMenu && ( <ContextMenu x={contextMenu.x} y={contextMenu.y} options={[{ label: 'Delete', onClick: () => handleDeleteItem(contextMenu.item) }]} onClose={() => setContextMenu(null)} /> )}
@@ -510,7 +516,7 @@ const DiagramLink = memo<{ link: Link, source: Node, target: Node, obstacles: Re
     const isNeuronLink = source.type === 'neuron' && target.type === 'neuron';
     const pathPoints = useMemo(() => getOrthogonalPath(source, target, obstacles), [source, target, obstacles]);
     if (pathPoints.length < 2) return null;
-    const startPoint = pathPoints[0]; const nextToStartPoint = pathPoints[1]; const endPoint = pathPoints[pathPoints.length - 1]; const prevPoint = pathPoints[pathPoints.length - 2];
+    const startPoint = pathPoints[0]; const nextToStartPoint = pathPoints[1]; const endPoint = pathPoints[pathPoints.length - 1]; const prevPoint = pathPoints[pathPoints.length - 2]; if(!prevPoint) return null;
     const dxEnd = endPoint.x - prevPoint.x; const dyEnd = endPoint.y - prevPoint.y; const lengthEnd = Math.sqrt(dxEnd*dxEnd + dyEnd*dyEnd);
     if (lengthEnd > 0) { const unitDx = dxEnd/lengthEnd; const unitDy = dyEnd/lengthEnd; const targetRadius = isNeuronLink ? target.width / 2 : Math.max(target.width, target.height) / 2; const inset = isNeuronLink ? 0 : 0.5; pathPoints[pathPoints.length - 1] = { x: endPoint.x - unitDx * (targetRadius * inset), y: endPoint.y - unitDy * (targetRadius * inset) }; }
     const dxStart = startPoint.x - nextToStartPoint.x; const dyStart = startPoint.y - nextToStartPoint.y; const lengthStart = Math.sqrt(dxStart * dxStart + dyStart * dyStart);

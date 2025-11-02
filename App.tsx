@@ -251,6 +251,10 @@ const App: React.FC = () => {
       setSelectedIds([]);
     }
   };
+  
+  const handleFitToScreen = () => {
+    fitScreenRef.current?.();
+  };
 
   const handleGenerate = useCallback(async (keyOverride?: string) => {
     if (!prompt) {
@@ -268,6 +272,8 @@ const App: React.FC = () => {
       const data = await generateDiagramData(prompt, apiKeyToUse || undefined);
       setHistory([data]);
       setHistoryIndex(0);
+      // Add a small delay for the canvas to render before fitting
+      setTimeout(() => handleFitToScreen(), 100);
     } catch (err) {
       console.error(err);
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
@@ -320,10 +326,6 @@ const App: React.FC = () => {
       handleExplain(key);
     }
     setLastAction(null);
-  };
-
-  const handleFitToScreen = () => {
-    fitScreenRef.current?.();
   };
 
   const selectedItem = useMemo(() => {
