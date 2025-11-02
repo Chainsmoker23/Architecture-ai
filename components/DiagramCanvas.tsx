@@ -208,8 +208,14 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 // --- Sub-components ---
 interface DraggableProps { data: DiagramData; onDataChange: (data: DiagramData, fromHistory?: boolean) => void; selectedIds: string[]; interactionMode: InteractionMode; }
 
-const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Container) => void; fillColor: string; isEditable: boolean; } & DraggableProps>(({ container, isSelected, onSelect, onContextMenu, fillColor, data, onDataChange, interactionMode, isEditable }) => {
+const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Container) => void; fillColor: string; isEditable: boolean; } & DraggableProps>((props) => {
+    const { container, onSelect, onContextMenu, fillColor, interactionMode, isEditable } = props;
     const ref = useRef<SVGGElement>(null);
+
+    const propsRef = useRef(props);
+    useEffect(() => {
+        propsRef.current = props;
+    });
 
     useEffect(() => {
         if (!ref.current || !isEditable || interactionMode !== 'select') {
@@ -221,15 +227,17 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
         
         const dragHandler = drag<SVGGElement, unknown>()
             .on('start', function (event) {
+                const { data, container: currentContainer } = propsRef.current;
                 startPositions.clear();
-                const childNodes = data.nodes.filter(n => container.childNodeIds.includes(n.id));
-                startPositions.set(container.id, { x: container.x, y: container.y });
+                const childNodes = data.nodes.filter(n => currentContainer.childNodeIds.includes(n.id));
+                startPositions.set(currentContainer.id, { x: currentContainer.x, y: currentContainer.y });
                 childNodes.forEach(n => startPositions.set(n.id, { x: n.x, y: n.y }));
                 event.sourceEvent.stopPropagation();
             })
             .on('drag', function (event) {
                 const dx = event.x - event.subject.x;
                 const dy = event.y - event.subject.y;
+                const { data, onDataChange } = propsRef.current;
 
                 const newNodes = data.nodes.map(n => {
                     const startPos = startPositions.get(n.id);
@@ -249,10 +257,22 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
                 const dx = event.x - event.subject.x;
                 const dy = event.y - event.subject.y;
                 if (dx === 0 && dy === 0) return;
-                onDataChange(data, false);
+
+                const { data, onDataChange } = propsRef.current;
+                const newNodes = data.nodes.map(n => {
+                    const startPos = startPositions.get(n.id);
+                    if (startPos) return { ...n, x: startPos.x + dx, y: startPos.y + dy };
+                    return n;
+                });
+                const newContainers = (data.containers || []).map(c => {
+                    const startPos = startPositions.get(c.id);
+                    if (startPos) return { ...c, x: startPos.x + dx, y: startPos.y + dy };
+                    return c;
+                });
+                onDataChange({ ...data, nodes: newNodes, containers: newContainers }, false);
             });
         g.call(dragHandler);
-    }, [container.id, container.x, container.y, container.childNodeIds, data, onDataChange, interactionMode, isEditable]);
+    }, [container.id, container.childNodeIds, interactionMode, isEditable]);
     
     return (
         <g
@@ -268,8 +288,8 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
                 rx={16}
                 ry={16}
                 fill={fillColor}
-                stroke={isSelected ? 'var(--color-accent)' : 'transparent'}
-                strokeWidth={isSelected ? 3 : 0}
+                stroke={props.isSelected ? 'var(--color-accent)' : 'transparent'}
+                strokeWidth={props.isSelected ? 3 : 0}
                 strokeDasharray={container.type === 'availability-zone' ? "8 4" : undefined}
             />
             <text
@@ -312,8 +332,14 @@ interface ResizeHandleProps {
     node: Node; corner: Corner; onDataChange: (data: DiagramData, fromHistory?: boolean) => void; data: DiagramData;
 }
 
-const ResizeHandle: React.FC<ResizeHandleProps> = ({ node, corner, onDataChange, data }) => {
+const ResizeHandle: React.FC<ResizeHandleProps> = (props) => {
+    const { node, corner } = props;
     const ref = useRef<SVGRectElement>(null);
+
+    const propsRef = useRef(props);
+    useEffect(() => {
+        propsRef.current = props;
+    });
 
     const getCursor = () => {
         if (corner === 'top-left' || corner === 'bottom-right') return 'nwse-resize';
@@ -334,11 +360,12 @@ const ResizeHandle: React.FC<ResizeHandleProps> = ({ node, corner, onDataChange,
         const dragHandler = drag<SVGRectElement, unknown>()
             .on('start', function(event) {
                 event.sourceEvent.stopPropagation();
-                startNode = { ...node };
+                startNode = { ...propsRef.current.node };
             })
             .on('drag', function(event) {
                 if (!startNode) return;
                 const { x: dx, y: dy } = event;
+                const { onDataChange, data } = propsRef.current;
                 
                 let newWidth = startNode.width, newHeight = startNode.height, newX = startNode.x, newY = startNode.y;
 
@@ -360,52 +387,77 @@ const ResizeHandle: React.FC<ResizeHandleProps> = ({ node, corner, onDataChange,
                     newX = anchorX + newWidth / 2; newY = anchorY - newHeight / 2;
                 }
                 
-                const updatedNode = { ...node, width: newWidth, height: newHeight, x: newX, y: newY };
-                const newNodes = data.nodes.map(n => n.id === node.id ? updatedNode : n);
+                const updatedNode = { ...startNode, width: newWidth, height: newHeight, x: newX, y: newY };
+                const newNodes = data.nodes.map(n => n.id === startNode.id ? updatedNode : n);
                 onDataChange({ ...data, nodes: newNodes }, true);
             })
             .on('end', function(event){
+                if (!startNode) return;
                 const { x: dx, y: dy } = event;
                 if (dx === event.subject.x && dy === event.subject.y) return;
-                onDataChange(data, false);
+
+                const { onDataChange, data } = propsRef.current;
+                 let newWidth = startNode.width, newHeight = startNode.height, newX = startNode.x, newY = startNode.y;
+                 if (corner === 'bottom-right') { newWidth = Math.max(40, dx); newHeight = Math.max(40, dy); const anchorX = startNode.x - startNode.width / 2, anchorY = startNode.y - startNode.height / 2; newX = anchorX + newWidth / 2; newY = anchorY + newHeight / 2; } else if (corner === 'top-left') { newWidth = Math.max(40, startNode.width - dx); newHeight = Math.max(40, startNode.height - dy); const anchorX = startNode.x + startNode.width / 2, anchorY = startNode.y + startNode.height / 2; newX = anchorX - newWidth / 2; newY = anchorY - newHeight / 2; } else if (corner === 'bottom-left') { newWidth = Math.max(40, startNode.width - dx); newHeight = Math.max(40, dy); const anchorX = startNode.x + startNode.width / 2, anchorY = startNode.y - startNode.height / 2; newX = anchorX - newWidth / 2; newY = anchorY + newHeight / 2; } else if (corner === 'top-right') { newWidth = Math.max(40, dx); newHeight = Math.max(40, startNode.height - dy); const anchorX = startNode.x - startNode.width / 2, anchorY = startNode.y + startNode.height / 2; newX = anchorX + newWidth / 2; newY = anchorY - newHeight / 2; }
+
+                const updatedNode = { ...startNode, width: newWidth, height: newHeight, x: newX, y: newY };
+                const newNodes = data.nodes.map(n => n.id === startNode.id ? updatedNode : n);
+                onDataChange({ ...data, nodes: newNodes }, false);
             });
         rect.call(dragHandler);
-    }, [node, data, onDataChange, corner]);
+    }, [corner]);
 
     const { x, y } = getHandlePosition();
     return ( <rect ref={ref} x={x} y={y} width={HANDLE_SIZE} height={HANDLE_SIZE} fill="var(--color-accent)" stroke="white" strokeWidth="1.5" rx="2" style={{ cursor: getCursor() }} /> );
 };
 
-const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Node) => void; isEditable: boolean; resizingNodeId: string | null; onNodeDoubleClick?: (nodeId: string) => void; } & DraggableProps>(({ node, isSelected, onSelect, onContextMenu, isEditable, resizingNodeId, onNodeDoubleClick, ...props }) => {
+const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Node) => void; isEditable: boolean; resizingNodeId: string | null; onNodeDoubleClick?: (nodeId: string) => void; } & DraggableProps>((props) => {
+    const { node, isSelected, onSelect, onContextMenu, isEditable, resizingNodeId, onNodeDoubleClick } = props;
     const ref = useRef<SVGGElement>(null);
     const isResizing = isEditable && resizingNodeId === node.id;
+    
+    const propsRef = useRef(props);
+    useEffect(() => {
+        propsRef.current = props;
+    });
 
     useEffect(() => {
-        if (!ref.current || node.locked || !isEditable || props.interactionMode !== 'select' || isResizing) { select(ref.current).on('.drag', null); return; }
+        if (!ref.current || node.locked || !isEditable || propsRef.current.interactionMode !== 'select' || isResizing) {
+             select(ref.current).on('.drag', null); return; 
+        }
         const g = select(ref.current);
         let startPositions = new Map<string, {x: number, y: number}>();
         const dragHandler = drag<SVGGElement, unknown>()
             .on('start', function(event) {
+                const { selectedIds, data, node: currentNode } = propsRef.current;
                 startPositions.clear();
-                const { selectedIds } = props;
-                const isDraggingSelected = selectedIds.includes(node.id);
-                const idsToMove = isDraggingSelected ? selectedIds : [node.id];
-                props.data.nodes.forEach(n => { if (idsToMove.includes(n.id)) startPositions.set(n.id, { x: n.x, y: n.y }); });
+                const isDraggingSelected = selectedIds.includes(currentNode.id);
+                const idsToMove = isDraggingSelected ? selectedIds : [currentNode.id];
+                data.nodes.forEach(n => { if (idsToMove.includes(n.id)) startPositions.set(n.id, { x: n.x, y: n.y }); });
                 select(this).raise(); event.sourceEvent.stopPropagation();
             })
             .on('drag', function(event) {
                  const dx = event.x - event.subject.x; const dy = event.y - event.subject.y;
-                const { data, onDataChange } = props;
+                const { data, onDataChange } = propsRef.current;
                 const newNodes = data.nodes.map(n => { const startPos = startPositions.get(n.id); if (startPos && !n.locked) return { ...n, x: startPos.x + dx, y: startPos.y + dy }; return n; });
                 onDataChange({ ...data, nodes: newNodes }, true);
             })
             .on('end', function(event){
                 const dx = event.x - event.subject.x; const dy = event.y - event.subject.y;
                 if (dx === 0 && dy === 0) return;
-                props.onDataChange(props.data, false);
+                
+                const { data, onDataChange } = propsRef.current;
+                const newNodes = data.nodes.map(n => {
+                    const startPos = startPositions.get(n.id);
+                    if (startPos && !n.locked) {
+                        return { ...n, x: startPos.x + dx, y: startPos.y + dy };
+                    }
+                    return n;
+                });
+                onDataChange({ ...data, nodes: newNodes }, false);
             });
         g.call(dragHandler);
-    }, [node.id, props.data, props.selectedIds, node.locked, props.interactionMode, props.onDataChange, isEditable, isResizing]);
+    }, [node.id, node.locked, isEditable, isResizing, props.interactionMode]);
     
     const getCursorStyle = () => { if (node.locked || isResizing) return 'default'; if (isEditable && props.interactionMode === 'connect') return 'pointer'; if (isEditable && props.interactionMode === 'select') return 'move'; return 'default'; };
     
