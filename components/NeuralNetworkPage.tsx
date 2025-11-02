@@ -7,6 +7,7 @@ import ArchitectureIcon from './ArchitectureIcon';
 import NeuralNetworkCanvas from './NeuralNetworkCanvas';
 import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
+import Logo from './Logo';
 
 interface NeuralNetworkPageProps {
   onBack: () => void;
@@ -109,7 +110,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
           <motion.button
             onClick={() => handleGenerate()}
             disabled={isLoading}
-            className="mt-4 w-full bg-gradient-to-br from-[var(--color-accent-soft)] to-[var(--color-accent)] text-[var(--color-accent-text-strong)] font-semibold py-3 px-4 rounded-xl flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-soft)]"
+            className={`mt-4 w-full generate-button font-semibold py-3 px-4 rounded-xl flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-soft)] ${isLoading ? 'generate-button--loading' : ''}`}
             whileTap={{ scale: 0.98 }}
           >
             {isLoading ? (
@@ -121,7 +122,10 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
                 Generating...
               </>
             ) : (
-              'Generate Network'
+              <>
+                <Logo className="w-5 h-5 mr-2 logo-pulse-gentle" />
+                Generate Network
+              </>
             )}
           </motion.button>
         </aside>
@@ -132,7 +136,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex flex-col items-center justify-center z-20 rounded-2xl">
                 <Loader />
-                <p className="mt-4 text-[var(--color-text-secondary)] font-medium">Building network structure...</p>
                 </motion.div>
             )}
             </AnimatePresence>

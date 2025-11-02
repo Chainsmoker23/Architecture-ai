@@ -17,11 +17,43 @@
         0% { background-position: -1000px 0; }
         100% { background-position: 1000px 0; }
       }
+      /* Restored: Original shimmer button for landing page */
       .shimmer-button {
-        background: linear-gradient(to right, #F9D7E3 40%, #FFCCE0 50%, #F9D7E3 60%);
+        background: linear-gradient(to right, #FCE4EC 40%, #F06292 50%, #FCE4EC 60%);
         background-size: 2000px 100%;
         animation: shimmer 5s linear infinite;
       }
+
+      /* New: Generate button with conditional animation for app pages */
+      .generate-button {
+        /* Softer "light pink mixture" gradient */
+        background: linear-gradient(120deg, var(--color-accent-soft) 0%, var(--color-accent) 100%);
+        color: var(--color-accent-text-strong);
+        text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        background-size: 200% auto;
+        background-position: 100% 0; /* Start from the right */
+        transition: background-position 0.4s ease-out;
+      }
+      .generate-button:not(:disabled):hover {
+        background-position: 0% 0; /* Animate gradient on hover */
+      }
+      .generate-button--loading {
+        animation: shimmer 4s linear infinite;
+      }
+
+      /* New: Gentle pulsing animation for the button logo */
+      @keyframes logo-pulse-gentle {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.15);
+        }
+      }
+      .logo-pulse-gentle {
+        animation: logo-pulse-gentle 2.5s ease-in-out infinite;
+      }
+      
       @keyframes pulse-subtle {
         0%, 100% {
           transform: scale(1);

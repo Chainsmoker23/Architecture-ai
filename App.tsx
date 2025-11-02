@@ -514,7 +514,6 @@ const App: React.FC = () => {
                     className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex flex-col items-center justify-center z-20 rounded-2xl"
                   >
                     <Loader />
-                    <p className="mt-4 text-[var(--color-text-secondary)] font-medium">Generating your architecture...</p>
                   </motion.div>
                 )}
               </AnimatePresence>

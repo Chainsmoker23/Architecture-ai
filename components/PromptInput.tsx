@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { IconType } from '../types';
-import ArchitectureIcon from './ArchitectureIcon';
+import Logo from './Logo';
 
 interface PromptInputProps {
   prompt: string;
@@ -23,7 +22,7 @@ const PromptInput: React.FC<PromptInputProps> = ({ prompt, setPrompt, onGenerate
       <motion.button
         onClick={onGenerate}
         disabled={isLoading}
-        className="mt-4 w-full bg-gradient-to-br from-[var(--color-accent-soft)] to-[var(--color-accent)] text-[var(--color-accent-text-strong)] font-semibold py-3 px-4 rounded-xl flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-soft)]"
+        className={`mt-4 w-full generate-button font-semibold py-3 px-4 rounded-xl flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-accent-soft)] ${isLoading ? 'generate-button--loading' : ''}`}
         style={{
           boxShadow: '0 4px 14px 0 rgba(0,0,0,0.05)'
         }}
@@ -39,7 +38,7 @@ const PromptInput: React.FC<PromptInputProps> = ({ prompt, setPrompt, onGenerate
           </>
         ) : (
           <>
-            <ArchitectureIcon type={IconType.Sparkles} className="w-5 h-5 mr-2" />
+            <Logo className="w-5 h-5 mr-2 logo-pulse-gentle" />
             Generate Diagram
           </>
         )}
