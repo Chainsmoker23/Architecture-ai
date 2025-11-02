@@ -110,7 +110,7 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "You are an expert solutions architect and a talented graphic designer. Your task is to generate a valid JSON representation of a software architecture diagram based on a user's prompt. You must strictly adhere to the provided JSON schema. The layout must be clean, logical, symmetrical, and exceptionally visually appealing, resembling a professional, publication-quality blueprint."
+        systemInstruction: "You are an expert solutions architect and a talented graphic designer with an expertise in information architecture. Your task is to generate a valid JSON representation of a software architecture diagram. The layout must be clean, logical, symmetrical, and exceptionally visually appealing, resembling a publication-quality blueprint that looks like it was made by a professional designer. Strictly adhere to the provided JSON schema."
       },
     });
 

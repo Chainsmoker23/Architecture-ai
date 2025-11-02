@@ -235,22 +235,27 @@ interface DraggableProps { data: DiagramData; onDataChange: (data: DiagramData, 
 const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Container) => void; fillColor: string; isEditable: boolean; } & DraggableProps>((props) => {
     const { container, onSelect, onContextMenu, fillColor, interactionMode, isEditable } = props;
     const ref = useRef<SVGGElement>(null);
+    const dataRef = useRef(props.data);
+    dataRef.current = props.data;
 
     useEffect(() => {
       if (!ref.current || !isEditable || (interactionMode !== 'select' && interactionMode !== 'pan')) return;
       const selection = select(ref.current);
+      let currentData: DiagramData;
+
       const dragBehavior = drag<SVGGElement, unknown>()
           .on('start', (event) => {
               if (interactionMode !== 'select' && interactionMode !== 'pan') return;
+              currentData = dataRef.current;
               selection.raise();
           })
           .on('drag', (event) => {
               if (interactionMode !== 'select' && interactionMode !== 'pan') return;
               const { dx, dy } = event;
-              const { data, onDataChange, selectedIds } = props;
-              const selectedContainers = new Set(data.containers?.filter(c => selectedIds.includes(c.id)).map(c => c.id) || []);
+              const { selectedIds } = props;
+              const selectedContainers = new Set(currentData.containers?.filter(c => selectedIds.includes(c.id)).map(c => c.id) || []);
               
-              const newContainers = data.containers?.map(c => {
+              const newContainers = currentData.containers?.map(c => {
                   if (selectedIds.includes(c.id)) {
                       return { ...c, x: c.x + dx, y: c.y + dy };
                   }
@@ -258,21 +263,24 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
               });
 
               const childNodeIdsToMove = new Set(newContainers?.filter(c => selectedContainers.has(c.id)).flatMap(c => c.childNodeIds) || []);
-              const newNodes = data.nodes.map(n => {
+              const newNodes = currentData.nodes.map(n => {
                   if (childNodeIdsToMove.has(n.id)) {
                       return { ...n, x: n.x + dx, y: n.y + dy };
                   }
                   return n;
               });
 
-              onDataChange({ ...data, nodes: newNodes, containers: newContainers }, true);
+              currentData = { ...currentData, nodes: newNodes, containers: newContainers };
+              props.onDataChange(currentData, true);
           })
           .on('end', () => {
-             // onDataChange(props.data); // This triggers a final history update
+             if (currentData) {
+                props.onDataChange(currentData, false);
+             }
           });
       selection.call(dragBehavior);
       return () => { selection.on('.drag', null); }
-    }, [props, isEditable, interactionMode]);
+    }, [props.onDataChange, props.selectedIds, isEditable, interactionMode]);
     
     return (
       <g ref={ref} onClick={(e) => onSelect(e, container.id)} onContextMenu={(e) => onContextMenu(e, container)}>
@@ -300,35 +308,47 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
 const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Node) => void; isEditable: boolean; resizingNodeId: string | null; onNodeDoubleClick?: (nodeId: string) => void;} & DraggableProps>((props) => {
     const { node, isSelected, onSelect, onContextMenu, interactionMode, isEditable, resizingNodeId, onNodeDoubleClick } = props;
     const ref = useRef<SVGGElement>(null);
-    
-    const isResizing = resizingNodeId === node.id;
+    const dataRef = useRef(props.data);
+    dataRef.current = props.data;
 
     useEffect(() => {
         if (!ref.current || !isEditable) return;
         const selection = select(ref.current);
+        let currentData: DiagramData;
+
         const dragBehavior = drag<SVGGElement, unknown>()
             .filter(event => interactionMode === 'select' || interactionMode === 'pan')
-            .on('start', (event) => { selection.raise(); })
+            .on('start', () => { 
+                currentData = dataRef.current;
+                selection.raise(); 
+            })
             .on('drag', (event) => {
                 const { dx, dy } = event;
-                const { data, onDataChange, selectedIds } = props;
+                const { selectedIds } = props;
                 
-                const newNodes = data.nodes.map(n => {
+                const newNodes = currentData.nodes.map(n => {
                     if (selectedIds.includes(n.id) && !n.locked) {
                         return { ...n, x: n.x + dx, y: n.y + dy };
                     }
                     return n;
                 });
-                onDataChange({ ...data, nodes: newNodes }, true);
+                currentData = { ...currentData, nodes: newNodes };
+                props.onDataChange(currentData, true);
+            })
+            .on('end', () => {
+                if (currentData) {
+                    props.onDataChange(currentData, false);
+                }
             });
         selection.call(dragBehavior);
         return () => { selection.on('.drag', null); };
-    }, [props, isEditable, interactionMode]);
+    }, [props.onDataChange, props.selectedIds, isEditable, interactionMode]);
 
     const handleResize = (dx: number, dy: number, handle: 'br' | 'bl' | 'tr' | 'tl') => {
-        const { data, onDataChange } = props;
+        const { onDataChange } = props;
+        const currentData = dataRef.current;
         const minSize = 40;
-        const newNodes = data.nodes.map(n => {
+        const newNodes = currentData.nodes.map(n => {
             if (n.id === node.id) {
                 const newWidth = Math.max(minSize, handle.includes('r') ? n.width + dx : n.width - dx);
                 const newHeight = Math.max(minSize, handle.includes('b') ? n.height + dy : n.height - dy);
@@ -338,7 +358,9 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
             }
             return n;
         });
-        onDataChange({ ...data, nodes: newNodes }, true);
+        const newData = { ...currentData, nodes: newNodes };
+        onDataChange(newData, true);
+        dataRef.current = newData;
     };
 
     const ResizeHandle: React.FC<{ handle: 'br' | 'bl' | 'tr' | 'tl' }> = ({ handle }) => {
@@ -347,7 +369,9 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
             if (!ref.current) return;
             const selection = select(ref.current);
             const dragBehavior = drag<SVGRectElement, unknown>()
-                .on('drag', (event) => handleResize(event.dx, event.dy, handle));
+                .on('start', () => { dataRef.current = props.data; })
+                .on('drag', (event) => handleResize(event.dx, event.dy, handle))
+                .on('end', () => props.onDataChange(dataRef.current, false));
             selection.call(dragBehavior);
             return () => selection.on('.drag', null);
         }, []);
@@ -363,6 +387,8 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
 
         return <rect ref={ref} {...getCoords()} width={8} height={8} fill="var(--color-accent-text)" stroke="var(--color-node-bg)" strokeWidth={2} cursor={`${handle.includes('b') ? 's' : 'n'}${handle.includes('r') ? 'e' : 'w'}-resize`} />;
     };
+    
+    const isResizing = resizingNodeId === node.id;
 
     return (
         <g ref={ref} onClick={(e) => onSelect(e, node.id)} onDoubleClick={() => onNodeDoubleClick?.(node.id)} onContextMenu={(e) => onContextMenu(e, node)} style={{ cursor: isEditable && (interactionMode === 'select' || interactionMode === 'pan') ? 'move' : (interactionMode === 'connect' ? 'pointer' : 'default')}}>
@@ -384,33 +410,47 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
 const DiagramLink = memo<{ link: Link; source: Node; target: Node; onContextMenu: (e: React.MouseEvent, item: Link) => void; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; offset: number; }>(({ link, source, target, onContextMenu, isSelected, onSelect, offset }) => {
     
     const pathD = useMemo(() => {
+        const cornerRadius = 20;
         const sourceEdgeXRight = source.x + source.width / 2;
         const sourceEdgeXLeft = source.x - source.width / 2;
         const targetEdgeXLeft = target.x - target.width / 2;
         const targetEdgeXRight = target.x + target.width / 2;
-        
-        const sourceIsLeft = source.x < target.x;
 
+        const sourceIsLeft = source.x < target.x;
         const p1 = { x: sourceIsLeft ? sourceEdgeXRight : sourceEdgeXLeft, y: source.y + offset };
         const p4 = { x: sourceIsLeft ? targetEdgeXLeft : targetEdgeXRight, y: target.y };
 
-        const midX = (p1.x + p4.x) / 2;
+        if (Math.abs(p1.y - p4.y) < cornerRadius * 2 || Math.abs(p1.x - p4.x) < cornerRadius * 2) {
+            const midX = (p1.x + p4.x) / 2;
+            const p2 = { x: midX, y: p1.y };
+            const p3 = { x: midX, y: p4.y };
+            return `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y} L ${p4.x} ${p4.y}`;
+        }
 
+        const midX = (p1.x + p4.x) / 2;
         const p2 = { x: midX, y: p1.y };
         const p3 = { x: midX, y: p4.y };
+
+        const signX1 = Math.sign(p2.x - p1.x);
+        const signY1 = Math.sign(p3.y - p2.y);
+        const signX2 = Math.sign(p4.x - p3.x);
         
-        return `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y} L ${p4.x} ${p4.y}`;
+        return `M ${p1.x},${p1.y} 
+                L ${p2.x - cornerRadius * signX1},${p2.y} 
+                A ${cornerRadius},${cornerRadius} 0 0 ${signX1 * signY1 === 1 ? 1 : 0} ${p2.x},${p2.y + cornerRadius * signY1} 
+                L ${p3.x},${p3.y - cornerRadius * signY1} 
+                A ${cornerRadius},${cornerRadius} 0 0 ${signX2 * signY1 === 1 ? 0 : 1} ${p3.x + cornerRadius * signX2},${p3.y} 
+                L ${p4.x},${p4.y}`;
     }, [source.x, source.y, source.width, target.x, target.y, target.width, offset]);
+
 
     const labelPos = useMemo(() => {
         if (!link.label) return null;
-        // This regex is safer than splitting by space
-        const points = pathD.match(/-?\d+(\.\d+)?/g)?.map(Number);
-        if (!points || points.length < 4) return null;
-        
-        const [p1x, p1y, p2x] = points;
-        return { x: (p1x + p2x) / 2, y: p1y };
-    }, [pathD, link.label]);
+        // Simplified midpoint calculation for the label
+        const sourceEdgeX = source.x < target.x ? source.x + source.width / 2 : source.x - source.width / 2;
+        const midX = (sourceEdgeX + (target.x < source.x ? target.x + target.width/2 : target.x - target.width/2)) / 2;
+        return { x: midX, y: source.y + offset };
+    }, [source, target, offset, link.label]);
     
     const thicknessMap = { thin: 1.5, medium: 2, thick: 3.5 };
     const thicknessPx = thicknessMap[link.thickness || 'medium'];
