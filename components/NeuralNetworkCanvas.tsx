@@ -109,8 +109,7 @@ const useNeuralNetworkLayout = (data: DiagramData, canvasWidth: number, canvasHe
 };
 
 
-const NeuralNetworkCanvas: React.FC<{ data: DiagramData }> = ({ data }) => {
-  const svgRef = useRef<SVGSVGElement>(null);
+const NeuralNetworkCanvas: React.FC<{ data: DiagramData, forwardedRef: React.RefObject<SVGSVGElement> }> = ({ data, forwardedRef }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -131,9 +130,9 @@ const NeuralNetworkCanvas: React.FC<{ data: DiagramData }> = ({ data }) => {
   const layout = useNeuralNetworkLayout(data, dimensions.width, dimensions.height);
 
   useEffect(() => {
-    if (!svgRef.current || !containerRef.current || layout.width === 0) return;
+    if (!forwardedRef.current || !containerRef.current || layout.width === 0) return;
     
-    const svg = select(svgRef.current);
+    const svg = select(forwardedRef.current);
     
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
@@ -151,11 +150,11 @@ const NeuralNetworkCanvas: React.FC<{ data: DiagramData }> = ({ data }) => {
     svg.transition().duration(750).call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(scale));
 
     return () => { svg.on('.zoom', null); }
-  }, [layout.width, layout.height]);
+  }, [layout.width, layout.height, forwardedRef]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-[var(--color-canvas-bg)] rounded-xl">
-      <svg ref={svgRef} className="w-full h-full absolute inset-0">
+      <svg ref={forwardedRef} className="w-full h-full absolute inset-0">
          <defs>
           <radialGradient id="nn-neuron-gradient-dark">
             <stop offset="0%" stopColor="#888" />

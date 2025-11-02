@@ -1,9 +1,9 @@
 
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface ToolbarProps {
-  onExport: (format: 'svg' | 'png' | 'json') => void;
+  onExport: (format: 'svg' | 'png' | 'json' | 'jpg') => void;
   onExplain: () => void;
   isExplaining: boolean;
   onUndo: () => void;
@@ -25,6 +25,23 @@ const ToolbarButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {c
 );
 
 const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, onUndo, onRedo, canUndo, canRedo, onFitToScreen, onGoToPlayground, canGoToPlayground }) => {
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleExportClick = (format: 'svg' | 'png' | 'json' | 'jpg') => {
+    onExport(format);
+    setIsExportMenuOpen(false);
+  };
   
   return (
     <div className="flex items-center space-x-2">
@@ -59,16 +76,22 @@ const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, on
         Explain
       </button>
 
-      <div className="relative group">
-        <button className="px-3 py-2 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors flex items-center">
+      <div className="relative" ref={exportMenuRef}>
+        <button 
+          onClick={() => setIsExportMenuOpen(prev => !prev)}
+          className="px-3 py-2 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors flex items-center"
+        >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
             Export
         </button>
-        <div className="absolute right-0 mt-2 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30 invisible group-hover:visible p-1">
-            <a onClick={() => onExport('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
-            <a onClick={() => onExport('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">SVG</a>
-            <a onClick={() => onExport('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
-        </div>
+        {isExportMenuOpen && (
+            <div className="absolute right-0 mt-2 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg z-30 p-1">
+                <a onClick={() => handleExportClick('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
+                <a onClick={() => handleExportClick('jpg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JPG</a>
+                <a onClick={() => handleExportClick('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">SVG</a>
+                <a onClick={() => handleExportClick('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
+            </div>
+        )}
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ interface PlaygroundToolbarProps {
     canRedo: boolean;
     onExplain: () => void;
     isExplaining: boolean;
-    onExport: (format: 'svg' | 'png' | 'json') => void;
+    onExport: (format: 'svg' | 'png' | 'json' | 'jpg') => void;
 }
 
 const ToolButton: React.FC<{ 'aria-label': string; onClick?: () => void; isActive?: boolean; isDisabled?: boolean; children: React.ReactNode; className?: string }> =
@@ -34,6 +34,8 @@ const PlaygroundToolbar: React.FC<PlaygroundToolbarProps> = (props) => {
     const { interactionMode, onSetInteractionMode, onFitToScreen } = props;
     const { onUndo, onRedo, canUndo, canRedo, onExplain, isExplaining, onExport } = props;
 
+    const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+    const exportMenuRef = useRef<HTMLDivElement>(null);
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
     const moreMenuRef = useRef<HTMLDivElement>(null);
     
@@ -42,10 +44,19 @@ const PlaygroundToolbar: React.FC<PlaygroundToolbarProps> = (props) => {
           if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
             setIsMoreMenuOpen(false);
           }
+           if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+            setIsExportMenuOpen(false);
+          }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+     const handleExportClick = (format: 'svg' | 'png' | 'json' | 'jpg') => {
+        onExport(format);
+        setIsExportMenuOpen(false);
+        setIsMoreMenuOpen(false);
+    };
 
     const mobileMenu = (
         <div className="relative" ref={moreMenuRef}>
@@ -56,9 +67,10 @@ const PlaygroundToolbar: React.FC<PlaygroundToolbarProps> = (props) => {
                  <div className="absolute bottom-full mb-2 right-0 w-40 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg p-1 z-30">
                     <a onClick={() => { onFitToScreen(); setIsMoreMenuOpen(false); }} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Fit to Screen</a>
                     <div className="h-px bg-[var(--color-border)] my-1" />
-                    <a onClick={() => { onExport('png'); setIsMoreMenuOpen(false); }} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export PNG</a>
-                    <a onClick={() => { onExport('svg'); setIsMoreMenuOpen(false); }} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export SVG</a>
-                    <a onClick={() => { onExport('json'); setIsMoreMenuOpen(false); }} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export JSON</a>
+                    <a onClick={() => handleExportClick('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export PNG</a>
+                    <a onClick={() => handleExportClick('jpg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export JPG</a>
+                    <a onClick={() => handleExportClick('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export SVG</a>
+                    <a onClick={() => handleExportClick('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export JSON</a>
                     <div className="h-px bg-[var(--color-border)] my-1" />
                     <a onClick={() => { onExplain(); setIsMoreMenuOpen(false); }} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Explain</a>
                 </div>
@@ -95,15 +107,18 @@ const PlaygroundToolbar: React.FC<PlaygroundToolbarProps> = (props) => {
                 <ToolButton aria-label="Fit to Screen (F)" onClick={onFitToScreen} className="w-12 h-12">
                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                 </ToolButton>
-                <div className="relative group">
-                    <ToolButton aria-label="Export" className="w-12 h-12">
+                <div className="relative" ref={exportMenuRef}>
+                    <ToolButton aria-label="Export" onClick={() => setIsExportMenuOpen(prev => !prev)} className="w-12 h-12">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     </ToolButton>
-                    <div className="absolute left-full ml-2 top-0 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 invisible group-hover:visible p-1 z-20">
-                        <a onClick={() => onExport('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
-                        <a onClick={() => onExport('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">SVG</a>
-                        <a onClick={() => onExport('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
-                    </div>
+                     {isExportMenuOpen && (
+                        <div className="absolute left-full ml-2 top-0 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg p-1 z-20">
+                            <a onClick={() => handleExportClick('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
+                            <a onClick={() => handleExportClick('jpg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JPG</a>
+                            <a onClick={() => handleExportClick('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">SVG</a>
+                            <a onClick={() => handleExportClick('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
+                        </div>
+                    )}
                 </div>
                 <ToolButton aria-label="Explain Architecture" onClick={onExplain} isDisabled={isExplaining} className="w-12 h-12">
                     {isExplaining ? <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}

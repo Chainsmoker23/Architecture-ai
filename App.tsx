@@ -25,43 +25,29 @@ import DocsPage from './components/DocsPage';
 import Logo from './components/Logo';
 import NeuralNetworkPage from './components/NeuralNetworkPage';
 
-// Helper to fetch and embed fonts as data URIs to prevent canvas tainting
-const getFontStyles = async (): Promise<string> => {
-  const fontUrl = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
-  try {
-      const cssResponse = await fetch(fontUrl);
-      if (!cssResponse.ok) return '';
-      let cssText = await cssResponse.text();
-      const fontFileUrls = cssText.match(/url\(https?:\/\/[^)]+\)/g) || [];
+// Helper function to recursively copy computed styles from a source element to a destination element.
+// This is the key to making exports look exactly like the on-screen version.
+const copyStylesInline = (destinationNode: SVGElement, sourceNode: SVGElement) => {
+  const computedStyle = window.getComputedStyle(sourceNode);
+  const styleProperties = Array.from(computedStyle);
+  let styleValue = '';
+  for (const property of styleProperties) {
+    // Only copy properties that are relevant for SVG rendering
+    if (['fill', 'stroke', 'stroke-width', 'font-size', 'font-family', 'font-weight', 'opacity', 'visibility', 'text-anchor'].includes(property)) {
+      styleValue += `${property}:${computedStyle.getPropertyValue(property)};`;
+    }
+  }
+  destinationNode.setAttribute('style', styleValue);
 
-      const dataUriPromises = fontFileUrls.map(async (urlString) => {
-          const url = urlString.replace(/url\((['"]?)(.*?)\1\)/, '$2');
-          try {
-              const fontResponse = await fetch(url);
-              if (!fontResponse.ok) return { original: urlString, dataUri: urlString };
-              const blob = await fontResponse.blob();
-              const dataUri = await new Promise<string>((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onloadend = () => resolve(reader.result as string);
-                  reader.onerror = reject;
-                  reader.readAsDataURL(blob);
-              });
-              return { original: urlString, dataUri: `url(${dataUri})` };
-          } catch (e) {
-              return { original: urlString, dataUri: urlString };
-          }
-      });
-      
-      const resolvedUris = await Promise.all(dataUriPromises);
-
-      for (const { original, dataUri } of resolvedUris) {
-          cssText = cssText.replace(original, dataUri);
-      }
-      return cssText;
-  } catch (e) {
-      return '';
+  for (let i = 0; i < sourceNode.children.length; i++) {
+    const sourceChild = sourceNode.children[i];
+    const destinationChild = destinationNode.children[i];
+    if (sourceChild instanceof SVGElement && destinationChild instanceof SVGElement) {
+      copyStylesInline(destinationChild, sourceChild);
+    }
   }
 };
+
 
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork';
 
@@ -126,7 +112,7 @@ const App: React.FC = () => {
             window.localStorage.removeItem('user-api-key');
         }
     } catch (error) {
-        console.error("Could not access localStorage to save API key:", error);
+        console.error("Could not access localStorage to save API key:", String(error));
     }
   }, [userApiKey]);
 
@@ -148,7 +134,7 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleExport = async (format: 'svg' | 'png' | 'json') => {
+  const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
     if (!diagramData) return;
     const filename = diagramData.title.replace(/[\s/]/g, '_').toLowerCase();
 
@@ -161,54 +147,54 @@ const App: React.FC = () => {
     
     const svgElement = svgRef.current;
     if (!svgElement) return;
+
+    // --- Create a clone and inline all styles ---
+    const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
+    copyStylesInline(svgClone, svgElement);
     
-    const contentGroup = svgElement.querySelector('#diagram-content');
+    // --- Calculate bounding box to crop the image correctly ---
+    const contentGroup = svgClone.querySelector('#diagram-content');
     if (!contentGroup) return;
 
+    // Temporarily remove transform to calculate the true bounding box
     const originalTransform = contentGroup.getAttribute('transform');
     contentGroup.removeAttribute('transform');
     const bbox = (contentGroup as SVGGraphicsElement).getBBox();
     if (originalTransform) {
         contentGroup.setAttribute('transform', originalTransform);
     }
-
+    
+    // --- Configure the clone for export ---
     const padding = 50;
     const exportWidth = bbox.width + padding * 2;
     const exportHeight = bbox.height + padding * 2;
     const viewBox = `${bbox.x - padding} ${bbox.y - padding} ${exportWidth} ${exportHeight}`;
 
-    const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
-    
-    const clonedContentGroup = svgClone.querySelector('#diagram-content');
-    if (clonedContentGroup) clonedContentGroup.removeAttribute('transform');
-
-    const gridRect = svgClone.querySelector('rect[fill="url(#grid)"]');
-    if (gridRect) gridRect.remove();
-    
     svgClone.setAttribute('width', `${exportWidth}`);
     svgClone.setAttribute('height', `${exportHeight}`);
     svgClone.setAttribute('viewBox', viewBox);
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    
+    // Remove the grid background for a clean export
+    const gridRect = svgClone.querySelector('rect[fill="url(#grid)"]');
+    if (gridRect) gridRect.remove();
 
-    const fontStyles = await getFontStyles();
-    const otherStyles = `
-      .label-text { color: var(--color-text-primary); } 
-      .label-desc { color: var(--color-text-secondary); }
-      .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-      .font-medium { font-weight: 500; } .leading-tight { line-height: 1.25; } .h-full { height: 100%; }
-      .flex { display: flex; } .items-center { align-items: center; } .text-center { text-align: center; }
-    `;
-    const styleEl = document.createElement('style');
-    styleEl.textContent = fontStyles + otherStyles;
-    svgClone.querySelector('defs')?.appendChild(styleEl);
-
+    // Serialize the styled SVG to a blob
     const serializer = new XMLSerializer();
-    const source = serializer.serializeToString(svgClone);
+    let source = serializer.serializeToString(svgClone);
+     // Add a background rect to the SVG source itself for formats that need it (like JPG)
+    const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+    source = source.replace('>', `><rect width="100%" height="100%" fill="${themeBg}"></rect>`);
+
     const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
 
     if (format === 'svg') {
         downloadBlob(svgBlob, `${filename}.svg`);
-    } else if (format === 'png') {
+        return;
+    }
+    
+    // --- Convert SVG blob to PNG or JPG ---
+    if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) return;
@@ -220,21 +206,27 @@ const App: React.FC = () => {
             const pixelRatio = window.devicePixelRatio || 1;
             canvas.width = exportWidth * pixelRatio;
             canvas.height = exportHeight * pixelRatio;
-            canvas.style.width = `${exportWidth}px`;
-            canvas.style.height = `${exportHeight}px`;
             context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
-            context.drawImage(img, 0, 0);
+            if (format === 'jpg') {
+                context.fillStyle = themeBg;
+                context.fillRect(0, 0, exportWidth, exportHeight);
+            }
 
-            canvas.toBlob((pngBlob) => {
-                if (pngBlob) {
-                    downloadBlob(pngBlob, `${filename}.png`);
+            context.drawImage(img, 0, 0, exportWidth, exportHeight);
+
+            const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+            const quality = format === 'jpg' ? 0.9 : undefined;
+            
+            canvas.toBlob((imageBlob) => {
+                if (imageBlob) {
+                    downloadBlob(imageBlob, `${filename}.${format}`);
                 }
                 URL.revokeObjectURL(url);
-            });
+            }, mimeType, quality);
         };
         img.onerror = (e) => {
-          console.error("Error loading SVG for PNG conversion.", e);
+          console.error("Error loading SVG for image conversion.", e);
           URL.revokeObjectURL(url);
         }
         img.src = url;

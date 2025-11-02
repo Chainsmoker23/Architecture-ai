@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiagramData, IconType } from '../types';
 import { generateNeuralNetworkData } from '../services/geminiService';
@@ -9,6 +9,28 @@ import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
 import Logo from './Logo';
 
+// Helper function to recursively copy computed styles from a source element to a destination element.
+const copyStylesInline = (destinationNode: SVGElement, sourceNode: SVGElement) => {
+  const computedStyle = window.getComputedStyle(sourceNode);
+  const styleProperties = Array.from(computedStyle);
+  let styleValue = '';
+  for (const property of styleProperties) {
+    if (['fill', 'stroke', 'stroke-width', 'font-size', 'font-family', 'font-weight', 'opacity', 'visibility', 'text-anchor'].includes(property)) {
+      styleValue += `${property}:${computedStyle.getPropertyValue(property)};`;
+    }
+  }
+  destinationNode.setAttribute('style', styleValue);
+
+  for (let i = 0; i < sourceNode.children.length; i++) {
+    const sourceChild = sourceNode.children[i];
+    const destinationChild = destinationNode.children[i];
+    if (sourceChild instanceof SVGElement && destinationChild instanceof SVGElement) {
+      copyStylesInline(destinationChild, sourceChild);
+    }
+  }
+};
+
+// Fix: Define props interface for the component.
 interface NeuralNetworkPageProps {
   onBack: () => void;
 }
@@ -30,7 +52,111 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     { value: 'medium', label: 'Medium' },
     { value: 'dark', label: 'Dark' },
   ] as const;
+
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
   
+  const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
+    setIsExportMenuOpen(false);
+    if (!diagramData) return;
+    const filename = diagramData.title.replace(/[\s/]/g, '_').toLowerCase();
+
+    if (format === 'json') {
+      const dataStr = JSON.stringify(diagramData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      downloadBlob(blob, `${filename}.json`);
+      return;
+    }
+    
+    const svgElement = svgRef.current;
+    if (!svgElement) return;
+
+    const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
+    copyStylesInline(svgClone, svgElement);
+    
+    const contentGroup = svgClone.querySelector('g[transform]');
+    if (!contentGroup) return;
+
+    const bbox = (contentGroup as SVGGraphicsElement).getBBox();
+    
+    const padding = 50;
+    const exportWidth = bbox.width + padding * 2;
+    const exportHeight = bbox.height + padding * 2;
+    const viewBox = `${bbox.x - padding} ${bbox.y - padding} ${exportWidth} ${exportHeight}`;
+
+    svgClone.setAttribute('width', `${exportWidth}`);
+    svgClone.setAttribute('height', `${exportHeight}`);
+    svgClone.setAttribute('viewBox', viewBox);
+    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+    const serializer = new XMLSerializer();
+    let source = serializer.serializeToString(svgClone);
+    const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+    source = source.replace('>', `><rect width="100%" height="100%" fill="${themeBg}"></rect>`);
+    const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+
+    if (format === 'svg') {
+        downloadBlob(svgBlob, `${filename}.svg`);
+        return;
+    }
+    
+    if (format === 'png' || format === 'jpg') {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        
+        const img = new Image();
+        const url = URL.createObjectURL(svgBlob);
+        
+        img.onload = () => {
+            const pixelRatio = window.devicePixelRatio || 1;
+            canvas.width = exportWidth * pixelRatio;
+            canvas.height = exportHeight * pixelRatio;
+            context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+            if (format === 'jpg') {
+                context.fillStyle = themeBg;
+                context.fillRect(0, 0, exportWidth, exportHeight);
+            }
+
+            context.drawImage(img, 0, 0, exportWidth, exportHeight);
+
+            const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+            const quality = format === 'jpg' ? 0.9 : undefined;
+            
+            canvas.toBlob((imageBlob) => {
+                if (imageBlob) {
+                    downloadBlob(imageBlob, `${filename}.${format}`);
+                }
+                URL.revokeObjectURL(url);
+            }, mimeType, quality);
+        };
+        img.src = url;
+    }
+  };
+
   const handleGenerate = useCallback(async (keyOverride?: string) => {
     if (!prompt) {
       setError("Please enter a prompt describing the neural network.");
@@ -77,6 +203,24 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
             </div>
         </div>
          <div className="flex items-center gap-2">
+            <div className="relative" ref={exportMenuRef}>
+              <button 
+                onClick={() => setIsExportMenuOpen(prev => !prev)}
+                disabled={!diagramData}
+                className="px-3 py-2 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors flex items-center disabled:opacity-50"
+              >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  Export
+              </button>
+              {isExportMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg z-30 p-1">
+                      <a onClick={() => handleExport('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
+                      <a onClick={() => handleExport('jpg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JPG</a>
+                      <a onClick={() => handleExport('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">SVG</a>
+                      <a onClick={() => handleExport('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
+                  </div>
+              )}
+            </div>
             <div className="hidden sm:flex items-center space-x-1 bg-[var(--color-bg-input)] p-1 rounded-lg border border-[var(--color-border)]">
                 {themeOptions.map(option => (
                     <button
@@ -151,7 +295,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
             </AnimatePresence>
 
             {diagramData && (
-                <NeuralNetworkCanvas data={diagramData} />
+                <NeuralNetworkCanvas forwardedRef={svgRef} data={diagramData} />
             )}
              {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
         </main>
