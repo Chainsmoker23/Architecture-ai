@@ -11,6 +11,7 @@ export interface Node {
   color?: string;
   animationOrder?: number;
   shape?: 'rectangle' | 'ellipse' | 'diamond';
+  layer?: number;
 }
 
 export interface Link {

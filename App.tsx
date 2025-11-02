@@ -8,7 +8,7 @@ import SummaryModal from './components/SummaryModal';
 import Loader from './components/Loader';
 import PropertiesSidebar from './components/PropertiesSidebar';
 import SettingsSidebar from './components/SettingsSidebar';
-import { EXAMPLE_PROMPT } from './constants';
+import { EXAMPLE_PROMPT, EXAMPLE_PROMPTS_LIST } from './constants';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import LandingPage from './components/LandingPage';
 import ContactPage from './components/ContactPage';
@@ -23,6 +23,7 @@ import PrivacyPage from './components/PrivacyPage';
 import TermsPage from './components/TermsPage';
 import DocsPage from './components/DocsPage';
 import Logo from './components/Logo';
+import NeuralNetworkPage from './components/NeuralNetworkPage';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -62,7 +63,7 @@ const getFontStyles = async (): Promise<string> => {
   }
 };
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork';
 
 const pageContainerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -82,6 +83,8 @@ const App: React.FC = () => {
   const [page, setPage] = useState<Page>('landing');
   
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
+  const [promptIndex, setPromptIndex] = useState(0);
+
   const [history, setHistory] = useState<(DiagramData | null)[]>([null]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const diagramData = history[historyIndex];
@@ -368,6 +371,12 @@ const App: React.FC = () => {
     }
     setIsEditingTitle(false);
   };
+
+  const handleCyclePrompt = () => {
+    const nextIndex = (promptIndex + 1) % EXAMPLE_PROMPTS_LIST.length;
+    setPromptIndex(nextIndex);
+    setPrompt(EXAMPLE_PROMPTS_LIST[nextIndex]);
+  };
   
   if (page === 'landing') {
     return <LandingPage onLaunch={() => setPage('auth')} onNavigate={onNavigate} />;
@@ -395,6 +404,9 @@ const App: React.FC = () => {
   }
   if (page === 'docs') {
     return <DocsPage onBack={() => setPage('landing')} onLaunch={() => setPage('auth')} onNavigateToSdk={() => setPage('sdk')} onNavigate={onNavigate} />;
+  }
+  if (page === 'neuralNetwork') {
+    return <NeuralNetworkPage onBack={() => setPage('app')} />;
   }
   
   if (page === 'app') {
@@ -453,12 +465,43 @@ const App: React.FC = () => {
           
           <main className="w-full max-w-7xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
             <motion.aside variants={pageItemVariants} className="lg:col-span-3 p-6 rounded-2xl shadow-sm h-full flex flex-col glass-panel">
-              <PromptInput
-                prompt={prompt}
-                setPrompt={setPrompt}
-                onGenerate={() => handleGenerate()}
-                isLoading={isLoading}
-              />
+               <h2 className="text-xl font-semibold mb-4">Choose a Diagram Type</h2>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="border-2 border-[var(--color-accent)] bg-[var(--color-accent-soft)] p-4 rounded-xl cursor-pointer">
+                        <ArchitectureIcon type={IconType.Cloud} className="w-7 h-7 text-[var(--color-accent-text)] mb-2" />
+                        <h3 className="font-semibold text-[var(--color-text-primary)]">General</h3>
+                        <p className="text-xs text-[var(--color-text-secondary)]">Cloud, services, etc.</p>
+                    </div>
+                    <motion.button 
+                        onClick={() => setPage('neuralNetwork')}
+                        className="p-4 rounded-xl text-left bg-transparent md:bg-[var(--color-button-bg)] transition-colors"
+                        whileHover={{ backgroundColor: 'var(--color-button-bg-hover)' }}
+                    >
+                        <ArchitectureIcon type={IconType.Brain} className="w-7 h-7 text-[var(--color-text-secondary)] mb-2" />
+                        <h3 className="font-semibold text-[var(--color-text-primary)]">Neural Network</h3>
+                        <p className="text-xs text-[var(--color-text-secondary)]">Layers & neurons.</p>
+                    </motion.button>
+                </div>
+                
+                <div className="flex flex-col flex-grow">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-semibold text-[var(--color-text-primary)]">Describe Your Architecture</h3>
+                        <motion.button 
+                        title="Get a prompt idea"
+                        onClick={handleCyclePrompt}
+                        className="p-2 rounded-full text-[var(--color-accent-text)] hover:bg-[var(--color-accent-soft)] transition-colors"
+                        animate={{ scale: [1, 1.1, 1], transition: { duration: 1.5, repeat: Infinity } }}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h.01a1 1 0 100-2H11zM10 14a1 1 0 01.832.445l.5 1.5a.5.5 0 01-.866.5L10 15.586l-.466.909a.5.5 0 01-.866-.5l.5-1.5A1 1 0 0110 14zm-3 0a1 1 0 01.832.445l.5 1.5a.5.5 0 01-.866.5L7 15.586l-.466.909a.5.5 0 01-.866-.5l.5-1.5A1 1 0 017 14z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.032 10.968a5.976 5.976 0 011.66-3.235 5.97 5.97 0 014.242-1.732 5.97 5.97 0 014.243 1.732 5.976 5.976 0 011.66 3.235A6.03 6.03 0 0116 11.732V13a1 1 0 11-2 0v-1.268a4.018 4.018 0 00-1.032-2.734 4.01 4.01 0 00-2.828-1.032 4.01 4.01 0 00-2.828 1.032A4.018 4.018 0 006 11.732V13a1 1 0 11-2 0v-1.268a6.03 6.03 0 01.032-.764z" clipRule="evenodd" /></svg>
+                        </motion.button>
+                    </div>
+                    <PromptInput
+                        prompt={prompt}
+                        setPrompt={setPrompt}
+                        onGenerate={() => handleGenerate()}
+                        isLoading={isLoading}
+                    />
+                </div>
             </motion.aside>
 
             <motion.section variants={pageItemVariants} className="lg:col-span-6 rounded-2xl shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0 glass-panel">

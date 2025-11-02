@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Content } from "@google/genai";
-import { DiagramData } from "../types";
+import { DiagramData, Node } from "../types";
 
 // Helper function to get a Gemini AI client instance.
 // It prioritizes a user-provided API key. If not present, it falls back to the environment variable.
@@ -39,7 +39,7 @@ const responseSchema = {
           y: { type: Type.NUMBER, description: "The initial vertical position of the node's center." },
           width: { type: Type.NUMBER, description: "The initial width of the node. For 'neuron' type, this should be small (e.g., 30). For 'layer-label' this should be wide enough for the text." },
           height: { type: Type.NUMBER, description: "The initial height of the node. For 'neuron' type, this should be small (e.g., 30). For 'layer-label' this can be small (e.g., 20)." },
-          color: { type: Type.STRING, description: "Optional hex color code for the node. For 'neuron' type, use '#000000' for input/output layers and '#CCCCCC' for hidden layers." },
+          color: { type: Type.STRING, description: "Optional hex color code for the node. For 'neuron' type, use '#2B2B2B' for input/output layers and '#D1D5DB' for hidden layers." },
         },
         required: ["id", "label", "type", "description", "x", "y", "width", "height"],
       },
@@ -97,22 +97,47 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
       The output must be a valid JSON object adhering to the specified schema.
       
       **Layout Guidelines:**
-      1.  **Logical Flow & Symmetry**: Arrange components to represent a clear data flow, typically left-to-right. Strive for a visually balanced and symmetrical layout where possible.
-      2.  **Proactive Grouping**: You MUST proactively use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components. For example, if the prompt mentions "web tier" and "data tier," create distinct container boxes for them. This is critical for a logical diagram.
-      3.  **Spacing & Alignment**: Ensure generous and consistent spacing between all elements. Align nodes vertically and horizontally to create a clean, grid-like structure. There must be absolutely NO overlaps between any nodes or containers.
-      4.  **Sizing**: Choose an appropriate 'width' and 'height' for each node based on its label length to avoid text overflow. Minimum width should be 120 and minimum height 80, unless it's a special type.
+      1.  **Logical Flow & Symmetry**: Arrange components to represent a clear data flow, typically left-to-right. Strive for a visually balanced and symmetrical layout.
+      2.  **Proactive Grouping**: You MUST proactively use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components.
+      3.  **Spacing & Alignment**: Ensure generous and consistent spacing. Strictly align nodes both vertically and horizontally to create a clean, grid-like structure. Imagine an invisible grid and snap components to it. There must be absolutely NO overlaps between any nodes or containers.
+      4.  **Sizing**: Choose an appropriate 'width' and 'height' for each node based on its label length. Minimum width should be 120 and minimum height 80, unless it's a special type.
       5.  **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left. Node 'x' and 'y' are the center of the node. Container 'x' and 'y' are the top-left corner.
       6.  **IDs**: Ensure all 'id' fields are unique, kebab-case strings.
       7.  **Connectivity**: Make sure all 'source' and 'target' IDs in links correspond to existing node IDs.
-      8.  **Bidirectional Communication**: When two components have a two-way communication flow (like a request and a response), you MUST represent this with TWO separate, unidirectional links, one for each direction. Each link can then have its own specific label (e.g., 'HTTP Request', 'JSON Response'). This is not a suggestion, it is a mandatory rule. Using 'bidirectional: true' for these scenarios is incorrect.
-      9.  **Clarity**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type' available from the predefined list.
-      10. **Node Types**: CRITICAL RULE: The 'neuron' type is reserved exclusively for diagrams that are explicitly about neural networks. For all other general software components (like servers, services, databases, etc.), you MUST use other, more appropriate types.
-      11. **Common Architecture Patterns**: For common patterns, use standard layouts. For a 3-tier web app, the flow must be left-to-right: User -> Load Balancer -> Web Tier (EC2 instances) -> Data Tier (RDS). Place Web and Data tiers in separate containers.
-      12. **Final Review Step**: Before finalizing the JSON, mentally review your generated diagram. Does it accurately represent every component and connection from the prompt? Is the layout balanced and free of clutter? Are all IDs unique and correctly referenced? Correct any deviations.`,
+      8.  **Bidirectional Communication**: When two components have a clear two-way communication flow, it is often clearer to represent this with TWO separate, unidirectional links. However, for simpler cases or to reduce clutter, you may use a single link with 'bidirectional: true'.
+      9.  **Clarity**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type'.
+      10. **Compactness & Proximity**: Strive for a compact layout. Minimize unnecessary whitespace. Components that communicate frequently should be placed closer to each other.
+      11. **Final Review Step**: Mentally review your generated diagram. Is it logical, balanced, and free of clutter? Correct any deviations.
+
+      **ULTRA-STRICT Instructions for Neural Network Diagrams:**
+      If the prompt describes a "neural network", "ANN", "deep learning model", or similar, you MUST abandon all other layout rules and follow these rules EXCLUSIVELY.
+      1.  **Node Types:** You can ONLY use two node types: \`'neuron'\` and \`'layer-label'\`.
+      2.  **Neuron Nodes (\`type: 'neuron'\`):**
+          *   **Purpose:** Represents a single neuron. They are rendered as glossy spheres.
+          *   **JSON Properties:**
+              *   \`label\` and \`description\` MUST be an empty string (\`""\`).
+              *   \`width\` and \`height\` MUST be equal and small (e.g., \`30\` or \`40\`).
+              *   \`shape\` MUST be \`'ellipse'\`.
+              *   \`color\` MUST be \`'#2B2B2B'\` for input/output neurons and \`'#D1D5DB'\` for hidden neurons.
+      3.  **Layer Label Nodes (\`type: 'layer-label'\`):**
+          *   **Purpose:** To label a vertical layer of neurons (e.g., 'Input', 'Hidden', 'Output'). They are rendered as text only.
+          *   **JSON Properties:**
+              *   The node MUST be positioned horizontally centered with its layer, and vertically positioned 40px above the topmost neuron of that layer.
+              *   \`description\` MUST be an empty string (\`""\`).
+      4.  **Layout:**
+          *   Neurons MUST be arranged in perfectly vertical columns (layers). All neurons in a layer share the same X-coordinate.
+          *   Layers MUST be spaced far apart horizontally (e.g., 250-300px between layer X-coordinates).
+          *   Neurons within a layer MUST be spaced perfectly and evenly in their vertical column.
+      5.  **Connectivity (Links):**
+          *   The network MUST be fully connected. Every neuron in a layer \`N\` MUST have a link pointing to EVERY neuron in the next layer \`N+1\`.
+          *   All links MUST be directed from a layer on the left to the next layer on the right. They must be \`'solid'\` and \`'thin'\`.
+          *   The \`label\` for all links between neurons MUST be an empty string (\`""\`).
+      6.  **DO NOT:** Do not create large container boxes for layers. Do not put labels inside neuron nodes. The only labels are the separate \`'layer-label'\` nodes.
+      `,
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "You are an expert solutions architect and a talented graphic designer with an expertise in information architecture. Your task is to generate a valid JSON representation of a software architecture diagram. The layout must be clean, logical, symmetrical, and exceptionally visually appealing, resembling a publication-quality blueprint that looks like it was made by a professional designer. Strictly adhere to all provided guidelines and the JSON schema."
+        systemInstruction: "You are an expert solutions architect and a talented graphic designer with an expertise in information architecture. Your task is to generate a valid JSON representation of a software architecture diagram. The layout must be clean, logical, symmetrical, and exceptionally visually appealing, resembling a publication-quality blueprint. You MUST strictly adhere to all provided guidelines and the JSON schema. Pay close attention to any special instructions for specific diagram types, like Neural Networks."
       },
     });
 
@@ -168,6 +193,100 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
   }
 };
 
+const neuralNetworkResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING, description: "A concise title for the neural network diagram." },
+    nodes: {
+      type: Type.ARRAY,
+      description: "A list of all neurons and layer labels.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING, description: "A unique, kebab-case identifier." },
+          label: { type: Type.STRING, description: "The label for the node. For 'neuron' type, this MUST be an empty string. For 'layer-label' type, this is the name of the layer (e.g., 'Input Layer')." },
+          type: { type: Type.STRING, description: "Either 'neuron' or 'layer-label'." },
+          layer: { type: Type.NUMBER, description: "The 0-indexed layer number this node belongs to. Input layer is 0." },
+          color: { type: Type.STRING, description: "Optional. For 'neuron' type, use '#2B2B2B' for input/output layers and '#D1D5DB' for hidden layers." },
+        },
+        required: ["id", "label", "type", "layer"],
+      },
+    },
+    links: {
+      type: Type.ARRAY,
+      description: "A list of connections between the neurons.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING, description: "A unique, kebab-case identifier for the link." },
+          source: { type: Type.STRING, description: "The 'id' of the source neuron." },
+          target: { type: Type.STRING, description: "The 'id' of the target neuron." },
+        },
+        required: ["id", "source", "target"],
+      },
+    },
+  },
+  required: ["title", "nodes", "links"],
+};
+
+export const generateNeuralNetworkData = async (prompt: string, userApiKey?: string): Promise<DiagramData> => {
+    try {
+        const ai = getGenAIClient(userApiKey);
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            contents: `Generate a neural network diagram structure from the prompt: "${prompt}".
+      **VERY STRICT RULES:**
+      1.  Parse the prompt to identify the layers (input, hidden, output) and the number of neurons in each.
+      2.  Create a 'node' object for EACH neuron.
+      3.  Create one 'node' object for EACH layer's label (e.g., 'Input', 'Hidden 1', 'Output').
+      4.  For ALL nodes (neurons and labels), assign a \`layer\` number, starting with 0 for the input layer. All nodes in the same vertical layer must have the same \`layer\` number.
+      5.  For neuron nodes: \`type\` must be 'neuron', \`label\` must be an empty string. Assign colors appropriately ('#2B2B2B' for input/output, '#D1D5DB' for hidden).
+      6.  For label nodes: \`type\` must be 'layer-label', \`label\` is the name of the layer.
+      7.  Create 'link' objects for a fully-connected network between adjacent layers. All links must go from a lower layer number to a higher one.
+      8.  Do NOT include 'x', 'y', 'width', 'height', 'description', or 'shape' properties. They will be ignored. Only provide properties defined in the schema.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: neuralNetworkResponseSchema,
+                systemInstruction: "You are an AI specialized in parsing neural network structures. Your task is to convert a natural language description of a neural network into a structured JSON format. You focus only on the network's topology (neurons, layers, connections), not its visual layout. Adhere strictly to the provided schema."
+            },
+        });
+
+        const jsonText = response.text.trim();
+        const parsedData = JSON.parse(jsonText);
+
+        if (!parsedData.nodes || !parsedData.links) {
+            throw new Error("Invalid data structure received from API for neural network.");
+        }
+
+        // Add dummy geometric properties to satisfy the DiagramData type; these will be calculated by the canvas.
+        (parsedData.nodes || []).forEach((node: Node) => {
+            node.x = 0;
+            node.y = 0;
+            node.width = node.type === 'neuron' ? 40 : 100;
+            node.height = node.type === 'neuron' ? 40 : 20;
+        });
+
+        return {
+            ...parsedData,
+            architectureType: 'Neural Network',
+        } as DiagramData;
+
+    } catch (error) {
+        console.error("Error generating neural network data:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {
+            throw new Error("Your API key is invalid. Please check it and try again.");
+        }
+        if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('429')) {
+             if (userApiKey) {
+                throw new Error("Your API key has exceeded its quota. Please check your usage on the Google AI platform.");
+            }
+            throw new Error("SHARED_KEY_QUOTA_EXCEEDED");
+        }
+        throw new Error("Failed to generate neural network. The model may have returned an invalid format.");
+    }
+};
 
 export const explainArchitecture = async (diagramData: DiagramData, userApiKey?: string): Promise<string> => {
     try {

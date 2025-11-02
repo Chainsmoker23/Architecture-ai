@@ -27,7 +27,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLogin }) => {
           <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-[#F9D7E3]">
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-[#333]">
-                    Welcome to ArchiGen AI
+                    Welcome to CubeGen AI
                 </h1>
                 <p className="text-[#555555] mt-2">
                     Sign in or create an account to continue

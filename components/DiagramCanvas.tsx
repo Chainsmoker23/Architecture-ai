@@ -190,6 +190,14 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
           <filter id="drop-shadow" x="-50%" y="-50%" width="200%" height="200%">
               <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="var(--color-shadow)" floodOpacity="0.1" />
           </filter>
+          <radialGradient id="neuron-gradient-dark">
+            <stop offset="0%" stop-color="#666" />
+            <stop offset="100%" stop-color="#2B2B2B" />
+          </radialGradient>
+          <radialGradient id="neuron-gradient-light">
+            <stop offset="0%" stop-color="#FFFFFF" />
+            <stop offset="100%" stop-color="#D1D5DB" />
+          </radialGradient>
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
 
@@ -390,6 +398,45 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
     
     const isResizing = resizingNodeId === node.id;
 
+    if (node.type === 'layer-label') {
+        return (
+            <g ref={ref} onClick={(e) => onSelect(e, node.id)} onDoubleClick={() => onNodeDoubleClick?.(node.id)} onContextMenu={(e) => onContextMenu(e, node)} style={{ cursor: isEditable && (interactionMode === 'select' || interactionMode === 'pan') ? 'move' : 'default' }}>
+                <motion.text
+                    animate={{ x: node.x, y: node.y }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    x={node.x}
+                    y={node.y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill={isSelected ? "var(--color-accent-text)" : "var(--color-text-primary)"}
+                    fontSize="18px"
+                    fontWeight="700"
+                    style={{ pointerEvents: 'none' }}
+                >
+                    {node.label}
+                </motion.text>
+            </g>
+        );
+    }
+    
+    if (node.type === 'neuron') {
+        const neuronFill = node.color === '#2B2B2B' ? 'url(#neuron-gradient-dark)' : 'url(#neuron-gradient-light)';
+        return (
+            <g ref={ref} onClick={(e) => onSelect(e, node.id)} onDoubleClick={() => onNodeDoubleClick?.(node.id)} onContextMenu={(e) => onContextMenu(e, node)} style={{ cursor: isEditable && (interactionMode === 'select' || interactionMode === 'pan') ? 'move' : 'default' }}>
+                <motion.circle
+                    animate={{ cx: node.x, cy: node.y }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    cx={node.x}
+                    cy={node.y}
+                    r={node.width / 2}
+                    fill={neuronFill}
+                    stroke={isSelected ? "var(--color-accent-text)" : "rgba(0,0,0,0.1)"}
+                    strokeWidth={isSelected ? 1.5 : 0.5}
+                />
+            </g>
+        );
+    }
+
     return (
         <g ref={ref} onClick={(e) => onSelect(e, node.id)} onDoubleClick={() => onNodeDoubleClick?.(node.id)} onContextMenu={(e) => onContextMenu(e, node)} style={{ cursor: isEditable && (interactionMode === 'select' || interactionMode === 'pan') ? 'move' : (interactionMode === 'connect' ? 'pointer' : 'default')}}>
           {node.description && <title>{node.description}</title>}
@@ -409,23 +456,49 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
 
 const DiagramLink = memo<{ link: Link; source: Node; target: Node; onContextMenu: (e: React.MouseEvent, item: Link) => void; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; offset: number; }>(({ link, source, target, onContextMenu, isSelected, onSelect, offset }) => {
     
+    const isNeuronLink = source.type === 'neuron' && target.type === 'neuron';
+
     const pathD = useMemo(() => {
+        if (isNeuronLink) {
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist === 0) return ''; // Avoid division by zero
+
+            const sourceRadius = source.width / 2;
+            const targetRadius = target.width / 2;
+            
+            const p1 = {
+                x: source.x + (dx / dist) * sourceRadius,
+                y: source.y + (dy / dist) * sourceRadius
+            };
+            const p4 = {
+                x: target.x - (dx / dist) * targetRadius,
+                y: target.y - (dy / dist) * targetRadius
+            };
+            return `M ${p1.x} ${p1.y} L ${p4.x} ${p4.y}`;
+        }
+        
         const p1 = { x: source.x < target.x ? source.x + source.width / 2 : source.x - source.width / 2, y: source.y };
         const p4 = { x: target.x > source.x ? target.x - target.width / 2 : target.x + target.width / 2, y: target.y };
         const midX = (p1.x + p4.x) / 2 + offset;
         return `M ${p1.x} ${p1.y} L ${midX} ${p1.y} L ${midX} ${p4.y} L ${p4.x} ${p4.y}`;
-    }, [source, target, offset]);
+    }, [source, target, offset, isNeuronLink]);
 
     const labelPos = useMemo(() => {
-        if (!link.label) return null;
+        if (!link.label || isNeuronLink) return null;
         const sourceEdgeX = source.x < target.x ? source.x + source.width / 2 : source.x - source.width / 2;
-        const targetEdgeX = target.x < source.x ? target.x + target.width / 2 : target.x - target.width / 2;
+        const targetEdgeX = target.x > source.x ? target.x - target.width / 2 : target.x + target.width / 2;
         const midX = (sourceEdgeX + targetEdgeX) / 2 + offset;
-        const midY = (source.y + target.y) / 2;
-        return { x: midX, y: midY };
-    }, [source, target, offset, link.label]);
+        
+        // Place label on the first horizontal segment, closer to the source
+        const labelX = sourceEdgeX + (midX - sourceEdgeX) * 0.5;
+        const labelY = source.y + (offset > 0 ? offset / 3 + 5 : offset / 3 - 5);
+        
+        return { x: labelX, y: labelY };
+    }, [source, target, offset, link.label, isNeuronLink]);
     
-    const thicknessMap = { thin: 1.5, medium: 2.5, thick: 4 };
+    const thicknessMap = { thin: isNeuronLink ? 0.5 : 1.5, medium: 2.5, thick: 4 };
     const thicknessPx = thicknessMap[link.thickness || 'medium'];
     const color = link.color || (isSelected ? 'var(--color-accent-text)' : 'var(--color-link)');
     const dashArray = link.style === 'dashed' ? '8 6' : (link.style === 'dotted' ? '2 4' : 'none');
@@ -434,25 +507,42 @@ const DiagramLink = memo<{ link: Link; source: Node; target: Node; onContextMenu
         <g onClick={(e) => onSelect(e, link.id)} onContextMenu={(e) => onContextMenu(e, link)} style={{ cursor: 'pointer' }}>
             {/* Invisible wider path for easier clicking */}
             <path d={pathD} stroke="transparent" strokeWidth={20} fill="none" />
-            <path d={pathD} stroke={color} strokeWidth={thicknessPx} strokeDasharray={dashArray} fill="none" markerEnd={`url(#arrowhead)`} markerStart={link.bidirectional ? `url(#arrowhead-reverse)` : undefined} style={{ strokeLinejoin: 'miter', strokeLinecap: 'butt' }} />
+            <path d={pathD} stroke={color} strokeWidth={thicknessPx} strokeDasharray={dashArray} fill="none" markerEnd={isNeuronLink ? undefined : `url(#arrowhead)`} markerStart={link.bidirectional ? `url(#arrowhead-reverse)` : undefined} style={{ strokeLinejoin: 'round', strokeLinecap: 'butt' }} />
             {link.label && labelPos && (
                 <g>
-                    {/* Background "knockout" text */}
-                    <text
-                        x={labelPos.x} y={labelPos.y} dy=".3em" textAnchor="middle"
-                        stroke="var(--color-canvas-bg)" strokeWidth="6" strokeLinejoin="round"
-                        fontSize="11px" fontWeight="600"
-                    >
-                        {link.label}
-                    </text>
-                    {/* Foreground text */}
-                    <text
-                        x={labelPos.x} y={labelPos.y} dy=".3em" textAnchor="middle"
-                        fill="var(--color-text-secondary)"
-                        fontSize="11px" fontWeight="600"
-                    >
-                        {link.label}
-                    </text>
+                    {(() => {
+                        const labelText = link.label as string;
+                        // Estimate width and height for the background
+                        const labelWidth = labelText.length * 5.5 + 12; // Approx 5.5px per char + padding
+                        const labelHeight = 18;
+                        return (
+                            <>
+                                <rect
+                                    x={labelPos.x - labelWidth / 2}
+                                    y={labelPos.y - labelHeight / 2 + 1} // +1 for better vertical alignment
+                                    width={labelWidth}
+                                    height={labelHeight}
+                                    rx={4}
+                                    ry={4}
+                                    fill="var(--color-canvas-bg)"
+                                    stroke="var(--color-border-translucent)"
+                                    strokeWidth="1"
+                                />
+                                <text
+                                    x={labelPos.x}
+                                    y={labelPos.y}
+                                    dy=".3em"
+                                    textAnchor="middle"
+                                    fill="var(--color-text-secondary)"
+                                    fontSize="11px"
+                                    fontWeight="600"
+                                    style={{ pointerEvents: 'none' }}
+                                >
+                                    {labelText}
+                                </text>
+                            </>
+                        );
+                    })()}
                 </g>
             )}
         </g>
