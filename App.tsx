@@ -63,6 +63,20 @@ const getFontStyles = async (): Promise<string> => {
 
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs';
 
+const pageContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } },
+};
+
+const pageItemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { type: 'spring', damping: 15, stiffness: 100 } 
+  },
+};
+
 const App: React.FC = () => {
   const [page, setPage] = useState<Page>('landing');
   
@@ -401,24 +415,9 @@ const App: React.FC = () => {
         />
       );
     }
-    
-    const headerContainerVariants: Variants = {
-      hidden: {},
-      visible: { transition: { staggerChildren: 0.2 } },
-    };
-
-    const headerItemVariants: Variants = {
-      hidden: { opacity: 0, y: 20, scale: 0.9 },
-      visible: { 
-        opacity: 1, 
-        y: 0, 
-        scale: 1,
-        transition: { type: 'spring', damping: 12, stiffness: 100 } 
-      },
-    };
 
     return (
-      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex transition-colors duration-300">
+      <div className="min-h-screen text-[var(--color-text-primary)] flex transition-colors duration-300 app-bg">
         <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
         <button
             onClick={() => setPage('landing')}
@@ -429,44 +428,39 @@ const App: React.FC = () => {
                 <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
             </svg>
         </button>
-        <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6">
-          <header className="w-full max-w-7xl mx-auto text-center relative py-4">
+        <motion.div 
+          variants={pageContainerVariants}
+          initial="hidden"
+          animate="visible"
+          className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6"
+        >
+          <motion.header variants={pageItemVariants} className="w-full max-w-7xl mx-auto text-center relative py-4">
               <div className="absolute inset-0 flex items-center justify-center -z-10 pointer-events-none">
                   <div className="header-glow-effect" />
               </div>
-              <motion.h1 
-                  variants={headerContainerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-x-2 sm:gap-x-4"
-              >
-                  <motion.span variants={headerItemVariants}>ArchiGen</motion.span>
-                  <motion.div variants={headerItemVariants} className="pulse-subtle">
+              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-x-2 sm:gap-x-4">
+                  <span>ArchiGen</span>
+                  <div className="pulse-subtle">
                       <ArchitectureIcon type={IconType.Sparkles} className="h-8 w-8 sm:h-10 sm:w-10 text-[var(--color-accent-text)]" />
-                  </motion.div>
-                  <motion.span variants={headerItemVariants}>AI</motion.span>
-              </motion.h1>
-              <motion.p 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4, duration: 0.5 }}
-                  className="mt-2 text-lg text-[var(--color-text-secondary)]"
-              >
+                  </div>
+                  <span>AI</span>
+              </h1>
+              <p className="mt-2 text-lg text-[var(--color-text-secondary)]">
                   Generate and edit software architecture diagrams from natural language.
-              </motion.p>
-          </header>
+              </p>
+          </motion.header>
           
           <main className="w-full max-w-7xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <aside className="lg:col-span-3 bg-[var(--color-panel-bg)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm h-full flex flex-col">
+            <motion.aside variants={pageItemVariants} className="lg:col-span-3 p-6 rounded-2xl shadow-sm h-full flex flex-col glass-panel">
               <PromptInput
                 prompt={prompt}
                 setPrompt={setPrompt}
                 onGenerate={() => handleGenerate()}
                 isLoading={isLoading}
               />
-            </aside>
+            </motion.aside>
 
-            <section className="lg:col-span-6 bg-[var(--color-panel-bg)] rounded-2xl border border-[var(--color-border)] shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0">
+            <motion.section variants={pageItemVariants} className="lg:col-span-6 rounded-2xl shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0 glass-panel">
               <AnimatePresence>
                 {isLoading && (
                   <motion.div
@@ -501,7 +495,7 @@ const App: React.FC = () => {
                     animate={{ opacity: 1 }}
                     className="flex-1 flex flex-col relative"
                 >
-                  <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center gap-4">
+                  <div className="p-4 border-b border-[var(--color-border-translucent)] flex justify-between items-center gap-4">
                     <div className="group min-w-0 flex items-center gap-2">
                       {isEditingTitle ? (
                          <input
@@ -552,18 +546,18 @@ const App: React.FC = () => {
               )}
 
               {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
-            </section>
+            </motion.section>
 
-            <aside className="lg:col-span-3 bg-[var(--color-panel-bg)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm h-full flex flex-col">
+            <motion.aside variants={pageItemVariants} className="lg:col-span-3 p-6 rounded-2xl shadow-sm h-full flex flex-col glass-panel">
               <PropertiesSidebar 
                 item={selectedItem}
                 onPropertyChange={handlePropertyChange}
                 selectedCount={selectedIds.length}
               />
-            </aside>
+            </motion.aside>
 
           </main>
-        </div>
+        </motion.div>
 
         <AnimatePresence>
           {showSummaryModal && summary && (

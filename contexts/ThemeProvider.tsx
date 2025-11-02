@@ -13,7 +13,7 @@ const themes = {
   light: {
     '--color-bg': '#F8F9FC',
     '--color-panel-bg': '#FFFFFF',
-    '--color-panel-bg-translucent': 'rgba(255,255,255,0.8)',
+    '--color-panel-bg-translucent': 'rgba(255, 255, 255, 0.7)',
     '--color-canvas-bg': '#F8F9FC',
     '--color-node-bg': '#FFFFFF',
     '--color-button-bg': '#F1F3F5',
@@ -23,7 +23,8 @@ const themes = {
     '--color-text-secondary': '#495057',
     '--color-text-tertiary': '#CED4DA',
     '--color-border': '#DEE2E6',
-    '--color-link': '#868E96',
+    '--color-border-translucent': 'rgba(222, 226, 230, 0.5)',
+    '--color-link': '#495057', // Darkened for better contrast
     '--color-grid-dot': 'rgba(206, 212, 218, 0.7)',
     '--color-accent': '#F06292',
     '--color-accent-soft': '#FCE4EC',
@@ -51,7 +52,8 @@ const themes = {
     '--color-text-secondary': '#6E605E',
     '--color-text-tertiary': '#A99DA1',
     '--color-border': '#D2C9C7',
-    '--color-link': '#8b7a80',
+    '--color-border-translucent': 'rgba(210, 201, 199, 0.5)',
+    '--color-link': '#6E605E', // Kept dark for contrast
     '--color-grid-dot': 'rgba(180, 168, 166, 0.7)',
     '--color-accent': '#E57373',
     '--color-accent-soft': '#FFEBEE',
@@ -69,7 +71,7 @@ const themes = {
   dark: {
     '--color-bg': '#111827',
     '--color-panel-bg': '#1F2937',
-    '--color-panel-bg-translucent': 'rgba(31, 41, 55, 0.8)',
+    '--color-panel-bg-translucent': 'rgba(31, 41, 55, 0.7)',
     '--color-canvas-bg': '#111827',
     '--color-node-bg': '#1F2937',
     '--color-button-bg': '#374151',
@@ -79,7 +81,8 @@ const themes = {
     '--color-text-secondary': '#9CA3AF',
     '--color-text-tertiary': '#4B5563',
     '--color-border': '#374151',
-    '--color-link': '#6B7280',
+    '--color-border-translucent': 'rgba(55, 65, 81, 0.7)',
+    '--color-link': '#9CA3AF', // Lightened for better contrast
     '--color-grid-dot': 'rgba(75, 85, 99, 0.5)',
     '--color-accent': '#F472B6',
     '--color-accent-soft': 'rgba(244, 114, 182, 0.1)',
@@ -117,13 +120,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
-      if (error instanceof Error) {
-        console.error(`Could not save theme to localStorage: ${error.message}`);
-      } else {
-        // Fix: The 'error' variable in a catch block is of type 'unknown'.
-        // Explicitly convert it to a string to avoid type errors.
-        console.error(`An unknown error occurred while saving theme to localStorage: ${String(error)}`);
-      }
+      // FIX: The `error` variable in a catch block is of type `unknown` by default
+      // in modern TypeScript. It must be explicitly converted to a string before
+      // being used in a template literal to avoid a type error.
+      console.error(`An unknown error occurred while saving theme to localStorage: ${String(error)}`);
     }
   }, [theme]);
 
