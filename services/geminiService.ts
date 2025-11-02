@@ -96,18 +96,29 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
       contents: `Generate a professional software architecture diagram based on the following prompt: "${prompt}".
       The output must be a valid JSON object adhering to the specified schema.
       
-      **Layout Guidelines:**
-      1.  **Logical Flow & Symmetry**: Arrange components to represent a clear data flow, typically left-to-right. Strive for a visually balanced and symmetrical layout.
-      2.  **Proactive Grouping**: You MUST proactively use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components.
-      3.  **Spacing & Alignment**: Ensure generous and consistent spacing. Strictly align nodes both vertically and horizontally to create a clean, grid-like structure. Imagine an invisible grid and snap components to it. There must be absolutely NO overlaps between any nodes or containers.
-      4.  **Sizing**: Choose an appropriate 'width' and 'height' for each node based on its label length. Minimum width should be 120 and minimum height 80, unless it's a special type.
-      5.  **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left. Node 'x' and 'y' are the center of the node. Container 'x' and 'y' are the top-left corner.
-      6.  **IDs**: Ensure all 'id' fields are unique, kebab-case strings.
-      7.  **Connectivity**: Make sure all 'source' and 'target' IDs in links correspond to existing node IDs.
-      8.  **Bidirectional Communication**: When two components have a clear two-way communication flow, it is often clearer to represent this with TWO separate, unidirectional links. However, for simpler cases or to reduce clutter, you may use a single link with 'bidirectional: true'.
-      9.  **Clarity**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type'.
-      10. **Compactness & Proximity**: Strive for a compact layout. Minimize unnecessary whitespace. Components that communicate frequently should be placed closer to each other.
-      11. **Final Review Step**: Mentally review your generated diagram. Is it logical, balanced, and free of clutter? Correct any deviations.
+      **CRITICAL RULE: Link Label Budget**
+      You MUST strictly control the number of link labels to keep the diagram clean.
+      -   For **small diagrams** (fewer than 8 nodes), you MUST use a maximum of **3-4 labels**.
+      -   For **large diagrams** (8 nodes or more), you MUST use a maximum of **5-8 labels**.
+      -   **ONLY** label the most critical, non-obvious data flows. DO NOT label simple connections like 'request' or 'response' if the flow is already clear. Your primary goal is to minimize text on the diagram.
+
+      **Layout Strategy:**
+      Based on the prompt, you MUST choose ONE of the following layout strategies that best represents the architecture.
+      1.  **Hierarchical (Top-to-Bottom):** Use this for request flows or n-tier architectures. Arrange components in horizontal tiers. Entry-points ('User', 'WebApp') go at the top, services in the middle, and data stores ('Database') at the bottom. Flow is primarily downwards.
+      2.  **Hub-and-Spoke (Centralized):** Use this for event-driven systems or microservice architectures with a central component (e.g., API Gateway, Message Bus). Place the central "hub" component in the middle of the canvas. Arrange the "spoke" components radiating around it.
+      3.  **Pipeline (Left-to-Right):** Use this for data processing pipelines (ETL), CI/CD workflows, or any sequential process. Arrange components in a clear horizontal flow from left to right.
+
+      **General Layout Guidelines:**
+      1.  **Proactive Grouping**: Use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components logically.
+      2.  **Spacing & Alignment**: Ensure generous and consistent spacing. Align nodes within their logical group (e.g., horizontally within a tier, or vertically in a pipeline stage). There must be NO overlaps between any nodes or containers.
+      3.  **Sizing**: Choose an appropriate 'width' and 'height' for each node. Minimum width 120, height 80.
+      4.  **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left.
+      5.  **IDs**: Ensure all 'id' fields are unique, kebab-case strings.
+      6.  **Connectivity**: Make sure all 'source' and 'target' IDs correspond to existing node IDs.
+      7.  **Bidirectional Communication**: When two components have a clear two-way communication flow, it is often clearer to represent this with TWO separate, unidirectional links. However, for simpler cases, you may use a single link with 'bidirectional: true'.
+      8.  **Description**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type'.
+      9.  **Compactness & Proximity**: Strive for a compact layout. Minimize unnecessary whitespace. Components that communicate frequently should be placed closer to each other.
+      10. **Final Review Step**: Mentally review your generated diagram. Is it logical, balanced, and does it match the chosen layout strategy? Correct any deviations.
 
       **ULTRA-STRICT Instructions for Neural Network Diagrams:**
       If the prompt describes a "neural network", "ANN", "deep learning model", or similar, you MUST abandon all other layout rules and follow these rules EXCLUSIVELY.

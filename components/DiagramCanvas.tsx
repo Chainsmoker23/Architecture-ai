@@ -69,7 +69,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       const sourceId = sourceNode.id;
       const targetId = targetNode.id;
       
-      const LINK_SPACING = 30;
+      const LINK_SPACING = 20;
       const key = [sourceId, targetId].sort().join('--');
       const group = linkGroups.get(key) || { fwd: [], bwd: [] };
       
@@ -81,8 +81,10 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       
       const isNeuronLink = sourceNode.type === 'neuron' && targetNode.type === 'neuron';
 
-      // --- Path Calculation ---
+      // --- Path & Label Calculation ---
       let pathD: string;
+      let labelPos = null;
+
       if (isNeuronLink) {
           const dx = targetNode.x - sourceNode.x;
           const dy = targetNode.y - sourceNode.y;
@@ -97,27 +99,57 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
               pathD = `M ${p1.x} ${p1.y} L ${p4.x} ${p4.y}`;
           }
       } else {
-          const p1 = { x: sourceNode.x < targetNode.x ? sourceNode.x + sourceNode.width / 2 : sourceNode.x - sourceNode.width / 2, y: sourceNode.y };
-          const p4 = { x: targetNode.x > sourceNode.x ? targetNode.x - targetNode.width / 2 : targetNode.x + targetNode.width / 2, y: targetNode.y };
-          const midX = (p1.x + p4.x) / 2 + offset;
-          const c1 = { x: midX, y: p1.y };
-          const c2 = { x: midX, y: p4.y };
-          pathD = `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p4.x} ${p4.y}`;
-      }
+          const dx = targetNode.x - sourceNode.x;
+          const dy = targetNode.y - sourceNode.y;
+          const isPrimarilyHorizontal = Math.abs(dx) > Math.abs(dy);
+          const cornerRadius = 10;
+          let p1: {x: number, y: number}, p2: {x: number, y: number}, p3: {x: number, y: number}, p4: {x: number, y: number};
+          
+          const isForward = group.fwd.includes(link.id);
+          const hasBidirectionalPair = group.fwd.length > 0 && group.bwd.length > 0;
+          const directionMultiplier = hasBidirectionalPair ? (isForward ? -1 : 1) : -1;
 
-      // --- Label Position Calculation (at midpoint t=0.5 of Bezier curve) ---
-      let labelPos = null;
-      if (link.label && !isNeuronLink) {
-        const p1 = { x: sourceNode.x < targetNode.x ? sourceNode.x + sourceNode.width / 2 : sourceNode.x - sourceNode.width / 2, y: sourceNode.y };
-        const p4 = { x: targetNode.x > sourceNode.x ? targetNode.x - targetNode.width / 2 : targetNode.x + targetNode.width / 2, y: targetNode.y };
-        const midX = (p1.x + p4.x) / 2 + offset;
-        const c1 = { x: midX, y: p1.y };
-        const c2 = { x: midX, y: p4.y };
-        // B(t) = (1-t)^3 * P1 + 3(1-t)^2 * t * C1 + 3(1-t) * t^2 * C2 + t^3 * P4
-        const t = 0.5;
-        const labelX = Math.pow(1 - t, 3) * p1.x + 3 * Math.pow(1 - t, 2) * t * c1.x + 3 * (1 - t) * Math.pow(t, 2) * c2.x + Math.pow(t, 3) * p4.x;
-        const labelY = Math.pow(1 - t, 3) * p1.y + 3 * Math.pow(1 - t, 2) * t * c1.y + 3 * (1 - t) * Math.pow(t, 2) * c2.y + Math.pow(t, 3) * p4.y;
-        labelPos = { x: labelX, y: labelY };
+          if (isPrimarilyHorizontal) {
+              // H-V-H path
+              const sourceExitX = dx > 0 ? sourceNode.x + sourceNode.width / 2 : sourceNode.x - sourceNode.width / 2;
+              const targetEntryX = dx > 0 ? targetNode.x - targetNode.width / 2 : targetNode.x + targetNode.width / 2;
+          
+              p1 = { x: sourceExitX, y: sourceNode.y };
+              p4 = { x: targetEntryX, y: targetNode.y };
+          
+              const midX = (p1.x + p4.x) / 2 + offset; // Apply offset to the vertical segment
+              p2 = { x: midX, y: p1.y };
+              p3 = { x: midX, y: p4.y };
+          
+              pathD = `M ${p1.x} ${p1.y} H ${p2.x - cornerRadius * Math.sign(p2.x - p1.x)} Q ${p2.x} ${p2.y}, ${p2.x} ${p2.y + cornerRadius * Math.sign(p3.y - p2.y)} V ${p3.y - cornerRadius * Math.sign(p3.y - p2.y)} Q ${p3.x} ${p3.y}, ${p3.x + cornerRadius * Math.sign(p4.x - p3.x)} ${p3.y} H ${p4.x}`;
+              
+              if (link.label) {
+                  const labelX = p2.x;
+                  const labelY = (p2.y + p3.y) / 2;
+                  const xOffset = 18 * directionMultiplier;
+                  labelPos = { x: labelX + xOffset, y: labelY };
+              }
+          } else {
+              // V-H-V path
+              const sourceExitY = dy > 0 ? sourceNode.y + sourceNode.height / 2 : sourceNode.y - sourceNode.height / 2;
+              const targetEntryY = dy > 0 ? targetNode.y - targetNode.height / 2 : targetNode.y + targetNode.height / 2;
+          
+              p1 = { x: sourceNode.x, y: sourceExitY };
+              p4 = { x: targetNode.x, y: targetEntryY };
+              
+              const midY = (p1.y + p4.y) / 2 + offset; // Apply offset to the horizontal segment
+              p2 = { x: p1.x, y: midY };
+              p3 = { x: p4.x, y: midY };
+          
+              pathD = `M ${p1.x} ${p1.y} V ${p2.y - cornerRadius * Math.sign(p2.y - p1.y)} Q ${p2.x} ${p2.y}, ${p2.x + cornerRadius * Math.sign(p3.x - p2.x)} ${p2.y} H ${p3.x - cornerRadius * Math.sign(p3.x - p2.x)} Q ${p3.x} ${p3.y}, ${p3.x} ${p3.y + cornerRadius * Math.sign(p4.y - p3.y)} V ${p4.y}`;
+              
+              if (link.label) {
+                  const labelX = (p2.x + p3.x) / 2;
+                  const labelY = p2.y;
+                  const yOffset = 18 * directionMultiplier;
+                  labelPos = { x: labelX, y: labelY + yOffset };
+              }
+          }
       }
 
       return { link, pathD, labelPos, isNeuronLink };
@@ -553,7 +585,7 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
               </div>
             </foreignObject>
           </motion.g>
-          {isResizing && isSelected && ['tl', 'tr', 'bl', 'br'].map(h => <ResizeHandle key={h} handle={h as 'br'|'bl'|'tr'|'tl'} />)}
+          {isResizing && isSelected && ['tl', 'tr', 'bl', 'br'].map(h => <ResizeHandle key={h} handle={h as 'br' | 'bl' | 'tr' | 'tl'} />)}
         </g>
     );
 });
