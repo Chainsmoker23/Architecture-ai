@@ -28,16 +28,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, on
   
   return (
     <div className="flex items-center space-x-2">
-      <ToolbarButton onClick={onGoToPlayground} disabled={!canGoToPlayground} title="Enter Playground Mode">
+      <ToolbarButton onClick={onGoToPlayground} disabled={!canGoToPlayground} aria-label="Enter Playground Mode">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>
       </ToolbarButton>
-      <ToolbarButton onClick={onUndo} disabled={!canUndo} title="Undo">
+      <ToolbarButton onClick={onUndo} disabled={!canUndo} aria-label="Undo">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" /></svg>
       </ToolbarButton>
-      <ToolbarButton onClick={onRedo} disabled={!canRedo} title="Redo">
+      <ToolbarButton onClick={onRedo} disabled={!canRedo} aria-label="Redo">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 15l3-3m0 0l-3-3m3 3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
       </ToolbarButton>
-      <ToolbarButton onClick={onFitToScreen} title="Fit to Screen">
+      <ToolbarButton onClick={onFitToScreen} aria-label="Fit to Screen">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
       </ToolbarButton>
 

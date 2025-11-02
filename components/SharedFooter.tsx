@@ -25,9 +25,17 @@ const SharedFooter: React.FC<SharedFooterProps> = ({ onNavigate, activePage }) =
             </div>
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
                 {validPages.map(page => (
-                    <button key={page} onClick={() => onNavigate(page)} className={`font-medium transition-colors ${activePage === page ? 'text-[#D6336C]' : 'text-[#555] hover:text-[#2B2B2B]'}`}>
+                    <a
+                      key={page}
+                      href={`#${page}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onNavigate(page);
+                      }}
+                      className={`font-medium transition-colors ${activePage === page ? 'text-[#D6336C]' : 'text-[#555] hover:text-[#2B2B2B]'}`}
+                    >
                         {page.charAt(0).toUpperCase() + page.slice(1)}
-                    </button>
+                    </a>
                 ))}
             </div>
           </div>
