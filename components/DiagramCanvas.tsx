@@ -44,15 +44,20 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
   const nodesById = useMemo(() => new Map(data.nodes.map(node => [node.id, node])), [data.nodes]);
 
   const linkGroups = useMemo(() => {
-    const groups = new Map<string, string[]>();
+    const groups = new Map<string, { fwd: string[], bwd: string[] }>();
     data.links.forEach(link => {
         const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
         const targetId = typeof link.target === 'string' ? link.target : link.target.id;
         const key = [sourceId, targetId].sort().join('--');
         if (!groups.has(key)) {
-            groups.set(key, []);
+            groups.set(key, { fwd: [], bwd: [] });
         }
-        groups.get(key)!.push(link.id);
+        const group = groups.get(key)!;
+        if (sourceId < targetId) {
+            group.fwd.push(link.id);
+        } else {
+            group.bwd.push(link.id);
+        }
     });
     return groups;
   }, [data.links]);
@@ -210,12 +215,28 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 
                     const sourceId = sourceNode.id;
                     const targetId = targetNode.id;
-                    const groupKey = [sourceId, targetId].sort().join('--');
-                    const group = linkGroups.get(groupKey) || [];
-                    const linkIndex = group.indexOf(link.id);
-                    const groupSize = group.length;
+                    
                     const LINK_SPACING = 20;
-                    const offset = (linkIndex - (groupSize - 1) / 2) * LINK_SPACING;
+                    const key = [sourceId, targetId].sort().join('--');
+                    const group = linkGroups.get(key) || { fwd: [], bwd: [] };
+                    
+                    let linkIndex = 0;
+                    let groupSize = 1;
+                    let directionMultiplier = 1;
+
+                    if (sourceId < targetId) {
+                      linkIndex = group.fwd.indexOf(link.id);
+                      groupSize = group.fwd.length;
+                    } else {
+                      linkIndex = group.bwd.indexOf(link.id);
+                      groupSize = group.bwd.length;
+                      directionMultiplier = -1;
+                    }
+                    
+                    // Center the group of arrows, then space them out.
+                    const initialOffset = (group.fwd.length - group.bwd.length) * LINK_SPACING / 2;
+                    let offset = (linkIndex - (groupSize - 1) / 2) * LINK_SPACING;
+                    offset = initialOffset + directionMultiplier * offset;
 
                     return <DiagramLink key={link.id} link={link} source={sourceNode} target={targetNode} obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))} onContextMenu={handleItemContextMenu} isSelected={isSelected(link.id)} onSelect={handleItemSelection} offset={offset} />;
                 })}
@@ -537,28 +558,32 @@ const getOrthogonalPath = (source: Node, target: Node, obstacles: Rect[], offset
     if (Math.abs(dx) > Math.abs(dy)) {
         const sourcePoint = dx > 0 ? sourcePoints.right : sourcePoints.left;
         const targetPoint = dx > 0 ? targetPoints.left : targetPoints.right;
+
+        // Middle horizontal segment is offset vertically
+        const midY = (sourcePoint.y + targetPoint.y) / 2 + offset;
         
-        // The vertical middle segment will be offset horizontally
-        const midX = sourcePoint.x + dx / 2;
-        
-        const p1 = sourcePoint;
-        const p2 = { x: midX + offset, y: p1.y };
-        const p3 = { x: midX + offset, y: targetPoint.y };
-        const p4 = targetPoint;
-        return [p1, p2, p3, p4];
+        // Create a path with vertical segments at start and end
+        return [
+            sourcePoint,
+            { x: sourcePoint.x, y: midY },
+            { x: targetPoint.x, y: midY },
+            targetPoint
+        ];
 
     } else { // Primarily vertical connection
         const sourcePoint = dy > 0 ? sourcePoints.bottom : sourcePoints.top;
         const targetPoint = dy > 0 ? targetPoints.top : targetPoints.bottom;
 
-        // The horizontal middle segment will be offset vertically
-        const midY = sourcePoint.y + dy / 2;
+        // Middle vertical segment is offset horizontally
+        const midX = (sourcePoint.x + targetPoint.x) / 2 + offset;
         
-        const p1 = sourcePoint;
-        const p2 = { x: p1.x, y: midY + offset };
-        const p3 = { x: targetPoint.x, y: midY + offset };
-        const p4 = targetPoint;
-        return [p1, p2, p3, p4];
+        // Create a path with horizontal segments at start and end
+        return [
+            sourcePoint,
+            { x: midX, y: sourcePoint.y },
+            { x: midX, y: targetPoint.y },
+            targetPoint
+        ];
     }
 };
 
@@ -575,13 +600,17 @@ const pointsToPath = (points: Point[], radius: number): string => {
             const dy1 = p2.y - p1.y;
             const dx2 = p3.x - p2.x;
             const dy2 = p3.y - p2.y;
+            
+            const segment1Length = Math.sqrt(dx1*dx1 + dy1*dy1);
+            const segment2Length = Math.sqrt(dx2*dx2 + dy2*dy2);
+            const cornerRadius = Math.min(radius, segment1Length / 2, segment2Length / 2);
 
-            const x1 = p2.x - Math.sign(dx1) * radius;
-            const y1 = p2.y - Math.sign(dy1) * radius;
+            const x1 = p2.x - Math.sign(dx1) * cornerRadius;
+            const y1 = p2.y - Math.sign(dy1) * cornerRadius;
             path += ` L ${x1} ${y1}`;
 
-            const x2 = p2.x + Math.sign(dx2) * radius;
-            const y2 = p2.y + Math.sign(dy2) * radius;
+            const x2 = p2.x + Math.sign(dx2) * cornerRadius;
+            const y2 = p2.y + Math.sign(dy2) * cornerRadius;
             path += ` Q ${p2.x} ${p2.y}, ${x2} ${y2}`;
 
         } else {
