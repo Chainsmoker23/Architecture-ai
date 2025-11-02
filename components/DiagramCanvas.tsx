@@ -481,8 +481,12 @@ const DiagramLink = memo<{ link: Link; source: Node; target: Node; onContextMenu
         
         const p1 = { x: source.x < target.x ? source.x + source.width / 2 : source.x - source.width / 2, y: source.y };
         const p4 = { x: target.x > source.x ? target.x - target.width / 2 : target.x + target.width / 2, y: target.y };
+        
         const midX = (p1.x + p4.x) / 2 + offset;
-        return `M ${p1.x} ${p1.y} L ${midX} ${p1.y} L ${midX} ${p4.y} L ${p4.x} ${p4.y}`;
+        const c1 = { x: midX, y: p1.y };
+        const c2 = { x: midX, y: p4.y };
+
+        return `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p4.x} ${p4.y}`;
     }, [source, target, offset, isNeuronLink]);
 
     const labelPos = useMemo(() => {
@@ -507,7 +511,7 @@ const DiagramLink = memo<{ link: Link; source: Node; target: Node; onContextMenu
         <g onClick={(e) => onSelect(e, link.id)} onContextMenu={(e) => onContextMenu(e, link)} style={{ cursor: 'pointer' }}>
             {/* Invisible wider path for easier clicking */}
             <path d={pathD} stroke="transparent" strokeWidth={20} fill="none" />
-            <path d={pathD} stroke={color} strokeWidth={thicknessPx} strokeDasharray={dashArray} fill="none" markerEnd={isNeuronLink ? undefined : `url(#arrowhead)`} markerStart={link.bidirectional ? `url(#arrowhead-reverse)` : undefined} style={{ strokeLinejoin: 'round', strokeLinecap: 'butt' }} />
+            <path d={pathD} stroke={color} strokeWidth={thicknessPx} strokeDasharray={dashArray} fill="none" markerEnd={isNeuronLink ? undefined : `url(#arrowhead)`} markerStart={link.bidirectional ? `url(#arrowhead-reverse)` : undefined} />
             {link.label && labelPos && (
                 <g>
                     {(() => {
