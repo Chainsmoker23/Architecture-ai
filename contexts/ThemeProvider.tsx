@@ -120,8 +120,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (error instanceof Error) {
         console.error(`Could not save theme to localStorage: ${error.message}`);
       } else {
-        // Fix: The 'error' variable in a catch block is of type 'unknown'.
-        // It must be converted to a string to be safely logged.
+        // FIX: The 'error' variable in a catch block is of type 'unknown' by default
+        // in modern TypeScript. It must be explicitly converted to a string to be
+        // safely passed to console.error or used in string concatenation.
         console.error('An unknown error occurred while saving theme to localStorage:', String(error));
       }
     }
