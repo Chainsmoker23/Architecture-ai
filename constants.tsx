@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { IconType } from './types';
 
@@ -150,7 +151,7 @@ export const FOOTER_LINKS = {
 
 export const TESTIMONIALS = [
   {
-    quote: "ArchiGen AI has become an indispensable tool. We now go from concept to a shareable diagram in minutes, not hours. It's a game-changer for rapid prototyping.",
+    quote: "CubeGen AI has become an indispensable tool. We now go from concept to a shareable diagram in minutes, not hours. It's a game-changer for rapid prototyping.",
     name: 'Sarah Chen',
     role: 'Lead Software Architect',
     company: 'Innovate Inc.',
@@ -174,7 +175,7 @@ export const TESTIMONIALS = [
     logoText: 'NextGen'
   },
   {
-    quote: "As a student, understanding complex cloud architectures was daunting. ArchiGen makes it visual and interactive. I'm learning faster and creating portfolio-worthy projects.",
+    quote: "As a student, understanding complex cloud architectures was daunting. CubeGen makes it visual and interactive. I'm learning faster and creating portfolio-worthy projects.",
     name: 'David Kim',
     role: 'CS Student',
     company: 'State University',
@@ -190,7 +191,7 @@ export const TESTIMONIALS = [
     logoText: 'DataStream'
   },
   {
-    quote: "We use ArchiGen for client presentations. The diagrams are clean, professional, and easy to understand. It has elevated the quality of our proposals.",
+    quote: "We use CubeGen for client presentations. The diagrams are clean, professional, and easy to understand. It has elevated the quality of our proposals.",
     name: 'Jessica Lee',
     role: 'Solutions Consultant',
     company: 'TechPro Services',
@@ -198,7 +199,7 @@ export const TESTIMONIALS = [
     logoText: 'TechPro'
   },
   {
-    quote: "We've integrated ArchiGen into our onboarding for new engineers. It's the fastest way for them to understand our complex microservices architecture.",
+    quote: "We've integrated CubeGen into our onboarding for new engineers. It's the fastest way for them to understand our complex microservices architecture.",
     name: 'John Williams',
     role: 'Head of Platform Engineering',
     company: 'ScaleGrid',

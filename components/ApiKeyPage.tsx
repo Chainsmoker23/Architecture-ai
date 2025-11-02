@@ -34,7 +34,7 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate })
         },
         {
             title: 'Copy & Paste Your Key',
-            description: 'In ArchiGen AI, open the Settings sidebar and paste your key into the designated field.',
+            description: 'In CubeGen AI, open the Settings sidebar and paste your key into the designated field.',
             icon: IconType.Gear,
         },
     ];
@@ -57,7 +57,7 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate })
                             Unlock <span className="animated-gradient-text text-transparent bg-clip-text">Unlimited</span> Potential
                         </h1>
                         <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-[#555555]">
-                            Bring your own Google Gemini API key to bypass shared usage limits and experience ArchiGen AI without interruption.
+                            Bring your own Google Gemini API key to bypass shared usage limits and experience CubeGen AI without interruption.
                         </p>
                     </motion.div>
                 </div>

@@ -18,7 +18,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onBack, onLaunch, onNavigate }) =
     {
       name: 'Divesh Sarkar',
       role: 'Founder & Lead Architect',
-      bio: 'The visionary behind ArchiGen AI, Divesh leads the project with a passion for making complex system design accessible to everyone through the power of AI.',
+      bio: 'The visionary behind CubeGen AI, Divesh leads the project with a passion for making complex system design accessible to everyone through the power of AI.',
       avatar: 'DS',
     },
     {
@@ -53,7 +53,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onBack, onLaunch, onNavigate }) =
                 Our Mission: <br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E91E63] to-[#F06292]">Democratize Design</span>
               </h1>
               <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-[#555555] text-center">
-                ArchiGen AI was born from a simple idea: great software architecture shouldn't be a bottleneck. We're a non-profit organization, founded in 2025, dedicated to making professional design tools accessible to all.
+                CubeGen AI was born from a simple idea: great software architecture shouldn't be a bottleneck. We're a non-profit organization, founded in 2025, dedicated to making professional design tools accessible to all.
               </p>
             </motion.div>
           </div>

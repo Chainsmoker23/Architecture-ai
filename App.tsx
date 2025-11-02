@@ -22,6 +22,7 @@ import ApiKeyPage from './components/ApiKeyPage';
 import PrivacyPage from './components/PrivacyPage';
 import TermsPage from './components/TermsPage';
 import DocsPage from './components/DocsPage';
+import Logo from './components/Logo';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -439,9 +440,9 @@ const App: React.FC = () => {
                   <div className="header-glow-effect" />
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-x-2 sm:gap-x-4">
-                  <span>ArchiGen</span>
+                  <span>CubeGen</span>
                   <div className="pulse-subtle">
-                      <ArchitectureIcon type={IconType.Sparkles} className="h-8 w-8 sm:h-10 sm:w-10 text-[var(--color-accent-text)]" />
+                      <Logo className="h-8 w-8 sm:h-10 sm:h-10 text-[var(--color-accent-text)]" />
                   </div>
                   <span>AI</span>
               </h1>

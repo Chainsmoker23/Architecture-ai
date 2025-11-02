@@ -16,19 +16,19 @@ const themes = {
     '--color-panel-bg-translucent': 'rgba(255, 255, 255, 0.75)',
     '--color-canvas-bg': '#FFF9FB',
     '--color-node-bg': '#FFFFFF',
-    '--color-button-bg': '#F8F1F3',
-    '--color-button-bg-hover': '#F0DAE2',
+    '--color-button-bg': '#FCE4EC',
+    '--color-button-bg-hover': '#F8BBD0',
     '--color-bg-input': '#FFF9FB',
     '--color-text-primary': '#2B2B2B',
     '--color-text-secondary': '#555555',
     '--color-text-tertiary': '#D1D5DB',
     '--color-border': '#F8BBD0',
     '--color-border-translucent': 'rgba(248, 187, 208, 0.5)',
-    '--color-link': '#881A4C',
-    '--color-grid-dot': 'rgba(233, 30, 99, 0.15)',
-    '--color-accent': '#E91E63',
+    '--color-link': '#D6336C',
+    '--color-grid-dot': 'rgba(240, 98, 146, 0.15)',
+    '--color-accent': '#F06292',
     '--color-accent-soft': '#FCE4EC',
-    '--color-accent-text': '#C2185B',
+    '--color-accent-text': '#D6336C',
     '--color-accent-text-strong': '#FFFFFF',
     '--color-shadow': '#444444',
     '--color-tier-1': 'rgba(252, 228, 236, 0.4)',
@@ -120,7 +120,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
-      // FIX: Explicitly cast the 'unknown' error type to a string before logging.
+      // FIX: The 'error' in a catch block is of type 'unknown', which cannot be directly
+      // concatenated with a string. Using `String(error)` safely converts it to a string.
       console.error(`An unknown error occurred while saving theme to localStorage: ${String(error)}`);
     }
   }, [theme]);

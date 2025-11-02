@@ -93,7 +93,7 @@ const DocsPage: React.FC<DocsPageProps> = ({ onBack, onLaunch, onNavigateToSdk, 
                             Developer <span className="animated-gradient-text text-transparent bg-clip-text">Docs</span>
                         </h1>
                         <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-[#555555]">
-                            Everything you need to know to get the most out of ArchiGen AI, from writing the perfect prompt to understanding our tech.
+                            Everything you need to know to get the most out of CubeGen AI, from writing the perfect prompt to understanding our tech.
                         </p>
                     </motion.div>
                 </div>
@@ -104,8 +104,8 @@ const DocsPage: React.FC<DocsPageProps> = ({ onBack, onLaunch, onNavigateToSdk, 
                     <div className="max-w-4xl mx-auto">
                         <article>
                             <DocsSection id="introduction" title="Introduction">
-                                <p>Welcome to the ArchiGen AI documentation! Our goal is to provide the fastest way to visualize, design, and share software architecture. This tool leverages generative AI to build beautiful, intelligent diagrams directly from natural language.</p>
-                                <p>Whether you're a software architect mapping out a complex system, a developer needing a quick visualization, or a student learning about cloud infrastructure, ArchiGen AI is designed to streamline your workflow.</p>
+                                <p>Welcome to the CubeGen AI documentation! Our goal is to provide the fastest way to visualize, design, and share software architecture. This tool leverages generative AI to build beautiful, intelligent diagrams directly from natural language.</p>
+                                <p>Whether you're a software architect mapping out a complex system, a developer needing a quick visualization, or a student learning about cloud infrastructure, CubeGen AI is designed to streamline your workflow.</p>
                             </DocsSection>
 
                             <SectionSeparator />
@@ -155,9 +155,9 @@ const DocsPage: React.FC<DocsPageProps> = ({ onBack, onLaunch, onNavigateToSdk, 
                             <SectionSeparator />
 
                             <DocsSection id="api-access" title="API & SDK">
-                                <p>Want to automate diagram generation? ArchiGen AI offers a simple REST API to integrate into your own applications and workflows.</p>
+                                <p>Want to automate diagram generation? CubeGen AI offers a simple REST API to integrate into your own applications and workflows.</p>
                                 <p>Generate diagrams from your CI/CD pipeline, build custom internal tools, or create automated documentation. Our API provides the flexibility you need.</p>
-                                <CodeBlock code={`curl 'https://api.archigen.ai/v1/diagrams' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    "prompt": "${goodPrompt}"\n  }'`} />
+                                <CodeBlock code={`curl 'https://api.cubegen.ai/v1/diagrams' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    "prompt": "${goodPrompt}"\n  }'`} />
                                 <button onClick={onNavigateToSdk} className="mt-4 bg-[#F9D7E3] text-[#A61E4D] font-bold py-2 px-6 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
                                     View Full API Docs
                                 </button>

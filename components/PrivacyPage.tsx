@@ -47,7 +47,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack, onNavigate }) => {
                 <p className="text-sm text-gray-500 mb-8">Last Updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
                 <PrivacySection title="1. Introduction">
-                    <p>Welcome to ArchiGen AI ("we", "us", "our"). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application. By using ArchiGen AI, you agree to the collection and use of information in accordance with this policy.</p>
+                    <p>Welcome to CubeGen AI ("we", "us", "our"). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application. By using CubeGen AI, you agree to the collection and use of information in accordance with this policy.</p>
                 </PrivacySection>
 
                 <PrivacySection title="2. Information We Collect">
@@ -69,7 +69,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack, onNavigate }) => {
                 </PrivacySection>
 
                 <PrivacySection title="4. Third-Party Services">
-                     <p>ArchiGen AI relies on third-party services to function. Our primary third-party service is:</p>
+                     <p>CubeGen AI relies on third-party services to function. Our primary third-party service is:</p>
                     <ul className="list-disc list-inside space-y-2">
                         <li><strong>Google Gemini API:</strong> To generate diagrams, the text prompts you submit are sent to Google's servers for processing by the Gemini model. Your use of this feature is subject to Google's Privacy Policy. We do not send any other personal information to Google. You can review their policy <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D6336C] hover:underline">here</a>.</li>
                     </ul>
@@ -96,7 +96,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack, onNavigate }) => {
                 </PrivacySection>
 
                  <PrivacySection title="8. Contact Us">
-                    <p>If you have questions or comments about this Privacy Policy, please contact us through the contact form on our website or by emailing <a href="mailto:privacy@archigen.ai" className="text-[#D6336C] hover:underline">privacy@archigen.ai</a>.</p>
+                    <p>If you have questions or comments about this Privacy Policy, please contact us through the contact form on our website or by emailing <a href="mailto:privacy@cubegen.ai" className="text-[#D6336C] hover:underline">privacy@cubegen.ai</a>.</p>
                 </PrivacySection>
             </div>
         </section>

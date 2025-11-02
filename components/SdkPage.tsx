@@ -54,7 +54,7 @@ const CodeShowcase: React.FC = () => {
     const [isCopied, setIsCopied] = useState(false);
     
     const snippets = {
-      curl: `curl 'https://api.archigen.ai/v1/diagrams' \\
+      curl: `curl 'https://api.cubegen.ai/v1/diagrams' \\
   -X POST \\
   -H 'Authorization: Bearer YOUR_API_KEY' \\
   -H 'Content-Type: application/json' \\
@@ -65,7 +65,7 @@ const CodeShowcase: React.FC = () => {
 
 async function generateDiagram() {
   const response = await post(
-    'https://api.archigen.ai/v1/diagrams',
+    'https://api.cubegen.ai/v1/diagrams',
     { prompt: 'A 3-tier web app on GCP...' },
     {
       headers: {
@@ -86,7 +86,7 @@ json_data = {
 }
 
 response = requests.post(
-    'https://api.archigen.ai/v1/diagrams',
+    'https://api.cubegen.ai/v1/diagrams',
     headers=headers,
     json=json_data
 )
@@ -148,7 +148,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     const handleGetKey = () => {
         setIsKeyLoading(true);
         setTimeout(() => {
-            setApiKey(`ag-key-${[...Array(32)].map(() => Math.random().toString(36)[2]).join('')}`);
+            setApiKey(`cg-key-${[...Array(32)].map(() => Math.random().toString(36)[2]).join('')}`);
             setIsKeyLoading(false);
         }, 1000);
     };
@@ -183,7 +183,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
           <div className="container mx-auto px-6 z-10 text-center">
             <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
               <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
-                Integrate with the <span className="animated-gradient-text text-transparent bg-clip-text">ArchiGen API</span>
+                Integrate with the <span className="animated-gradient-text text-transparent bg-clip-text">CubeGen API</span>
               </h1>
               <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-[#555555]">
                 Programmatically generate, update, and manage architecture diagrams with our powerful and simple REST API. Automate your documentation and build custom tools.

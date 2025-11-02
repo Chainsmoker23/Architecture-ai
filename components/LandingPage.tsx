@@ -7,6 +7,7 @@ import AssistantWidget from './AssistantWidget';
 import ArchitectureAnimation from './ArchitectureAnimation';
 import ApiKeyAnimation from './ApiKeyAnimation';
 import SharedFooter from './SharedFooter';
+import Logo from './Logo';
 
 interface LandingPageProps {
   onLaunch: () => void;
@@ -33,7 +34,10 @@ const Header: React.FC<LandingPageProps & { isScrolled: boolean }> = ({ onLaunch
       transition={{ duration: 0.5, ease: 'easeOut' }}
     >
       <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-        <h3 className="text-2xl font-bold">Archi<span className="text-[#D6336C]">Gen</span> AI</h3>
+        <div className="flex items-center gap-2">
+          <Logo className="h-8 w-8 text-[#D6336C]" />
+          <h3 className="text-2xl font-bold">Cube<span className="text-[#D6336C]">Gen</span> AI</h3>
+        </div>
         <nav className="hidden md:flex items-center space-x-8">
           <button onClick={() => onNavigate('about')} className={navItemClass}>About</button>
           <button onClick={() => onNavigate('sdk')} className={navItemClass}>SDK</button>
@@ -132,7 +136,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
                 </motion.h1>
                 <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5, delay: 0.2 }}
                     className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-[#555555]">
-                    ArchiGen AI is the fastest way to visualize, design, and share software architecture. Leverage generative AI to build beautiful, intelligent diagrams for cloud, microservices, and more.
+                    CubeGen AI is the fastest way to visualize, design, and share software architecture. Leverage generative AI to build beautiful, intelligent diagrams for cloud, microservices, and more.
                 </motion.p>
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }}
                     className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
@@ -226,7 +230,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
               >
                 <h2 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">Your Vision, <br/> Uninterrupted.</h2>
                 <p className="text-lg text-[#555555] mb-6">
-                  Bring your own API key to bypass shared limits and unlock the full, unrestricted power of ArchiGen AI. Perfect for power users, teams, and automated workflows.
+                  Bring your own API key to bypass shared limits and unlock the full, unrestricted power of CubeGen AI. Perfect for power users, teams, and automated workflows.
                 </p>
                 <div className="flex items-center gap-4">
                   <button onClick={() => onNavigate('apiKey')} className="bg-[#F9D7E3] text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
@@ -253,7 +257,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={containerVariants} className="text-center">
               <motion.h2 variants={itemVariants} className="text-4xl md:text-5xl font-bold mb-4">Loved by Architects and Developers</motion.h2>
               <motion.p variants={itemVariants} className="text-lg text-[#555555] max-w-3xl mx-auto mb-16">
-                See how teams and individuals are accelerating their design process with ArchiGen AI.
+                See how teams and individuals are accelerating their design process with CubeGen AI.
               </motion.p>
             </motion.div>
           </div>

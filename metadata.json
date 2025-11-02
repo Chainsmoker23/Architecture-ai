@@ -1,5 +1,5 @@
 {
-  "name": "ArchiGen AI",
+  "name": "CubeGen AI",
   "description": "A web application that allows users to generate software architecture diagrams automatically from natural language prompts.",
   "requestFramePermissions": []
 }
