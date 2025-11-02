@@ -220,23 +220,11 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                     const key = [sourceId, targetId].sort().join('--');
                     const group = linkGroups.get(key) || { fwd: [], bwd: [] };
                     
-                    let linkIndex = 0;
-                    let groupSize = 1;
-                    let directionMultiplier = 1;
+                    const allLinksInGroup = [...group.fwd, ...group.bwd];
+                    const linkIndex = allLinksInGroup.indexOf(link.id);
+                    const totalLinks = allLinksInGroup.length;
 
-                    if (sourceId < targetId) {
-                      linkIndex = group.fwd.indexOf(link.id);
-                      groupSize = group.fwd.length;
-                    } else {
-                      linkIndex = group.bwd.indexOf(link.id);
-                      groupSize = group.bwd.length;
-                      directionMultiplier = -1;
-                    }
-                    
-                    // Center the group of arrows, then space them out.
-                    const initialOffset = (group.fwd.length - group.bwd.length) * LINK_SPACING / 2;
-                    let offset = (linkIndex - (groupSize - 1) / 2) * LINK_SPACING;
-                    offset = initialOffset + directionMultiplier * offset;
+                    const offset = (linkIndex - (totalLinks - 1) / 2) * LINK_SPACING;
 
                     return <DiagramLink key={link.id} link={link} source={sourceNode} target={targetNode} obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))} onContextMenu={handleItemContextMenu} isSelected={isSelected(link.id)} onSelect={handleItemSelection} offset={offset} />;
                 })}
