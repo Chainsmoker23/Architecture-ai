@@ -151,8 +151,20 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
         throw new Error("Invalid data structure received from API.");
     }
     
-    parsedData.nodes.forEach((node: any) => {
+    // Sanitize node and container data to prevent rendering issues from invalid values
+    (parsedData.nodes || []).forEach((node: any) => {
+        node.x = isFinite(node.x) ? node.x : 600;
+        node.y = isFinite(node.y) ? node.y : 400;
+        node.width = isFinite(node.width) && node.width > 10 ? node.width : 150;
+        node.height = isFinite(node.height) && node.height > 10 ? node.height : 80;
         if (node.locked === undefined) node.locked = false;
+    });
+
+    (parsedData.containers || []).forEach((container: any) => {
+        container.x = isFinite(container.x) ? container.x : 100;
+        container.y = isFinite(container.y) ? container.y : 100;
+        container.width = isFinite(container.width) && container.width > 20 ? container.width : 500;
+        container.height = isFinite(container.height) && container.height > 20 ? container.height : 500;
     });
 
     return parsedData as DiagramData;

@@ -276,7 +276,7 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
                 const childNodes = data.nodes.filter(n => container.childNodeIds.includes(n.id));
                 startPositions.set(container.id, { x: container.x, y: container.y });
                 childNodes.forEach(n => startPositions.set(n.id, { x: n.x, y: n.y }));
-                select(this).raise();
+                // select(this).raise(); // This was causing rendering issues.
                 event.sourceEvent.stopPropagation();
             })
             .on('drag', function (event) {
