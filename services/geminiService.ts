@@ -96,51 +96,19 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
       contents: `Generate a professional software architecture diagram based on the following prompt: "${prompt}".
       The output must be a valid JSON object adhering to the specified schema.
       
-      **GENERAL RULES:**
-      1.  **Aesthetic Layout Principles**:
-          *   **Clarity and Flow**: Arrange components to represent a clear, logical data flow, typically from left-to-right or top-to-bottom.
-          *   **Symmetry and Balance**: Strive for a balanced and symmetrical layout. Align nodes both vertically and horizontally to create a clean, grid-like structure.
-          *   **Grouping**: Use 'containers' effectively to group related components into logical zones. For conceptual groupings within a container (e.g., a "Decision-Making Process" section), use a node of type \`group-label\` to act as a text heading.
-          *   **Hierarchy**: Create visual hierarchy by nesting 'tier' containers and using different link thicknesses.
-          *   **Spacing**: Ensure generous and consistent spacing between all elements (nodes, containers) to avoid clutter. There must be NO overlaps.
-      2.  **Coordinates**: All 'x' and 'y' coordinates are absolute, based on a 1200x800 canvas with (0,0) at the top-left. Node positions are center-based. Container positions are top-left based.
-      3.  **Sizing**: Calculate an appropriate 'width' and 'height' for each node based on its label to prevent text overflow. Min width 120, min height 80 (unless it's a special type like 'neuron' or 'group-label').
-      4.  **IDs & Connectivity**: Ensure all IDs are unique and valid in 'links' and 'childNodeIds'. Provide concise, one-sentence 'description' for every node and container.
-      
-      **LINK & ARROW RULES:**
-      1.  **Thickness**: Use the optional 'thickness' property on links. Use \`'thick'\` for major connections between high-level containers/groups. Use \`'medium'\` or \`'thin'\` for internal connections. Default is 'medium' if unspecified.
-      2.  **Bidirectional**: For feedback loops or mutual interactions, set \`bidirectional: true\` on the link.
-      3.  **Labeling**: Add a \`label\` where it adds clarity, such as 'API Call', 'Data Sync', or 'User Request'. Keep labels brief.
-      
-      **SPECIALIZED ARCHITECTURE RULES:**
-
-      **1. Conceptual & Agent-Based Architectures (like the "Agent Safety" example):**
-      - **Hierarchical Containers**: Use large 'tier' containers for top-level concepts (e.g., 'Agent Intrinsic Safety'). Place smaller 'tier' containers inside for sub-sections ('Perception', 'Brain', 'Action').
-      - **Group Labels**: Inside containers like 'Brain', use a \`group-label\` node to create text headings for different processes (e.g., "LLM Training", "Decision-Making Process").
-      - **Icons**: Use conceptual icons from the list like 'brain', 'perception', 'action', 'planning', 'memory', 'environment'.
-      - **Flow**: Use thick arrows to connect the main stages. Use bidirectional arrows for interaction loops.
-
-      **2. Neural Network / Deep Learning Architectures:**
-      - **Detection**: If the prompt contains keywords like "neural network", "deep learning model", "fully connected layers", "MLP", "input layer", "hidden layer", or "output layer", you MUST generate the diagram using this specific style.
-      - **Node Types**:
-        - Use the type \`neuron\` for all circular nodes representing individual neurons.
-        - Use the type \`layer-label\` for the text labels "Input", "Hidden", "Output" placed above the layers.
-      - **Layout**: Arrange all 'neuron' nodes in distinct, perfectly aligned vertical columns. Place a 'layer-label' node centered above each column.
-      - **Styling**: Input/Output layer neurons MUST have 'color' set to '#000000'. Hidden layer neurons MUST have 'color' set to '#CCCCCC'. Links should be 'thin' and 'solid'.
-      - **Connectivity**: For fully connected layers, create a 'link' from EVERY neuron in a layer to EVERY neuron in the subsequent layer.
-
-      **3. Standard Cloud/Microservice Architectures:**
-      - Use 'containers' to group components into logical tiers (e.g., "Web Tier", "Application Tier", "Data Tier").
-      - Use the most specific icon 'type' available. Examples:
-        - **AI/ML**: 'llm', 'gemini', 'chat-gpt', 'vector-database', 'embedding-model', 'gpu'.
-        - **Cloud**: 'aws-ec2', 'aws-s3', 'azure-vm', 'gcp-compute-engine'.
-        - **Generic**: 'cloud', 'api', 'web-server', 'user', 'mobile', 'web-app', 'cache'.
-
-      Produce a diagram that looks like a polished, official reference architecture blueprint.`,
+      **Layout Guidelines:**
+      1.  **Logical Flow**: Arrange components to represent a clear data flow, typically left-to-right or top-to-bottom.
+      2.  **Grouping**: Use 'containers' of type 'tier' or 'region' to group related components. Ensure containers do not overlap and that all nodes listed in 'childNodeIds' fit comfortably within the container's dimensions.
+      3.  **Spacing & Alignment**: Ensure adequate and consistent spacing between all elements. Align nodes where possible to create a clean, grid-like structure. There must be NO overlaps between nodes or containers.
+      4.  **Sizing**: Choose an appropriate 'width' and 'height' for each node based on its label length to avoid text overflow. Minimum width should be 120 and minimum height 80, unless it's a special type.
+      5.  **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left. Node 'x' and 'y' are the center of the node. Container 'x' and 'y' are the top-left corner.
+      6.  **IDs**: Ensure all 'id' fields are unique, kebab-case strings.
+      7.  **Connectivity**: Make sure all 'source' and 'target' IDs in links correspond to existing node IDs.
+      8.  **Clarity**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type' available from the predefined list.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "You are an expert cloud and AI solutions architect with a keen eye for visual design. Your task is to generate a JSON representation of a structured, professional-grade software architecture diagram from a natural language prompt. You must strictly follow the provided JSON schema. The final diagram should look like a polished, official reference architecture blueprint, emphasizing clarity, symmetry, and logical flow. Pay meticulous attention to creating a clean, tiered, and grid-aligned layout suitable for formal presentations. When a neural network is requested, you must switch to a specific neuron-and-layer generation style."
+        systemInstruction: "You are an expert solutions architect. Your task is to generate a valid JSON representation of a software architecture diagram based on a user's prompt. You must strictly adhere to the provided JSON schema. The layout should be clean, logical, and visually appealing, resembling a professional blueprint."
       },
     });
 

@@ -1,18 +1,13 @@
-
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiagramData, Node, Link, Container, IconType } from '../types';
 import DiagramCanvas, { InteractionMode } from './DiagramCanvas';
 import PropertiesSidebar from './PropertiesSidebar';
 import PlaygroundToolbar from './PlaygroundToolbar';
-import AddNodePanel from './AddNodePanel';
 import ContextualActionBar from './ContextualActionBar';
 import { customAlphabet } from 'nanoid';
 import { zoomIdentity, ZoomTransform } from 'd3-zoom';
 import AssistantWidget from './AssistantWidget';
-import Toast from './Toast';
-import { pointer } from 'd3-selection';
-import { D3DragEvent } from 'd3-drag';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -35,14 +30,9 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     const { data, onDataChange, onExit, selectedIds, setSelectedIds } = props;
 
     const [interactionMode, setInteractionMode] = useState<InteractionMode>('select');
-    const [isAddNodePanelOpen, setIsAddNodePanelOpen] = useState(false);
-    const [nodeToPlace, setNodeToPlace] = useState<IconType | null>(null);
     const [linkSourceNodeId, setLinkSourceNodeId] = useState<string | null>(null);
-    const [linkPreviewCoords, setLinkPreviewCoords] = useState<{x: number, y: number} | null>(null);
     const [actionBarPosition, setActionBarPosition] = useState<{ x: number; y: number } | null>(null);
     const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
-    const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
-    const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     
     const isPropertiesPanelOpen = selectedIds.length > 0;
 
@@ -50,10 +40,6 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const fitScreenRef = useRef<(() => void) | null>(null);
     
-    const showToast = (message: string) => {
-        setToast({ id: Date.now(), message });
-    };
-
     const nodesAndContainersById = useMemo(() => {
         const map = new Map<string, Node | Container | Link>();
         data.nodes.forEach(node => map.set(node.id, node));
@@ -90,55 +76,14 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
 
     const handleSetInteractionMode = (mode: InteractionMode) => {
         setInteractionMode(mode);
-        setIsAddNodePanelOpen(mode === 'addNode');
         setLinkSourceNodeId(null);
         setSelectedIds([]);
-        if (mode !== 'addNode') {
-            setNodeToPlace(null);
-        }
-        if (mode === 'addContainer') {
-            showToast('Click and drag on the canvas to draw a container.');
-        } else if (mode === 'connect') {
-            showToast('Click a source node, then a target node.');
-        } else if (mode === 'pan') {
-            showToast('Click and drag on the canvas to pan.');
-        }
     };
     
-    const handleSelectNodeType = (type: IconType) => {
-        setNodeToPlace(type);
-        setIsAddNodePanelOpen(false);
-        const typeName = type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        showToast(`Click on the canvas to place the ${typeName} node.`);
-    };
-
-    const handleCanvasClick = (coords: { x: number; y: number }) => {
-        if (interactionMode === 'addNode' && nodeToPlace) {
-            const newNode: Node = {
-                id: `${nodeToPlace}-${nanoid()}`,
-                label: `${nodeToPlace.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`,
-                type: nodeToPlace,
-                description: 'A new component.',
-                x: Math.round(coords.x / 10) * 10,
-                y: Math.round(coords.y / 10) * 10,
-                width: 150,
-                height: 60,
-                locked: false,
-                shape: 'rectangle',
-            };
-            const newData = { ...data, nodes: [...data.nodes, newNode] };
-            onDataChange(newData);
-            // Keep 'addNode' mode active to place multiple nodes
-            const typeName = nodeToPlace.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-            showToast(`Placed ${typeName}. Click again or choose another node.`);
-        }
-    };
-
     const handleNodeClick = (nodeId: string) => {
         if (interactionMode === 'connect') {
             if (!linkSourceNodeId) {
                 setLinkSourceNodeId(nodeId);
-                showToast('Click a target node to complete the connection.');
             } else if (linkSourceNodeId !== nodeId) {
                 const newLink: Link = {
                     id: `link-${nanoid()}`,
@@ -199,70 +144,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedIds, handleDeleteSelected]);
-
-    const handleLinkDragStart = (nodeId: string, event: D3DragEvent<any, any, any>) => {
-        setLinkSourceNodeId(nodeId);
-        const [x, y] = pointer(event.sourceEvent, svgRef.current as SVGSVGElement);
-        setLinkPreviewCoords({x, y});
-    };
     
-    const handleLinkDrag = (event: D3DragEvent<any, any, any>) => {
-        const [x, y] = pointer(event.sourceEvent, svgRef.current as SVGSVGElement);
-        setLinkPreviewCoords({x, y});
-        
-        const targetElement = event.sourceEvent.target as HTMLElement;
-        const targetNodeElement = targetElement.closest('[data-node-id]');
-        const targetNodeId = targetNodeElement?.getAttribute('data-node-id');
-        if (targetNodeId && targetNodeId !== linkSourceNodeId) {
-            setHoveredNodeId(targetNodeId);
-        } else {
-            setHoveredNodeId(null);
-        }
-    };
-
-    const handleLinkDragEnd = (sourceNodeId: string, event: D3DragEvent<any, any, any>) => {
-        if (hoveredNodeId && hoveredNodeId !== sourceNodeId) {
-            const newLink: Link = { id: `link-${nanoid()}`, source: sourceNodeId, target: hoveredNodeId, style: 'solid', thickness: 'medium' };
-            onDataChange({ ...data, links: [...data.links, newLink] });
-        } else {
-            const targetElement = event.sourceEvent.target as HTMLElement;
-            const isCanvasDrop = ['svg', 'rect'].includes(targetElement.tagName) && targetElement.closest('#diagram-content');
-            if (isCanvasDrop) {
-                const [x, y] = pointer(event.sourceEvent, svgRef.current as SVGSVGElement);
-                const newNode: Node = {
-                    id: `node-${nanoid()}`, label: 'New Component', type: IconType.Generic, description: '',
-                    x: Math.round(x), y: Math.round(y), width: 150, height: 60, shape: 'rectangle',
-                };
-                const newLink: Link = { id: `link-${nanoid()}`, source: sourceNodeId, target: newNode.id, style: 'solid', thickness: 'medium' };
-                onDataChange({ ...data, nodes: [...data.nodes, newNode], links: [...data.links, newLink] });
-            }
-        }
-        
-        setLinkSourceNodeId(null);
-        setLinkPreviewCoords(null);
-        setHoveredNodeId(null);
-    };
-
-    const handleContainerCreation = (rect: { x: number, y: number, width: number, height: number }) => {
-        const newContainer: Container = {
-            id: `container-${nanoid()}`,
-            label: 'New Container',
-            type: 'tier',
-            description: '',
-            childNodeIds: [],
-            ...rect,
-        };
-        onDataChange({ ...data, containers: [...(data.containers || []), newContainer] });
-        setInteractionMode('select');
-    };
-
-    const linkPreview = useMemo(() => {
-        if (!linkSourceNodeId || !linkPreviewCoords) return null;
-        const sourceNode = data.nodes.find(n => n.id === linkSourceNodeId);
-        if (!sourceNode) return null;
-        return { sourceNode, targetCoords: linkPreviewCoords };
-    }, [linkSourceNodeId, linkPreviewCoords, data.nodes]);
-
     const handleDuplicateSelected = () => {
         if (selectedIds.length === 0) return;
         const offset = 30;
@@ -335,16 +217,9 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         selectedIds={selectedIds}
                         setSelectedIds={setSelectedIds}
                         isEditable={true}
-                        interactionMode={interactionMode === 'addNode' && nodeToPlace ? 'addNode' : interactionMode}
-                        onInteractionCanvasClick={handleCanvasClick}
+                        interactionMode={interactionMode}
                         onInteractionNodeClick={handleNodeClick}
-                        linkPreview={linkPreview}
                         onTransformChange={setViewTransform}
-                        onContainerCreation={handleContainerCreation}
-                        onLinkDragStart={handleLinkDragStart}
-                        onLinkDrag={handleLinkDrag}
-                        onLinkDragEnd={handleLinkDragEnd}
-                        hoveredNodeId={hoveredNodeId}
                     />
                     <AnimatePresence>
                         {actionBarPosition && (
@@ -356,32 +231,9 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                             />
                         )}
                     </AnimatePresence>
-                    <AnimatePresence>
-                        {toast && <Toast key={toast.id} message={toast.message} onDismiss={() => setToast(null)} />}
-                    </AnimatePresence>
                 </div>
             </main>
             
-            <div className="fixed md:relative inset-0 md:inset-auto z-30 md:z-10 pointer-events-none">
-                 <AnimatePresence>
-                    {isAddNodePanelOpen && (
-                        <motion.div
-                            key="add-node-panel"
-                            initial={{ x: '-100%', y: '0%' }}
-                            animate={{ x: 0, y: 0 }}
-                            exit={{ x: '-100%', y: '0%' }}
-                            transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                            className="absolute bottom-0 left-0 md:relative md:h-full pointer-events-auto"
-                        >
-                            <div className="md:h-full w-screen max-w-[320px] md:w-80">
-                                <AddNodePanel onSelectNodeType={handleSelectNodeType} onClose={() => { setIsAddNodePanelOpen(false); setInteractionMode('select'); }} />
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-
             <AnimatePresence>
                 {isPropertiesPanelOpen && (
                      <motion.aside 

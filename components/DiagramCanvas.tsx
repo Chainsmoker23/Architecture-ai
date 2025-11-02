@@ -1,8 +1,6 @@
-
-
 import React, { useEffect, useRef, useState, useMemo, memo } from 'react';
 import { select, pointer } from 'd3-selection';
-import { drag, D3DragEvent } from 'd3-drag';
+import { drag } from 'd3-drag';
 import { zoom, zoomIdentity, ZoomTransform } from 'd3-zoom';
 import 'd3-transition';
 import { DiagramData, Node, Link, Container } from '../types';
@@ -23,15 +21,8 @@ interface DiagramCanvasProps {
   fitScreenRef: React.RefObject<(() => void) | null>;
   isEditable?: boolean;
   interactionMode?: InteractionMode;
-  onInteractionCanvasClick?: (coords: { x: number, y: number }) => void;
   onInteractionNodeClick?: (nodeId: string) => void;
-  linkPreview?: { sourceNode: Node; targetCoords: { x: number; y: number } } | null;
   onTransformChange?: (transform: ZoomTransform) => void;
-  onContainerCreation?: (rect: Rect) => void;
-  onLinkDragStart?: (nodeId: string, event: D3DragEvent<any, any, any>) => void;
-  onLinkDrag?: (event: D3DragEvent<any, any, any>) => void;
-  onLinkDragEnd?: (nodeId: string, event: D3DragEvent<any, any, any>) => void;
-  hoveredNodeId?: string | null;
 }
 
 interface Point { x: number; y: number; }
@@ -40,13 +31,12 @@ interface Rect { x: number; y: number; width: number; height: number; }
 const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ 
     data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
     isEditable = false,
-    interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview,
-    onTransformChange, onContainerCreation, onLinkDragStart, onLinkDrag, onLinkDragEnd, hoveredNodeId
+    interactionMode = 'select', onInteractionNodeClick,
+    onTransformChange
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: Node | Link | Container; } | null>(null);
-  const [containerCreationRect, setContainerCreationRect] = useState<{ start: Point, end: Point } | null>(null);
   
   const nodesById = useMemo(() => new Map(data.nodes.map(node => [node.id, node])), [data.nodes]);
   const isSelected = (id: string) => selectedIds.includes(id);
@@ -83,9 +73,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       .scaleExtent([0.1, 4])
       .filter(event => {
         if (!isEditable) return event.type === 'wheel'; // Allow zoom only if not editable
-        const isHandle = (event.target as HTMLElement).classList.contains('connection-handle');
-        if (isHandle || interactionMode === 'addContainer' || event.defaultPrevented) return false;
-        if (interactionMode === 'pan') return event.type === 'wheel' || event.type === 'mousedown';
+        if (event.defaultPrevented) return false;
         return event.type === 'wheel' || event.button === 2 || (interactionMode === 'select' && (event.target as HTMLElement)?.tagName === 'svg');
       })
       .on('zoom', (event) => {
@@ -94,36 +82,6 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       });
       
     svg.call(zoomBehavior).on("dblclick.zoom", null);
-    
-    if (isEditable && interactionMode === 'addContainer' && onContainerCreation) {
-        const containerDrag = drag<SVGSVGElement, unknown>()
-            .on('start', event => {
-                const [x, y] = pointer(event, svg.node()!);
-                setContainerCreationRect({ start: { x, y }, end: { x, y } });
-            })
-            .on('drag', event => {
-                const [x, y] = pointer(event, svg.node()!);
-                setContainerCreationRect(prev => prev ? { ...prev, end: { x, y } } : null);
-            })
-            .on('end', () => {
-                if (containerCreationRect) {
-                    const { start, end } = containerCreationRect;
-                    const newRect = {
-                        x: Math.round(Math.min(start.x, end.x)),
-                        y: Math.round(Math.min(start.y, end.y)),
-                        width: Math.round(Math.abs(start.x - end.x)),
-                        height: Math.round(Math.abs(start.y - end.y)),
-                    };
-                    if (newRect.width > 20 && newRect.height > 20) {
-                        onContainerCreation(newRect);
-                    }
-                }
-                setContainerCreationRect(null);
-            });
-        svg.call(containerDrag);
-    } else {
-        svg.on('.drag', null);
-    }
     
     const fitToScreen = () => {
       const contentGroup = svg.select<SVGGElement>('#diagram-content').node();
@@ -142,13 +100,8 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     
     const handleCanvasClick = (event: PointerEvent) => {
         if (!event.defaultPrevented && (event.target as SVGSVGElement).tagName === 'svg') {
-            const transformedPoint = pointer(event, svg.node());
-            if (isEditable && interactionMode === 'addNode' && onInteractionCanvasClick) {
-                onInteractionCanvasClick({ x: transformedPoint[0], y: transformedPoint[1] });
-            } else {
-                setSelectedIds([]);
-                setContextMenu(null);
-            }
+            setSelectedIds([]);
+            setContextMenu(null);
         }
     };
     
@@ -157,10 +110,10 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 
     return () => {
       if (svgNode) svgNode.removeEventListener('click', handleCanvasClick as EventListener);
-      svg.on('.zoom', null).on('.drag', null);
+      svg.on('.zoom', null);
       if (fitScreenRef) fitScreenRef.current = null;
     }
-  }, [forwardedRef, setSelectedIds, data, fitScreenRef, isEditable, interactionMode, onInteractionCanvasClick, onTransformChange, onContainerCreation]);
+  }, [forwardedRef, setSelectedIds, data, fitScreenRef, isEditable, interactionMode, onTransformChange]);
 
   const handleItemContextMenu = (e: React.MouseEvent, item: Node | Link | Container) => {
     e.preventDefault(); e.stopPropagation();
@@ -199,26 +152,14 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
   const getCursor = () => {
     if (!isEditable) return 'default';
     switch(interactionMode) {
-      case 'addNode': case 'addContainer': return 'crosshair';
       case 'connect': return 'pointer';
-      case 'pan': return 'grab';
-      case 'select': return 'default';
       default: return 'default';
     }
   };
 
-  const finalContainerCreationRect = useMemo(() => {
-    if (!containerCreationRect) return null;
-    const { start, end } = containerCreationRect;
-    return {
-        x: Math.min(start.x, end.x), y: Math.min(start.y, end.y),
-        width: Math.abs(start.x - end.x), height: Math.abs(start.y - end.y),
-    };
-  }, [containerCreationRect]);
-
   return (
     <div ref={containerRef} className="w-full h-full relative bg-[var(--color-canvas-bg)] rounded-b-2xl">
-      <svg ref={forwardedRef} className={`w-full h-full absolute inset-0 ${isEditable && interactionMode === 'pan' ? 'active:cursor-grabbing' : ''}`} style={{ cursor: getCursor() }}>
+      <svg ref={forwardedRef} className="w-full h-full absolute inset-0" style={{ cursor: getCursor() }}>
         <defs>
           <pattern id="grid" width={GRID_SIZE} height={GRID_SIZE} patternUnits="userSpaceOnUse">
             <circle cx="1" cy="1" r="1" fill="var(--color-grid-dot)"></circle>
@@ -248,10 +189,8 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                 })}
             </g>
             <g> {/* Nodes Layer */}
-                {data.nodes.map(node => ( <DiagramNode key={node.id} node={node} data={data} onDataChange={onDataChange} isSelected={isSelected(node.id)} onSelect={handleNodeClick} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} interactionMode={interactionMode} onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd} hoveredNodeId={hoveredNodeId} isEditable={isEditable} /> ))}
+                {data.nodes.map(node => ( <DiagramNode key={node.id} node={node} data={data} onDataChange={onDataChange} isSelected={isSelected(node.id)} onSelect={handleNodeClick} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} interactionMode={interactionMode} isEditable={isEditable} /> ))}
             </g>
-            {linkPreview && ( <path d={`M ${linkPreview.sourceNode.x} ${linkPreview.sourceNode.y} L ${linkPreview.targetCoords.x} ${linkPreview.targetCoords.y}`} stroke="var(--color-accent)" strokeWidth="2" strokeDasharray="6 6" className="pointer-events-none" markerEnd="url(#arrowhead)" /> )}
-            {finalContainerCreationRect && ( <rect x={finalContainerCreationRect.x} y={finalContainerCreationRect.y} width={finalContainerCreationRect.width} height={finalContainerCreationRect.height} fill="rgba(249, 215, 227, 0.3)" stroke="var(--color-accent)" strokeWidth="2" strokeDasharray="4 4" className="pointer-events-none"/> )}
         </g>
       </svg>
       {contextMenu && ( <ContextMenu x={contextMenu.x} y={contextMenu.y} options={[{ label: 'Delete', onClick: () => handleDeleteItem(contextMenu.item) }]} onClose={() => setContextMenu(null)} /> )}
@@ -353,57 +292,14 @@ const NodeShape: React.FC<{node: Node, isSelected: boolean}> = ({ node, isSelect
     return <rect rx={12} ry={12} {...commonProps} />;
 };
 
-const ConnectionHandle = memo<{ node: Node; position: 'top' | 'right' | 'bottom' | 'left'; onLinkDragStart: (nodeId: string, event: D3DragEvent<any, any, any>) => void; onLinkDrag: (event: D3DragEvent<any, any, any>) => void; onLinkDragEnd: (nodeId: string, event: D3DragEvent<any, any, any>) => void; }>(({ node, position, onLinkDragStart, onLinkDrag, onLinkDragEnd }) => {
-    const ref = useRef<SVGCircleElement>(null);
-    const getPosition = () => {
-        switch(position) {
-            case 'top': return { cx: node.width / 2, cy: 0 };
-            case 'right': return { cx: node.width, cy: node.height / 2 };
-            case 'bottom': return { cx: node.width / 2, cy: node.height };
-            case 'left': return { cx: 0, cy: node.height / 2 };
-        }
-    };
-
-    useEffect(() => {
-        if (!ref.current) return;
-        const circle = select(ref.current);
-        const dragHandler = drag<SVGCircleElement, unknown>()
-            .on('start', event => {
-                event.sourceEvent.stopPropagation();
-                onLinkDragStart(node.id, event);
-            })
-            .on('drag', event => {
-                onLinkDrag(event);
-            })
-            .on('end', event => {
-                onLinkDragEnd(node.id, event);
-            });
-        circle.call(dragHandler);
-    }, [node.id, onLinkDragStart, onLinkDrag, onLinkDragEnd]);
-    
-    return (
-        <circle
-            ref={ref}
-            {...getPosition()}
-            r="8"
-            fill="var(--color-accent)"
-            stroke="var(--color-panel-bg)"
-            strokeWidth="2"
-            className="connection-handle cursor-pointer"
-        />
-    );
-});
-
-const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Node) => void; hoveredNodeId?: string | null; onLinkDragStart?: (nodeId: string, event: D3DragEvent<any, any, any>) => void; onLinkDrag?: (event: D3DragEvent<any, any, any>) => void; onLinkDragEnd?: (nodeId: string, event: D3DragEvent<any, any, any>) => void; isEditable: boolean; } & DraggableProps>(({ node, isSelected, onSelect, onContextMenu, onLinkDragStart, onLinkDrag, onLinkDragEnd, hoveredNodeId, isEditable, ...props }) => {
+const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Node) => void; isEditable: boolean; } & DraggableProps>(({ node, isSelected, onSelect, onContextMenu, isEditable, ...props }) => {
     const ref = useRef<SVGGElement>(null);
-    const isDropTarget = hoveredNodeId === node.id;
     useEffect(() => {
         if (!ref.current || node.locked || !isEditable || props.interactionMode !== 'select') { select(ref.current).on('.drag', null); return; }
         const g = select(ref.current);
         let startPositions = new Map<string, {x: number, y: number}>();
         const dragHandler = drag<SVGGElement, unknown>()
             .on('start', function(event) {
-                if ((event.sourceEvent.target as HTMLElement).classList.contains('connection-handle')) return; 
                 startPositions.clear();
                 const { selectedIds } = props;
                 const isDraggingSelected = selectedIds.includes(node.id);
@@ -412,7 +308,6 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
                 select(this).raise(); event.sourceEvent.stopPropagation();
             })
             .on('drag', function(event) {
-                 if ((event.sourceEvent.target as HTMLElement).classList.contains('connection-handle')) return; 
                  const dx = event.x - event.subject.x; const dy = event.y - event.subject.y;
                 const { data, onDataChange } = props;
                 const newNodes = data.nodes.map(n => { const startPos = startPositions.get(n.id); if (startPos && !n.locked) return { ...n, x: startPos.x + dx, y: startPos.y + dy }; return n; });
@@ -424,13 +319,11 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
     if (node.type === 'neuron') { return ( <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`} style={{ cursor: getCursorStyle() }} data-node-id={node.id} onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} > <circle cx={node.width / 2} cy={node.height / 2} r={Math.min(node.width, node.height) / 2} fill={node.color || "#CCCCCC"} stroke={isSelected ? 'var(--color-accent)' : '#000000'} strokeWidth={isSelected ? 2 : 1} /> </g> ); }
     if (node.type === 'layer-label' || node.type === 'group-label') { return ( <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x}, ${node.y})`} style={{ cursor: getCursorStyle(), pointerEvents: 'none' }} > <text textAnchor="middle" dominantBaseline="middle" fill="var(--color-text-primary)" fontSize={node.type === 'group-label' ? "18" : "16"} fontWeight="600">{node.label}</text> </g> ); }
     return (
-        <motion.g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`} style={{ cursor: getCursorStyle(), filter: 'url(#drop-shadow)' }} data-node-id={node.id} onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} whileHover={isEditable && props.interactionMode === 'select' ? { scale: 1.05 } : {}} animate={{ scale: isDropTarget ? 1.1 : 1, transition: { type: 'spring', stiffness: 400, damping: 15 } }} >
+        <motion.g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`} style={{ cursor: getCursorStyle(), filter: 'url(#drop-shadow)' }} data-node-id={node.id} onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)}>
             <NodeShape node={node} isSelected={isSelected} />
-             {isDropTarget && ( <motion.rect x={-5} y={-5} width={node.width + 10} height={node.height + 10} rx={16} ry={16} fill="none" stroke="var(--color-accent)" strokeWidth="3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ pointerEvents: 'none' }} /> )}
             <foreignObject x="12" y="12" width="32" height="32"> <ArchitectureIcon type={node.type} className="w-8 h-8" /> </foreignObject>
             <foreignObject x="52" y="10" width={node.width - 60} height={node.height - 20} > <div className="label-text text-sm font-medium leading-tight h-full flex items-center" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{node.label}</div> </foreignObject>
             {node.locked && ( <path d="M12 1.5A3.5 3.5 0 008.5 5v1.5H7a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2v-7a2 2 0 00-2-2h-1.5V5A3.5 3.5 0 0012 1.5zM12 3a2 2 0 012 2v1.5H10V5a2 2 0 012-2z" fill="var(--color-text-tertiary)" transform={`translate(${node.width - 20}, 4) scale(0.7)`} /> )}
-            {isEditable && isSelected && props.selectedIds.length === 1 && onLinkDragStart && onLinkDrag && onLinkDragEnd && ( <> <ConnectionHandle node={node} position="top" onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd}/> <ConnectionHandle node={node} position="right" onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd}/> <ConnectionHandle node={node} position="bottom" onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd}/> <ConnectionHandle node={node} position="left" onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd}/> </> )}
         </motion.g>
     );
 });
