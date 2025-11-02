@@ -42,6 +42,21 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: Node | Link | Container; } | null>(null);
   
   const nodesById = useMemo(() => new Map(data.nodes.map(node => [node.id, node])), [data.nodes]);
+
+  const linkGroups = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    data.links.forEach(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+        const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+        const key = [sourceId, targetId].sort().join('--');
+        if (!groups.has(key)) {
+            groups.set(key, []);
+        }
+        groups.get(key)!.push(link.id);
+    });
+    return groups;
+  }, [data.links]);
+
   const isSelected = (id: string) => selectedIds.includes(id);
 
   const tierColors = useMemo(() => {
@@ -192,7 +207,17 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                     const sourceNode = nodesById.get(typeof link.source === 'string' ? link.source : link.source.id);
                     const targetNode = nodesById.get(typeof link.target === 'string' ? link.target : link.target.id);
                     if (!sourceNode || !targetNode) return null;
-                    return <DiagramLink key={link.id} link={link} source={sourceNode} target={targetNode} obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))} onContextMenu={handleItemContextMenu} isSelected={isSelected(link.id)} onSelect={handleItemSelection} />;
+
+                    const sourceId = sourceNode.id;
+                    const targetId = targetNode.id;
+                    const groupKey = [sourceId, targetId].sort().join('--');
+                    const group = linkGroups.get(groupKey) || [];
+                    const linkIndex = group.indexOf(link.id);
+                    const groupSize = group.length;
+                    const LINK_SPACING = 20;
+                    const offset = (linkIndex - (groupSize - 1) / 2) * LINK_SPACING;
+
+                    return <DiagramLink key={link.id} link={link} source={sourceNode} target={targetNode} obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))} onContextMenu={handleItemContextMenu} isSelected={isSelected(link.id)} onSelect={handleItemSelection} offset={offset} />;
                 })}
             </g>
             <g> {/* Nodes Layer */}
@@ -491,7 +516,7 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
     );
 });
 
-const getOrthogonalPath = (source: Node, target: Node, obstacles: Rect[]): Point[] => {
+const getOrthogonalPath = (source: Node, target: Node, obstacles: Rect[], offset: number = 0): Point[] => {
     const sourcePoints = {
         top: { x: source.x, y: source.y - source.height / 2 },
         bottom: { x: source.x, y: source.y + source.height / 2 },
@@ -508,7 +533,7 @@ const getOrthogonalPath = (source: Node, target: Node, obstacles: Rect[]): Point
     const sourcePoint = source.x < target.x ? sourcePoints.right : sourcePoints.left;
     const targetPoint = source.x < target.x ? targetPoints.left : targetPoints.right;
     
-    const midX = sourcePoint.x + (targetPoint.x - sourcePoint.x) / 2;
+    const midX = sourcePoint.x + (targetPoint.x - sourcePoint.x) / 2 + offset;
 
     const p1 = sourcePoint;
     const p2 = { x: midX, y: sourcePoint.y };
@@ -564,9 +589,9 @@ const getStrokeWidth = (thickness?: 'thin' | 'medium' | 'thick', isSelected?: bo
     return isSelected ? width + 1.5 : width;
 };
 
-const DiagramLink = memo<{ link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, item: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void, isSelected: boolean }>(({ link, source, target, obstacles, onContextMenu, onSelect, isSelected }) => {
+const DiagramLink = memo<{ link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, item: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void, isSelected: boolean, offset: number }>(({ link, source, target, obstacles, onContextMenu, onSelect, isSelected, offset }) => {
     const isNeuronLink = source.type === 'neuron' && target.type === 'neuron';
-    const pathPoints = useMemo(() => getOrthogonalPath(source, target, obstacles), [source, target, obstacles]);
+    const pathPoints = useMemo(() => getOrthogonalPath(source, target, obstacles, offset), [source, target, obstacles, offset]);
     if (pathPoints.length < 2) return null;
     const startPoint = pathPoints[0]; const nextToStartPoint = pathPoints[1]; const endPoint = pathPoints[pathPoints.length - 1]; const prevPoint = pathPoints[pathPoints.length - 2]; if(!prevPoint) return null;
     const dxEnd = endPoint.x - prevPoint.x; const dyEnd = endPoint.y - prevPoint.y; const lengthEnd = Math.sqrt(dxEnd*dxEnd + dyEnd*dyEnd);
