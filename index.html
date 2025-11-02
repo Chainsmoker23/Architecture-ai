@@ -74,14 +74,14 @@
       }
       .marquee-track {
         display: flex;
-        animation: scroll 5s linear infinite;
+        animation: scroll 40s linear infinite;
       }
       .marquee-track-reverse {
         animation-direction: reverse;
       }
       .marquee-container:hover .marquee-track {
         animation-play-state: paused;
-  ì    }
+      }
       @keyframes scroll {
         from { transform: translateX(0); }
         to { transform: translateX(-50%); }
@@ -112,6 +112,30 @@
         from { transform: scale(0.9); opacity: 0.5; }
         to { transform: scale(1.1); opacity: 0.7; }
       }
+
+      /* Custom Stack Auth Styles */
+      .stack-auth-button-primary {
+        background: linear-gradient(to right, #F9D7E3 40%, #FFCCE0 50%, #F9D7E3 60%) !important;
+        background-size: 2000px 100% !important;
+        animation: shimmer 5s linear infinite !important;
+        color: #A61E4D !important;
+        font-weight: bold !important;
+        border: none !important;
+        transition: filter 0.2s;
+      }
+      .stack-auth-button-primary:hover {
+        filter: brightness(1.05);
+      }
+      .stack-auth-input {
+        background-color: #F8F1F3 !important;
+        border: 1px solid #E8DCE0 !important;
+        border-radius: 12px !important;
+      }
+      .stack-auth-input:focus {
+        border-color: #F06292 !important;
+        box-shadow: 0 0 0 2px rgba(240, 98, 146, 0.2) !important;
+        outline: none;
+      }
     </style>
   <script type="importmap">
 {
@@ -120,6 +144,7 @@
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "@stackframe/react": "https://aistudiocdn.com/@stackframe/react@^0.2.2",
     "d3": "https://aistudiocdn.com/d3@^7.9.0",
     "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
     "d3-zoom": "https://aistudiocdn.com/d3-zoom@^3.0.0",

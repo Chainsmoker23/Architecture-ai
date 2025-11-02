@@ -118,7 +118,7 @@ export const ICONS: Record<string, React.ReactNode> = {
   [IconType.Message]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke="currentColor" fill="none" />,
   [IconType.Sparkles]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" stroke="currentColor" fill="none" />,
   [IconType.Edit]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke="currentColor" fill="none"/>,
-  [IconType.Gear]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke="currentColor" fill="none" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" fill="none" />,
+  [IconType.Gear]: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke="currentColor" fill="none" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" fill="none" />,
   [IconType.Generic]: <path d="M22 11h-4.17l3.24-3.24-1.41-1.42L15 11h-2V9l4.66-4.66-1.42-1.41L13 6.17V2h-2v4.17L7.76 2.93 6.34 4.34 11 9v2H9L4.34 6.34 2.93 7.76 6.17 11H2v2h4.17l-3.24 3.24 1.41 1.42L9 13h2v2l-4.66 4.66 1.42 1.41L11 17.83V22h2v-4.17l3.24 3.24 1.42-1.41L13 15v-2h2l4.66 4.66 1.41-1.42L17.83 13H22z" />,
 };
 
@@ -195,5 +195,37 @@ export const TESTIMONIALS = [
     company: 'TechPro Services',
     avatar: 'JL',
     logoText: 'TechPro'
+  },
+  {
+    quote: "We've integrated ArchiGen into our onboarding for new engineers. It's the fastest way for them to understand our complex microservices architecture.",
+    name: 'John Williams',
+    role: 'Head of Platform Engineering',
+    company: 'ScaleGrid',
+    avatar: 'JW',
+    logoText: 'ScaleGrid'
+  },
+  {
+    quote: "Describing our blockchain infrastructure and getting a clear, accurate diagram in return is incredible. This tool has saved us countless hours of manual diagramming.",
+    name: 'Alex Lee',
+    role: 'CTO',
+    company: 'FinTech Innovations',
+    avatar: 'AL',
+    logoText: 'FinTech'
+  },
+  {
+    quote: "The AI's ability to create nested containers for regions and availability zones is top-notch. It produces diagrams that are ready for client-facing presentations.",
+    name: 'Rachel Brown',
+    role: 'Cloud Solutions Architect',
+    company: 'Azure Dynamics',
+    avatar: 'RB',
+    logoText: 'AzureDynamics'
+  },
+  {
+    quote: "The playground mode is fantastic for brainstorming sessions. We can quickly iterate on different API designs with the whole team watching in real-time.",
+    name: 'Tom Miller',
+    role: 'Engineering Manager',
+    company: 'MobileFirst Co.',
+    avatar: 'TM',
+    logoText: 'MobileFirst'
   }
 ];

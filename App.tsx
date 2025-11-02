@@ -22,6 +22,7 @@ import ApiKeyPage from './components/ApiKeyPage';
 import PrivacyPage from './components/PrivacyPage';
 import TermsPage from './components/TermsPage';
 import DocsPage from './components/DocsPage';
+import { useUser } from '@stackframe/react';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -62,8 +63,19 @@ const getFontStyles = async (): Promise<string> => {
 };
 
 
+const getPageFromHash = (): string => {
+    const hash = window.location.hash.replace(/^#\/?/, ''); // Removes #/ or #
+    if (hash.startsWith('handler/')) {
+        return 'auth';
+    }
+    return hash || 'landing';
+};
+
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'landing' | 'app' | 'contact' | 'about' | 'sdk' | 'auth' | 'apiKey' | 'privacy' | 'terms' | 'docs'>('landing');
+  const user = useUser();
+  const userStatus = user === undefined ? 'loading' : user ? 'authenticated' : 'unauthenticated';
+  const [page, setPage] = useState(getPageFromHash());
+  
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [history, setHistory] = useState<(DiagramData | null)[]>([null]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -89,6 +101,29 @@ const App: React.FC = () => {
   });
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   const [lastAction, setLastAction] = useState<{ type: 'generate' | 'explain', payload: any } | null>(null);
+
+  const navigate = useCallback((targetPage: string) => {
+    window.location.hash = `#/${targetPage.replace(/^\//, '')}`;
+  }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => setPage(getPageFromHash());
+    window.addEventListener('hashchange', handleHashChange);
+    setPage(getPageFromHash()); // Set initial page
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (userStatus !== 'loading') {
+      const currentPage = getPageFromHash();
+      if (userStatus === 'authenticated' && (currentPage === 'landing' || currentPage === 'auth')) {
+        navigate('app');
+      }
+      if (userStatus === 'unauthenticated' && currentPage === 'app') {
+        navigate('auth');
+      }
+    }
+  }, [userStatus, navigate]);
 
   useEffect(() => {
     try {
@@ -342,247 +377,248 @@ const App: React.FC = () => {
     setIsEditingTitle(false);
   };
   
-  const onNavigate = (page: 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs') => {
-    setCurrentPage(page);
-  };
+  const onNavigate = useCallback((p: 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs') => {
+    navigate(p);
+  }, [navigate]);
 
-  if (currentPage === 'landing') {
-    return <LandingPage 
-      onLaunch={() => setCurrentPage('auth')} 
-      onNavigate={onNavigate} 
-    />;
-  }
-  
-  if (currentPage === 'auth') {
-    return <AuthPage onBack={() => setCurrentPage('landing')} onLogin={() => setCurrentPage('app')} />;
-  }
-
-  if (currentPage === 'contact') {
-    return <ContactPage onBack={() => setCurrentPage('landing')} onNavigate={onNavigate} />;
-  }
-  
-  if (currentPage === 'about') {
-    return <AboutPage onBack={() => setCurrentPage('landing')} onLaunch={() => setCurrentPage('auth')} onNavigate={onNavigate} />;
-  }
-  
-  if (currentPage === 'sdk') {
-    return <SdkPage onBack={() => setCurrentPage('landing')} onNavigate={onNavigate} />;
-  }
-
-  if (currentPage === 'apiKey') {
-    return <ApiKeyPage onBack={() => setCurrentPage('landing')} onLaunch={() => setCurrentPage('auth')} onNavigate={onNavigate} />;
-  }
-
-  if (currentPage === 'privacy') {
-    return <PrivacyPage onBack={() => setCurrentPage('landing')} onNavigate={onNavigate} />;
-  }
-
-  if (currentPage === 'terms') {
-    return <TermsPage onBack={() => setCurrentPage('landing')} onNavigate={onNavigate} />;
-  }
-
-  if (currentPage === 'docs') {
-    return <DocsPage 
-      onBack={() => setCurrentPage('landing')} 
-      onLaunch={() => setCurrentPage('auth')} 
-      onNavigateToSdk={() => setCurrentPage('sdk')}
-      onNavigate={onNavigate}
-    />;
-  }
-
-  if (isPlaygroundMode && diagramData) {
+  if (userStatus === 'loading') {
     return (
-      <Playground
-        data={diagramData}
-        onDataChange={handleDiagramUpdate}
-        onExit={() => setIsPlaygroundMode(false)}
-        selectedIds={selectedIds}
-        setSelectedIds={setSelectedIds}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        canUndo={historyIndex > 0}
-        canRedo={historyIndex < history.length - 1}
-        onExplain={handleExplain}
-        isExplaining={isExplaining}
-        onExport={handleExport}
-      />
+      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex items-center justify-center">
+        <Loader />
+      </div>
     );
   }
   
-  const headerContainerVariants: Variants = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.2 } },
-  };
+  if (page === 'landing') {
+    return <LandingPage onLaunch={() => navigate('auth')} onNavigate={onNavigate} />;
+  }
+  if (page === 'auth') {
+    return <AuthPage onBack={() => navigate('landing')} />;
+  }
+  if (page === 'contact') {
+    return <ContactPage onBack={() => navigate('landing')} onNavigate={onNavigate} />;
+  }
+  if (page === 'about') {
+    return <AboutPage onBack={() => navigate('landing')} onLaunch={() => navigate('auth')} onNavigate={onNavigate} />;
+  }
+  if (page === 'sdk') {
+    return <SdkPage onBack={() => navigate('landing')} onNavigate={onNavigate} />;
+  }
+  if (page === 'apiKey') {
+    return <ApiKeyPage onBack={() => navigate('landing')} onLaunch={() => navigate('auth')} onNavigate={onNavigate} />;
+  }
+  if (page === 'privacy') {
+    return <PrivacyPage onBack={() => navigate('landing')} onNavigate={onNavigate} />;
+  }
+  if (page === 'terms') {
+    return <TermsPage onBack={() => navigate('landing')} onNavigate={onNavigate} />;
+  }
+  if (page === 'docs') {
+    return <DocsPage onBack={() => navigate('landing')} onLaunch={() => navigate('auth')} onNavigateToSdk={() => navigate('sdk')} onNavigate={onNavigate} />;
+  }
+  
+  if (page === 'app') {
+    if (userStatus !== 'authenticated') {
+      return <AuthPage onBack={() => navigate('landing')} />;
+    }
 
-  const headerItemVariants: Variants = {
-    hidden: { opacity: 0, y: 20, scale: 0.9 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      scale: 1,
-      transition: { type: 'spring', damping: 12, stiffness: 100 } 
-    },
-  };
+    if (isPlaygroundMode && diagramData) {
+      return (
+        <Playground
+          data={diagramData}
+          onDataChange={handleDiagramUpdate}
+          onExit={() => setIsPlaygroundMode(false)}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={historyIndex > 0}
+          canRedo={historyIndex < history.length - 1}
+          onExplain={handleExplain}
+          isExplaining={isExplaining}
+          onExport={handleExport}
+        />
+      );
+    }
+    
+    const headerContainerVariants: Variants = {
+      hidden: {},
+      visible: { transition: { staggerChildren: 0.2 } },
+    };
 
-  return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex transition-colors duration-300">
-      <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
-      <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6">
-        <header className="w-full max-w-7xl mx-auto text-center relative py-4">
-            <div className="absolute inset-0 flex items-center justify-center -z-10 pointer-events-none">
-                <div className="header-glow-effect" />
-            </div>
-            <motion.h1 
-                variants={headerContainerVariants}
-                initial="hidden"
-                animate="visible"
-                className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-x-2 sm:gap-x-4"
-            >
-                <motion.span variants={headerItemVariants}>ArchiGen</motion.span>
-                <motion.div variants={headerItemVariants} className="pulse-subtle">
-                    <ArchitectureIcon type={IconType.Sparkles} className="h-8 w-8 sm:h-10 sm:w-10 text-[var(--color-accent-text)]" />
-                </motion.div>
-                <motion.span variants={headerItemVariants}>AI</motion.span>
-            </motion.h1>
-            <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-                className="mt-2 text-lg text-[var(--color-text-secondary)]"
-            >
-                Generate and edit software architecture diagrams from natural language.
-            </motion.p>
-        </header>
-        
-        <main className="w-full max-w-7xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <aside className="lg:col-span-3 bg-[var(--color-panel-bg)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm h-full flex flex-col">
-            <PromptInput
-              prompt={prompt}
-              setPrompt={setPrompt}
-              onGenerate={() => handleGenerate()}
-              isLoading={isLoading}
-            />
-          </aside>
+    const headerItemVariants: Variants = {
+      hidden: { opacity: 0, y: 20, scale: 0.9 },
+      visible: { 
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        transition: { type: 'spring', damping: 12, stiffness: 100 } 
+      },
+    };
 
-          <section className="lg:col-span-6 bg-[var(--color-panel-bg)] rounded-2xl border border-[var(--color-border)] shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0">
-            <AnimatePresence>
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex flex-col items-center justify-center z-20 rounded-2xl"
-                >
-                  <Loader />
-                  <p className="mt-4 text-[var(--color-text-secondary)] font-medium">Generating your architecture...</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            
-            <AnimatePresence>
-              {!diagramData && !isLoading && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex-1 flex flex-col items-center justify-center text-center p-8"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 text-[var(--color-text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                  <h3 className="mt-4 text-xl font-semibold text-[var(--color-text-primary)]">Your diagram will appear here</h3>
-                  <p className="mt-1 text-[var(--color-text-secondary)]">Enter a prompt and click "Generate Diagram" to start.</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {diagramData && (
-               <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex-1 flex flex-col relative"
+    return (
+      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex transition-colors duration-300">
+        <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
+        <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6">
+          <header className="w-full max-w-7xl mx-auto text-center relative py-4">
+              <div className="absolute inset-0 flex items-center justify-center -z-10 pointer-events-none">
+                  <div className="header-glow-effect" />
+              </div>
+              <motion.h1 
+                  variants={headerContainerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-x-2 sm:gap-x-4"
               >
-                <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center gap-4">
-                  <div className="group min-w-0 flex items-center gap-2">
-                    {isEditingTitle ? (
-                       <input
-                          ref={titleInputRef}
-                          type="text"
-                          value={editingTitle}
-                          onChange={(e) => setEditingTitle(e.target.value)}
-                          onBlur={handleTitleSave}
-                          onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
-                          className="text-xl font-semibold bg-transparent border-b border-[var(--color-accent-soft)] focus:outline-none focus:border-[var(--color-accent-text)]"
-                       />
-                    ) : (
-                      <>
-                        <h2 className="text-xl font-semibold truncate" title={diagramData.title}>{diagramData.title}</h2>
-                        <button onClick={() => { setIsEditingTitle(true); setEditingTitle(diagramData.title); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ArchitectureIcon type={IconType.Edit} className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <motion.span variants={headerItemVariants}>ArchiGen</motion.span>
+                  <motion.div variants={headerItemVariants} className="pulse-subtle">
+                      <ArchitectureIcon type={IconType.Sparkles} className="h-8 w-8 sm:h-10 sm:w-10 text-[var(--color-accent-text)]" />
+                  </motion.div>
+                  <motion.span variants={headerItemVariants}>AI</motion.span>
+              </motion.h1>
+              <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  className="mt-2 text-lg text-[var(--color-text-secondary)]"
+              >
+                  Generate and edit software architecture diagrams from natural language.
+              </motion.p>
+          </header>
+          
+          <main className="w-full max-w-7xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <aside className="lg:col-span-3 bg-[var(--color-panel-bg)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm h-full flex flex-col">
+              <PromptInput
+                prompt={prompt}
+                setPrompt={setPrompt}
+                onGenerate={() => handleGenerate()}
+                isLoading={isLoading}
+              />
+            </aside>
 
-                  <div className="flex-shrink-0">
-                    <Toolbar 
-                        onExport={handleExport}
-                        onExplain={() => handleExplain()}
-                        isExplaining={isExplaining}
-                        onUndo={handleUndo}
-                        onRedo={handleRedo}
-                        canUndo={historyIndex > 0}
-                        canRedo={historyIndex < history.length - 1}
-                        onFitToScreen={handleFitToScreen}
-                        onGoToPlayground={() => setIsPlaygroundMode(true)}
-                        canGoToPlayground={!!diagramData}
+            <section className="lg:col-span-6 bg-[var(--color-panel-bg)] rounded-2xl border border-[var(--color-border)] shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0">
+              <AnimatePresence>
+                {isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex flex-col items-center justify-center z-20 rounded-2xl"
+                  >
+                    <Loader />
+                    <p className="mt-4 text-[var(--color-text-secondary)] font-medium">Generating your architecture...</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <AnimatePresence>
+                {!diagramData && !isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex-1 flex flex-col items-center justify-center text-center p-8"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 text-[var(--color-text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <h3 className="mt-4 text-xl font-semibold text-[var(--color-text-primary)]">Your diagram will appear here</h3>
+                    <p className="mt-1 text-[var(--color-text-secondary)]">Enter a prompt and click "Generate Diagram" to start.</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {diagramData && (
+                 <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex-1 flex flex-col relative"
+                >
+                  <div className="p-4 border-b border-[var(--color-border)] flex justify-between items-center gap-4">
+                    <div className="group min-w-0 flex items-center gap-2">
+                      {isEditingTitle ? (
+                         <input
+                            ref={titleInputRef}
+                            type="text"
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            onBlur={handleTitleSave}
+                            onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
+                            className="text-xl font-semibold bg-transparent border-b border-[var(--color-accent-soft)] focus:outline-none focus:border-[var(--color-accent-text)]"
+                         />
+                      ) : (
+                        <>
+                          <h2 className="text-xl font-semibold truncate" title={diagramData.title}>{diagramData.title}</h2>
+                          <button onClick={() => { setIsEditingTitle(true); setEditingTitle(diagramData.title); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ArchitectureIcon type={IconType.Edit} className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex-shrink-0">
+                      <Toolbar 
+                          onExport={handleExport}
+                          onExplain={() => handleExplain()}
+                          isExplaining={isExplaining}
+                          onUndo={handleUndo}
+                          onRedo={handleRedo}
+                          canUndo={historyIndex > 0}
+                          canRedo={historyIndex < history.length - 1}
+                          onFitToScreen={handleFitToScreen}
+                          onGoToPlayground={() => setIsPlaygroundMode(true)}
+                          canGoToPlayground={!!diagramData}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1 relative">
+                    <DiagramCanvas 
+                      forwardedRef={svgRef}
+                      fitScreenRef={fitScreenRef}
+                      data={diagramData} 
+                      onDataChange={handleDiagramUpdate} 
+                      selectedIds={selectedIds}
+                      setSelectedIds={setSelectedIds}
                     />
                   </div>
-                </div>
-                <div className="flex-1 relative">
-                  <DiagramCanvas 
-                    forwardedRef={svgRef}
-                    fitScreenRef={fitScreenRef}
-                    data={diagramData} 
-                    onDataChange={handleDiagramUpdate} 
-                    selectedIds={selectedIds}
-                    setSelectedIds={setSelectedIds}
-                  />
-                </div>
-              </motion.div>
-            )}
+                </motion.div>
+              )}
 
-            {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
-          </section>
+              {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
+            </section>
 
-          <aside className="lg:col-span-3 bg-[var(--color-panel-bg)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm h-full flex flex-col">
-            <PropertiesSidebar 
-              item={selectedItem}
-              onPropertyChange={handlePropertyChange}
-              selectedCount={selectedIds.length}
-            />
-          </aside>
+            <aside className="lg:col-span-3 bg-[var(--color-panel-bg)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm h-full flex flex-col">
+              <PropertiesSidebar 
+                item={selectedItem}
+                onPropertyChange={handlePropertyChange}
+                selectedCount={selectedIds.length}
+              />
+            </aside>
 
-        </main>
+          </main>
+        </div>
+
+        <AnimatePresence>
+          {showSummaryModal && summary && (
+            <SummaryModal summary={summary} onClose={() => setShowSummaryModal(false)} />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showApiKeyModal && (
+              <ApiKeyModal
+                  onClose={() => {
+                      setShowApiKeyModal(false);
+                      setLastAction(null);
+                      setError("Generation cancelled. Please provide an API key in settings to proceed.");
+                  }}
+                  onSave={handleSaveAndRetryApiKey}
+              />
+          )}
+        </AnimatePresence>
       </div>
+    );
+  }
 
-      <AnimatePresence>
-        {showSummaryModal && summary && (
-          <SummaryModal summary={summary} onClose={() => setShowSummaryModal(false)} />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showApiKeyModal && (
-            <ApiKeyModal
-                onClose={() => {
-                    setShowApiKeyModal(false);
-                    setLastAction(null);
-                    setError("Generation cancelled. Please provide an API key in settings to proceed.");
-                }}
-                onSave={handleSaveAndRetryApiKey}
-            />
-        )}
-      </AnimatePresence>
-    </div>
-  );
+  // Fallback for unknown pages
+  return <LandingPage onLaunch={() => navigate('auth')} onNavigate={onNavigate} />;
 };
 
 export default App;

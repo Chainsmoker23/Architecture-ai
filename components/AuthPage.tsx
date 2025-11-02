@@ -1,34 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FOOTER_LINKS } from '../constants';
+import { SignIn } from '@stackframe/react';
 
 interface AuthPageProps {
   onBack: () => void;
-  onLogin: () => void;
 }
 
-const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLogin }) => {
-  const [isLoginView, setIsLoginView] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
+const AuthPage: React.FC<AuthPageProps> = ({ onBack }) => {
+  const [origin, setOrigin] = useState('');
 
-  const handleAuthAction = () => {
-    setIsLoading(true);
-    // Simulate API call for login/register
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin();
-    }, 1500);
-  };
-  
-  const SocialButton: React.FC<{ icon: React.ReactNode, label: string }> = ({ icon, label }) => (
-    <button 
-      onClick={handleAuthAction}
-      className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-[#E8DCE0] rounded-xl bg-white hover:bg-[#F8F1F3] transition-colors duration-200"
-    >
-      {icon}
-      <span className="font-semibold text-[#333]">{label}</span>
-    </button>
-  );
+  useEffect(() => {
+    // This will get the correct origin URL, whether it's localhost or an AI Studio URL.
+    setOrigin(window.location.origin);
+  }, []);
 
   return (
     <div className="bg-white text-[#2B2B2B] min-h-screen">
@@ -49,58 +33,22 @@ const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLogin }) => {
           <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-[#F9D7E3]">
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-[#333]">
-                    {isLoginView ? 'Welcome Back' : 'Create an Account'}
+                    Sign in or create an account
                 </h1>
                 <p className="text-[#555555] mt-2">
-                    {isLoginView ? 'Sign in to continue to ArchiGen AI.' : 'Get started in seconds.'}
+                    to continue to ArchiGen AI
                 </p>
             </div>
-
-            <div className="space-y-4">
-                <SocialButton icon={FOOTER_LINKS.socials[2].icon({ className: 'h-6 w-6' })} label="Continue with Google" />
-                <SocialButton icon={FOOTER_LINKS.socials[0].icon({ className: 'h-6 w-6' })} label="Continue with GitHub" />
-                <SocialButton icon={FOOTER_LINKS.socials[1].icon({ className: 'h-6 w-6' })} label="Continue with LinkedIn" />
-            </div>
-
-            <div className="my-6 flex items-center">
-                <div className="flex-grow border-t border-[#E8DCE0]"></div>
-                <span className="mx-4 text-xs font-medium text-gray-400">OR</span>
-                <div className="flex-grow border-t border-[#E8DCE0]"></div>
-            </div>
-
-            <form onSubmit={(e) => { e.preventDefault(); handleAuthAction(); }} className="space-y-4">
-                <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-[#555555] mb-1">Email Address</label>
-                    <input type="email" name="email" id="email" required className="w-full p-3 bg-[#F8F1F3] border border-[#E8DCE0] rounded-xl focus:ring-2 focus:ring-[#F06292]" />
-                </div>
-                <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-[#555555] mb-1">Password</label>
-                    <input type="password" name="password" id="password" required className="w-full p-3 bg-[#F8F1F3] border border-[#E8DCE0] rounded-xl focus:ring-2 focus:ring-[#F06292]" />
-                </div>
-                {!isLoginView && (
-                    <div>
-                        <label htmlFor="confirm-password" className="block text-sm font-medium text-[#555555] mb-1">Confirm Password</label>
-                        <input type="password" name="confirm-password" id="confirm-password" required className="w-full p-3 bg-[#F8F1F3] border border-[#E8DCE0] rounded-xl focus:ring-2 focus:ring-[#F06292]" />
-                    </div>
-                )}
-                 <button type="submit" disabled={isLoading} className="w-full shimmer-button text-[#A61E4D] font-bold py-3 px-12 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center">
-                      {isLoading ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                          Processing...
-                        </>
-                      ) : 'Continue with Email'}
-                </button>
-            </form>
-
-            <div className="text-center mt-6">
-                <p className="text-sm text-[#555555]">
-                    {isLoginView ? "Don't have an account? " : "Already have an account? "}
-                    <button onClick={() => setIsLoginView(!isLoginView)} className="font-semibold text-[#D6336C] hover:underline">
-                        {isLoginView ? "Sign Up" : "Sign In"}
-                    </button>
-                </p>
-            </div>
+            {/* FIX: Removed invalid 'appearance' prop from SignIn component. Styling is now handled globally in index.tsx. */}
+            <SignIn />
+            
+            {origin && (
+              <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                <p className="font-bold mb-2">Configuration Help</p>
+                <p>For authentication to work correctly, add this exact URL to your Stack Auth project's "Allowed Origins" list:</p>
+                <code className="block bg-amber-100 p-2 rounded-md mt-2 font-mono text-xs break-all">{origin}</code>
+              </div>
+            )}
           </div>
         </motion.div>
       </main>

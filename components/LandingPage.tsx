@@ -259,12 +259,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
           </div>
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true, amount: 0.1 }} transition={{ duration: 0.5, delay: 0.3 }} className="marquee-container space-y-4">
               <div className="marquee-track flex gap-8 py-2">
-                {[...TESTIMONIALS.slice(0, 3), ...TESTIMONIALS.slice(0, 3)].map((testimonial, index) => (
+                {[...TESTIMONIALS.slice(0, 5), ...TESTIMONIALS.slice(0, 5)].map((testimonial, index) => (
                   <TestimonialCard key={`a-${index}`} testimonial={testimonial} />
                 ))}
               </div>
               <div className="marquee-track marquee-track-reverse flex gap-8 py-2">
-                 {[...TESTIMONIALS.slice(3, 6), ...TESTIMONIALS.slice(3, 6)].map((testimonial, index) => (
+                 {[...TESTIMONIALS.slice(5, 10), ...TESTIMONIALS.slice(5, 10)].map((testimonial, index) => (
                   <TestimonialCard key={`b-${index}`} testimonial={testimonial} />
                 ))}
               </div>
