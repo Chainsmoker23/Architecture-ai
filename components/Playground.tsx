@@ -334,6 +334,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         onDataChange={onDataChange}
                         selectedIds={selectedIds}
                         setSelectedIds={setSelectedIds}
+                        isEditable={true}
                         interactionMode={interactionMode === 'addNode' && nodeToPlace ? 'addNode' : interactionMode}
                         onInteractionCanvasClick={handleCanvasClick}
                         onInteractionNodeClick={handleNodeClick}

@@ -153,6 +153,11 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
     
     // Sanitize node and container data to prevent rendering issues from invalid values
     (parsedData.nodes || []).forEach((node: any) => {
+        node.x = parseFloat(node.x);
+        node.y = parseFloat(node.y);
+        node.width = parseFloat(node.width);
+        node.height = parseFloat(node.height);
+
         node.x = isFinite(node.x) ? node.x : 600;
         node.y = isFinite(node.y) ? node.y : 400;
         node.width = isFinite(node.width) && node.width > 10 ? node.width : 150;
@@ -161,6 +166,11 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
     });
 
     (parsedData.containers || []).forEach((container: any) => {
+        container.x = parseFloat(container.x);
+        container.y = parseFloat(container.y);
+        container.width = parseFloat(container.width);
+        container.height = parseFloat(container.height);
+
         container.x = isFinite(container.x) ? container.x : 100;
         container.y = isFinite(container.y) ? container.y : 100;
         container.width = isFinite(container.width) && container.width > 20 ? container.width : 500;
