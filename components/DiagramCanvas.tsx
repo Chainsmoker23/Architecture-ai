@@ -434,7 +434,23 @@ const DiagramLink = memo<{ link: Link, source: Node, target: Node, obstacles: Re
                 />
             )}
             <path d={pathD} stroke="transparent" strokeWidth="15" fill="none" className="cursor-pointer" />
-            {link.label && ( <foreignObject x={midX - 75} y={midY - 15} width="150" height="30" style={{ pointerEvents: 'none' }}> <div className="flex items-center justify-center h-full"> <div className="text-center text-xs text-[var(--color-link)] bg-[var(--color-canvas-bg)] px-1 font-medium">{link.label}</div></div> </foreignObject> )}
+            {link.label && (
+                <foreignObject x={midX - 75} y={midY - 16} width="150" height="32" style={{ pointerEvents: 'none', overflow: 'visible' }}>
+                    <div className="flex items-center justify-center h-full">
+                        <div
+                            className="text-center text-xs text-[var(--color-text-primary)] font-semibold px-3 py-1 rounded-full shadow-md"
+                            style={{
+                                backgroundColor: 'var(--color-panel-bg-translucent)',
+                                backdropFilter: 'blur(4px)',
+                                WebkitBackdropFilter: 'blur(4px)',
+                                border: '1px solid var(--color-border)',
+                            }}
+                        >
+                            {link.label}
+                        </div>
+                    </div>
+                </foreignObject>
+            )}
         </g>
     );
 });

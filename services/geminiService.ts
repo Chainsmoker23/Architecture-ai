@@ -104,7 +104,8 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
       5.  **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left. Node 'x' and 'y' are the center of the node. Container 'x' and 'y' are the top-left corner.
       6.  **IDs**: Ensure all 'id' fields are unique, kebab-case strings.
       7.  **Connectivity**: Make sure all 'source' and 'target' IDs in links correspond to existing node IDs.
-      8.  **Clarity**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type' available from the predefined list.`,
+      8.  **Clarity**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type' available from the predefined list.
+      9.  **Node Types**: CRITICAL RULE: The 'neuron' type is reserved exclusively for diagrams that are explicitly about neural networks. For all other general software components (like servers, services, databases, etc.), you MUST use other, more appropriate types. Misusing the 'neuron' type is a failure to follow instructions.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
