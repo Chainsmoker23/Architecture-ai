@@ -8,6 +8,7 @@ import ContextualActionBar from './ContextualActionBar';
 import { customAlphabet } from 'nanoid';
 import { zoomIdentity, ZoomTransform } from 'd3-zoom';
 import AssistantWidget from './AssistantWidget';
+import MobileWarning from './MobileWarning';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -33,12 +34,19 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     const [linkSourceNodeId, setLinkSourceNodeId] = useState<string | null>(null);
     const [actionBarPosition, setActionBarPosition] = useState<{ x: number; y: number } | null>(null);
     const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
+    const [showMobileWarning, setShowMobileWarning] = useState(false);
     
     const isPropertiesPanelOpen = selectedIds.length > 0;
 
     const svgRef = useRef<SVGSVGElement>(null);
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const fitScreenRef = useRef<(() => void) | null>(null);
+
+    useEffect(() => {
+        if (window.innerWidth < 768) {
+            setShowMobileWarning(true);
+        }
+    }, []);
     
     const nodesAndContainersById = useMemo(() => {
         const map = new Map<string, Node | Container | Link>();
@@ -280,6 +288,13 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <AnimatePresence>
+                {showMobileWarning && (
+                    <MobileWarning onDismiss={() => setShowMobileWarning(false)} />
+                )}
+            </AnimatePresence>
+
             <AssistantWidget />
         </div>
     );
