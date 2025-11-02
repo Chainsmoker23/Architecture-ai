@@ -212,7 +212,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
               </motion.div>
             ))}
           </div>
-        </section>
+        </motion.section>
 
         {/* API Key CTA Section */}
         <section className="py-24 sdk-hero-bg">
@@ -272,7 +272,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
         </section>
 
         {/* CTA Section */}
-        <section className="py-24 hero-gradient-bg">
+        <motion.section className="py-24 hero-gradient-bg">
           <div className="container mx-auto px-6 text-center">
             <motion.div initial={{ y: 20, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
               <h2 className="text-4xl md:text-5xl font-extrabold">Ready to Build Your Next Big Idea?</h2>
@@ -283,7 +283,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
               </button>
             </motion.div>
           </div>
-        </section>
+        </motion.section>
       </main>
 
       <SharedFooter onNavigate={onNavigate} />

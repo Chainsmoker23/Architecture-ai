@@ -319,6 +319,8 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         onClick={() => setSelectedIds([])}
                     />
                 )}
+            </AnimatePresence>
+            <AnimatePresence>
                 {isPropertiesPanelOpen && (
                     <motion.div
                         key="properties-sheet"
