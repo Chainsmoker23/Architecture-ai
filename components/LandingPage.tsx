@@ -287,7 +287,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
               </button>
             </motion.div>
           </div>
-        </section>
+        </motion.section>
       </main>
 
       <SharedFooter onNavigate={onNavigate} />
