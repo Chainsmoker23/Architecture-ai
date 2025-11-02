@@ -227,9 +227,10 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
         
         const dragHandler = drag<SVGGElement, unknown>()
             .on('start', function (event) {
-                const { data, container: currentContainer } = propsRef.current;
+                const { container: currentContainer } = propsRef.current;
+                const currentData = propsRef.current.data;
                 startPositions.clear();
-                const childNodes = data.nodes.filter(n => currentContainer.childNodeIds.includes(n.id));
+                const childNodes = currentData.nodes.filter(n => currentContainer.childNodeIds.includes(n.id));
                 startPositions.set(currentContainer.id, { x: currentContainer.x, y: currentContainer.y });
                 childNodes.forEach(n => startPositions.set(n.id, { x: n.x, y: n.y }));
                 event.sourceEvent.stopPropagation();
@@ -237,39 +238,41 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
             .on('drag', function (event) {
                 const dx = event.x - event.subject.x;
                 const dy = event.y - event.subject.y;
-                const { data, onDataChange } = propsRef.current;
+                const { onDataChange } = propsRef.current;
+                const currentData = propsRef.current.data;
 
-                const newNodes = data.nodes.map(n => {
+                const newNodes = currentData.nodes.map(n => {
                     const startPos = startPositions.get(n.id);
                     if (startPos) return { ...n, x: startPos.x + dx, y: startPos.y + dy };
                     return n;
                 });
 
-                const newContainers = (data.containers || []).map(c => {
+                const newContainers = (currentData.containers || []).map(c => {
                     const startPos = startPositions.get(c.id);
                     if (startPos) return { ...c, x: startPos.x + dx, y: startPos.y + dy };
                     return c;
                 });
 
-                onDataChange({ ...data, nodes: newNodes, containers: newContainers }, true);
+                onDataChange({ ...currentData, nodes: newNodes, containers: newContainers }, true);
             })
             .on('end', function (event) {
                 const dx = event.x - event.subject.x;
                 const dy = event.y - event.subject.y;
                 if (dx === 0 && dy === 0) return;
 
-                const { data, onDataChange } = propsRef.current;
-                const newNodes = data.nodes.map(n => {
+                const { onDataChange } = propsRef.current;
+                const currentData = propsRef.current.data;
+                const newNodes = currentData.nodes.map(n => {
                     const startPos = startPositions.get(n.id);
                     if (startPos) return { ...n, x: startPos.x + dx, y: startPos.y + dy };
                     return n;
                 });
-                const newContainers = (data.containers || []).map(c => {
+                const newContainers = (currentData.containers || []).map(c => {
                     const startPos = startPositions.get(c.id);
                     if (startPos) return { ...c, x: startPos.x + dx, y: startPos.y + dy };
                     return c;
                 });
-                onDataChange({ ...data, nodes: newNodes, containers: newContainers }, false);
+                onDataChange({ ...currentData, nodes: newNodes, containers: newContainers }, false);
             });
         g.call(dragHandler);
     }, [container.id, container.childNodeIds, interactionMode, isEditable]);
@@ -365,7 +368,8 @@ const ResizeHandle: React.FC<ResizeHandleProps> = (props) => {
             .on('drag', function(event) {
                 if (!startNode) return;
                 const { x: dx, y: dy } = event;
-                const { onDataChange, data } = propsRef.current;
+                const { onDataChange } = propsRef.current;
+                const currentData = propsRef.current.data;
                 
                 let newWidth = startNode.width, newHeight = startNode.height, newX = startNode.x, newY = startNode.y;
 
@@ -388,21 +392,22 @@ const ResizeHandle: React.FC<ResizeHandleProps> = (props) => {
                 }
                 
                 const updatedNode = { ...startNode, width: newWidth, height: newHeight, x: newX, y: newY };
-                const newNodes = data.nodes.map(n => n.id === startNode.id ? updatedNode : n);
-                onDataChange({ ...data, nodes: newNodes }, true);
+                const newNodes = currentData.nodes.map(n => n.id === startNode.id ? updatedNode : n);
+                onDataChange({ ...currentData, nodes: newNodes }, true);
             })
             .on('end', function(event){
                 if (!startNode) return;
                 const { x: dx, y: dy } = event;
                 if (dx === event.subject.x && dy === event.subject.y) return;
 
-                const { onDataChange, data } = propsRef.current;
+                const { onDataChange } = propsRef.current;
+                const currentData = propsRef.current.data;
                  let newWidth = startNode.width, newHeight = startNode.height, newX = startNode.x, newY = startNode.y;
                  if (corner === 'bottom-right') { newWidth = Math.max(40, dx); newHeight = Math.max(40, dy); const anchorX = startNode.x - startNode.width / 2, anchorY = startNode.y - startNode.height / 2; newX = anchorX + newWidth / 2; newY = anchorY + newHeight / 2; } else if (corner === 'top-left') { newWidth = Math.max(40, startNode.width - dx); newHeight = Math.max(40, startNode.height - dy); const anchorX = startNode.x + startNode.width / 2, anchorY = startNode.y + startNode.height / 2; newX = anchorX - newWidth / 2; newY = anchorY - newHeight / 2; } else if (corner === 'bottom-left') { newWidth = Math.max(40, startNode.width - dx); newHeight = Math.max(40, dy); const anchorX = startNode.x + startNode.width / 2, anchorY = startNode.y - startNode.height / 2; newX = anchorX - newWidth / 2; newY = anchorY + newHeight / 2; } else if (corner === 'top-right') { newWidth = Math.max(40, dx); newHeight = Math.max(40, startNode.height - dy); const anchorX = startNode.x - startNode.width / 2, anchorY = startNode.y + startNode.height / 2; newX = anchorX + newWidth / 2; newY = anchorY - newHeight / 2; }
 
                 const updatedNode = { ...startNode, width: newWidth, height: newHeight, x: newX, y: newY };
-                const newNodes = data.nodes.map(n => n.id === startNode.id ? updatedNode : n);
-                onDataChange({ ...data, nodes: newNodes }, false);
+                const newNodes = currentData.nodes.map(n => n.id === startNode.id ? updatedNode : n);
+                onDataChange({ ...currentData, nodes: newNodes }, false);
             });
         rect.call(dragHandler);
     }, [corner]);
@@ -429,32 +434,35 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
         let startPositions = new Map<string, {x: number, y: number}>();
         const dragHandler = drag<SVGGElement, unknown>()
             .on('start', function(event) {
-                const { selectedIds, data, node: currentNode } = propsRef.current;
+                const { selectedIds, node: currentNode } = propsRef.current;
+                const currentData = propsRef.current.data;
                 startPositions.clear();
                 const isDraggingSelected = selectedIds.includes(currentNode.id);
                 const idsToMove = isDraggingSelected ? selectedIds : [currentNode.id];
-                data.nodes.forEach(n => { if (idsToMove.includes(n.id)) startPositions.set(n.id, { x: n.x, y: n.y }); });
+                currentData.nodes.forEach(n => { if (idsToMove.includes(n.id)) startPositions.set(n.id, { x: n.x, y: n.y }); });
                 select(this).raise(); event.sourceEvent.stopPropagation();
             })
             .on('drag', function(event) {
-                 const dx = event.x - event.subject.x; const dy = event.y - event.subject.y;
-                const { data, onDataChange } = propsRef.current;
-                const newNodes = data.nodes.map(n => { const startPos = startPositions.get(n.id); if (startPos && !n.locked) return { ...n, x: startPos.x + dx, y: startPos.y + dy }; return n; });
-                onDataChange({ ...data, nodes: newNodes }, true);
+                const dx = event.x - event.subject.x; const dy = event.y - event.subject.y;
+                const { onDataChange } = propsRef.current;
+                const currentData = propsRef.current.data;
+                const newNodes = currentData.nodes.map(n => { const startPos = startPositions.get(n.id); if (startPos && !n.locked) return { ...n, x: startPos.x + dx, y: startPos.y + dy }; return n; });
+                onDataChange({ ...currentData, nodes: newNodes }, true);
             })
             .on('end', function(event){
                 const dx = event.x - event.subject.x; const dy = event.y - event.subject.y;
                 if (dx === 0 && dy === 0) return;
                 
-                const { data, onDataChange } = propsRef.current;
-                const newNodes = data.nodes.map(n => {
+                const { onDataChange } = propsRef.current;
+                const currentData = propsRef.current.data;
+                const newNodes = currentData.nodes.map(n => {
                     const startPos = startPositions.get(n.id);
                     if (startPos && !n.locked) {
                         return { ...n, x: startPos.x + dx, y: startPos.y + dy };
                     }
                     return n;
                 });
-                onDataChange({ ...data, nodes: newNodes }, false);
+                onDataChange({ ...currentData, nodes: newNodes }, false);
             });
         g.call(dragHandler);
     }, [node.id, node.locked, isEditable, isResizing, props.interactionMode]);
@@ -595,9 +603,7 @@ const DiagramLink = memo<{ link: Link, source: Node, target: Node, obstacles: Re
                         <div
                             className="text-center text-xs text-[var(--color-text-primary)] font-semibold px-3 py-1 rounded-full shadow-md"
                             style={{
-                                backgroundColor: 'var(--color-panel-bg-translucent)',
-                                backdropFilter: 'blur(4px)',
-                                WebkitBackdropFilter: 'blur(4px)',
+                                backgroundColor: 'var(--color-panel-bg)',
                                 border: '1px solid var(--color-border)',
                             }}
                         >
