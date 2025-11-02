@@ -17,6 +17,7 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('#ffffff');
   const [linkStyle, setLinkStyle] = useState<'solid' | 'dotted' | 'dashed' | 'double'>('solid');
+  const [linkThickness, setLinkThickness] = useState<'thin' | 'medium' | 'thick'>('medium');
   const [nodeShape, setNodeShape] = useState<'rectangle' | 'ellipse' | 'diamond'>('rectangle');
 
   useEffect(() => {
@@ -30,12 +31,14 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
       if ('color' in item && item.color) {
         setColor(item.color);
       } else {
-        // Reset to a default based on type
-        if ('source' in item) setColor('#9ca3af'); // Default link color
-        else setColor('#FFFFFF'); // Default node/container color
+        if ('source' in item) setColor('#9ca3af');
+        else setColor('#FFFFFF');
       }
       if ('style' in item && item.style) {
         setLinkStyle(item.style);
+      }
+      if ('thickness' in item && item.thickness) {
+        setLinkThickness(item.thickness);
       }
       if ('shape' in item && item.shape) {
         setNodeShape(item.shape);
@@ -159,6 +162,7 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
         </div>
 
         {isLink && (
+          <>
             <div>
                 <label htmlFor="linkStyle" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Link Style</label>
                 <select 
@@ -177,6 +181,24 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
                     <option value="double">Double</option>
                 </select>
             </div>
+            <div>
+                <label htmlFor="linkThickness" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Thickness</label>
+                <select 
+                    id="linkThickness"
+                    value={linkThickness}
+                    onChange={(e) => {
+                        const newThickness = e.target.value as typeof linkThickness;
+                        setLinkThickness(newThickness);
+                        handlePropertyUpdate({ thickness: newThickness });
+                    }}
+                    className="w-full p-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] rounded-xl focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
+                >
+                    <option value="thin">Thin</option>
+                    <option value="medium">Medium</option>
+                    <option value="thick">Thick</option>
+                </select>
+            </div>
+          </>
         )}
       </div>
     </motion.div>

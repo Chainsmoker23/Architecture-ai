@@ -1,6 +1,7 @@
+
 import React, { useEffect, useRef, useState, useMemo, memo } from 'react';
 import { select, pointer } from 'd3-selection';
-import { drag } from 'd3-drag';
+import { drag, D3DragEvent } from 'd3-drag';
 import { zoom, zoomIdentity, ZoomTransform } from 'd3-zoom';
 import 'd3-transition';
 import { DiagramData, Node, Link, Container } from '../types';
@@ -25,6 +26,10 @@ interface DiagramCanvasProps {
   onTransformChange?: (transform: ZoomTransform) => void;
   onContainerCreation?: (rect: Rect) => void;
   containerCreationRect?: Rect | null;
+  // Fix: Make link drag handlers optional for read-only canvas usage.
+  onLinkDragStart?: (nodeId: string, event: D3DragEvent<any, any, any>) => void;
+  onLinkDrag?: (event: D3DragEvent<any, any, any>) => void;
+  onLinkDragEnd?: (nodeId: string, event: D3DragEvent<any, any, any>) => void;
 }
 
 interface Point { x: number; y: number; }
@@ -33,7 +38,7 @@ interface Rect { x: number; y: number; width: number; height: number; }
 const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ 
     data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
     interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview,
-    onTransformChange, onContainerCreation, containerCreationRect
+    onTransformChange, containerCreationRect, onLinkDragStart, onLinkDrag, onLinkDragEnd
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
@@ -79,6 +84,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
       .filter(event => {
+        const isConnectHandle = (event.target as HTMLElement).classList.contains('connection-handle');
+        if (isConnectHandle) return false;
+        
         return event.type === 'wheel' || event.button === 2 || (interactionMode === 'select' && event.type === 'mousedown' && (event.target as HTMLElement)?.tagName === 'svg');
       })
       .on('zoom', (event) => {
@@ -259,6 +267,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
               onContextMenu={handleItemContextMenu}
               selectedIds={selectedIds}
               interactionMode={interactionMode}
+              onLinkDragStart={onLinkDragStart}
+              onLinkDrag={onLinkDrag}
+              onLinkDragEnd={onLinkDragEnd}
             />
           ))}
           {linkPreview && (
@@ -268,6 +279,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                 strokeWidth="2"
                 strokeDasharray="6 6"
                 className="pointer-events-none"
+                markerEnd="url(#arrowhead)"
             />
           )}
           {containerCreationRect && (
@@ -398,12 +410,64 @@ const NodeShape: React.FC<{node: Node, isSelected: boolean}> = ({ node, isSelect
     }
 };
 
+const ConnectionHandle = memo<{
+  node: Node;
+  position: 'top' | 'right' | 'bottom' | 'left';
+  onLinkDragStart: (nodeId: string, event: D3DragEvent<any, any, any>) => void;
+  onLinkDrag: (event: D3DragEvent<any, any, any>) => void;
+  onLinkDragEnd: (nodeId: string, event: D3DragEvent<any, any, any>) => void;
+}>(({ node, position, onLinkDragStart, onLinkDrag, onLinkDragEnd }) => {
+  const ref = useRef<SVGCircleElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const handle = select(ref.current);
+    const dragHandler = drag()
+      .on('start', (event) => {
+        event.sourceEvent.stopPropagation();
+        onLinkDragStart(node.id, event);
+        handle.attr('r', 8); 
+      })
+      .on('drag', (event) => {
+        onLinkDrag(event);
+      })
+      .on('end', (event) => {
+        onLinkDragEnd(node.id, event);
+        handle.attr('r', 6);
+      });
+    handle.call(dragHandler as any);
+  }, [node.id, onLinkDragStart, onLinkDrag, onLinkDragEnd]);
+
+  const positions = {
+    top: { cx: node.width / 2, cy: 0 },
+    right: { cx: node.width, cy: node.height / 2 },
+    bottom: { cx: node.width / 2, cy: node.height },
+    left: { cx: 0, cy: node.height / 2 },
+  };
+
+  return (
+    <circle
+      ref={ref}
+      className="connection-handle"
+      {...positions[position]}
+      r="6"
+      fill="var(--color-accent)"
+      stroke="var(--color-panel-bg)"
+      strokeWidth="2"
+      style={{ cursor: 'crosshair' }}
+    />
+  );
+});
+
 const DiagramNode = memo<{
     node: Node;
     isSelected: boolean;
     onSelect: (e: React.MouseEvent, id: string) => void;
     onContextMenu: (e: React.MouseEvent, item: Node) => void;
-} & DraggableProps>(({ node, isSelected, onSelect, onContextMenu, ...props }) => {
+    onLinkDragStart?: (nodeId: string, event: D3DragEvent<any, any, any>) => void;
+    onLinkDrag?: (event: D3DragEvent<any, any, any>) => void;
+    onLinkDragEnd?: (nodeId: string, event: D3DragEvent<any, any, any>) => void;
+} & DraggableProps>(({ node, isSelected, onSelect, onContextMenu, onLinkDragStart, onLinkDrag, onLinkDragEnd, ...props }) => {
     const ref = useRef<SVGGElement>(null);
 
     useEffect(() => {
@@ -417,6 +481,9 @@ const DiagramNode = memo<{
         
         const dragHandler = drag<SVGGElement, unknown>()
             .on('start', function(event) {
+                if ((event.sourceEvent.target as HTMLElement).classList.contains('connection-handle')) {
+                    return; 
+                }
                 startPositions.clear();
                 const { selectedIds } = props;
                 const isDraggingSelected = selectedIds.includes(node.id);
@@ -432,6 +499,9 @@ const DiagramNode = memo<{
                 event.sourceEvent.stopPropagation();
             })
             .on('drag', function(event) {
+                 if ((event.sourceEvent.target as HTMLElement).classList.contains('connection-handle')) {
+                    return; 
+                }
                  const dx = event.x - event.subject.x;
                 const dy = event.y - event.subject.y;
                 const { data, onDataChange } = props;
@@ -465,6 +535,7 @@ const DiagramNode = memo<{
         return (
             <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
                style={{ cursor: getCursor() }}
+               data-node-id={node.id}
                onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} >
                 <circle 
                     cx={node.width / 2} 
@@ -498,6 +569,7 @@ const DiagramNode = memo<{
     return (
         <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
            style={{ cursor: getCursor(), filter: 'url(#drop-shadow)' }}
+           data-node-id={node.id}
            onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} >
             <NodeShape node={node} isSelected={isSelected} />
             <foreignObject x="12" y="12" width="32" height="32">
@@ -510,6 +582,14 @@ const DiagramNode = memo<{
             </foreignObject>
             {node.locked && (
                 <path d="M12 1.5A3.5 3.5 0 008.5 5v1.5H7a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2v-7a2 2 0 00-2-2h-1.5V5A3.5 3.5 0 0012 1.5zM12 3a2 2 0 012 2v1.5H10V5a2 2 0 012-2z" fill="var(--color-text-tertiary)" transform={`translate(${node.width - 20}, 4) scale(0.7)`} />
+            )}
+            {isSelected && props.selectedIds.length === 1 && onLinkDragStart && onLinkDrag && onLinkDragEnd && (
+                <>
+                    <ConnectionHandle node={node} position="top" onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd}/>
+                    <ConnectionHandle node={node} position="right" onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd}/>
+                    <ConnectionHandle node={node} position="bottom" onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd}/>
+                    <ConnectionHandle node={node} position="left" onLinkDragStart={onLinkDragStart} onLinkDrag={onLinkDrag} onLinkDragEnd={onLinkDragEnd}/>
+                </>
             )}
         </g>
     );
