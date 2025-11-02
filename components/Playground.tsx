@@ -9,6 +9,7 @@ import { customAlphabet } from 'nanoid';
 import { zoomIdentity, ZoomTransform } from 'd3-zoom';
 import AssistantWidget from './AssistantWidget';
 import MobileWarning from './MobileWarning';
+import Toast from './Toast';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -36,12 +37,50 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
     const [showMobileWarning, setShowMobileWarning] = useState(false);
     const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
     
     const isPropertiesPanelOpen = selectedIds.length > 0;
 
     const svgRef = useRef<SVGSVGElement>(null);
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const fitScreenRef = useRef<(() => void) | null>(null);
+
+    const handleUndo = useCallback(() => {
+      if (props.canUndo) {
+        props.onUndo();
+        setToastMessage('Action undone');
+      }
+    }, [props.canUndo, props.onUndo]);
+
+    const handleRedo = useCallback(() => {
+      if (props.canRedo) {
+        props.onRedo();
+        setToastMessage('Action redone');
+      }
+    }, [props.canRedo, props.onRedo]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const activeEl = document.activeElement;
+            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+                return;
+            }
+
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const isUndo = (isMac ? e.metaKey : e.ctrlKey) && e.key === 'z' && !e.shiftKey;
+            const isRedo = (isMac ? e.metaKey : e.ctrlKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey));
+
+            if (isUndo) {
+                e.preventDefault();
+                handleUndo();
+            } else if (isRedo) {
+                e.preventDefault();
+                handleRedo();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleUndo, handleRedo]);
 
     useEffect(() => {
         if (window.innerWidth < 768) {
@@ -132,7 +171,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         const newNodes = data.nodes.map(n => n.id === itemId ? { ...n, ...(newProps as Partial<Node>) } : n);
         const newContainers = data.containers?.map(c => c.id === itemId ? { ...c, ...(newProps as Partial<Container>) } : c);
         const newLinks = data.links.map(l => l.id === itemId ? { ...l, ...(newProps as Partial<Link>) } : l);
-        onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks }, true);
+        onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks });
     };
 
     const handleDeleteSelected = useCallback(() => {
@@ -221,9 +260,16 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                 onSetInteractionMode={handleSetInteractionMode}
                 onFitToScreen={handleFitToScreen}
                 {...props}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
             />
 
             <main className="flex-1 flex flex-col relative">
+                <AnimatePresence>
+                  {toastMessage && (
+                    <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+                  )}
+                </AnimatePresence>
                 <header className="flex justify-between items-center p-3 border-b border-[var(--color-border)] bg-[var(--color-panel-bg)]">
                     <h1 className="text-lg font-semibold truncate pr-4">{data.title}</h1>
                     <button onClick={onExit} className="px-3 py-2 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors flex items-center flex-shrink-0">

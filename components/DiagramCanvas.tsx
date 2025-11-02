@@ -136,7 +136,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     const newContainers = data.containers?.filter(c => c.id !== id);
     const remainingNodeIds = new Set(newNodes.map(n => n.id));
     const newLinks = data.links.filter(l => l.id !== id && remainingNodeIds.has(typeof l.source === 'string' ? l.source : l.source.id) && remainingNodeIds.has(typeof l.target === 'string' ? l.target : l.target.id));
-    onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks }, true);
+    onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks });
     setContextMenu(null);
   }
 
@@ -244,6 +244,12 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
                 });
 
                 onDataChange({ ...data, nodes: newNodes, containers: newContainers }, true);
+            })
+            .on('end', function (event) {
+                const dx = event.x - event.subject.x;
+                const dy = event.y - event.subject.y;
+                if (dx === 0 && dy === 0) return;
+                onDataChange(data, false);
             });
         g.call(dragHandler);
     }, [container.id, container.x, container.y, container.childNodeIds, data, onDataChange, interactionMode, isEditable]);
@@ -357,6 +363,11 @@ const ResizeHandle: React.FC<ResizeHandleProps> = ({ node, corner, onDataChange,
                 const updatedNode = { ...node, width: newWidth, height: newHeight, x: newX, y: newY };
                 const newNodes = data.nodes.map(n => n.id === node.id ? updatedNode : n);
                 onDataChange({ ...data, nodes: newNodes }, true);
+            })
+            .on('end', function(event){
+                const { x: dx, y: dy } = event;
+                if (dx === event.subject.x && dy === event.subject.y) return;
+                onDataChange(data, false);
             });
         rect.call(dragHandler);
     }, [node, data, onDataChange, corner]);
@@ -387,9 +398,14 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
                 const { data, onDataChange } = props;
                 const newNodes = data.nodes.map(n => { const startPos = startPositions.get(n.id); if (startPos && !n.locked) return { ...n, x: startPos.x + dx, y: startPos.y + dy }; return n; });
                 onDataChange({ ...data, nodes: newNodes }, true);
+            })
+            .on('end', function(event){
+                const dx = event.x - event.subject.x; const dy = event.y - event.subject.y;
+                if (dx === 0 && dy === 0) return;
+                props.onDataChange(props.data, false);
             });
         g.call(dragHandler);
-    }, [node.id, props.data.nodes, props.selectedIds, node.locked, props.interactionMode, props.onDataChange, isEditable, isResizing]);
+    }, [node.id, props.data, props.selectedIds, node.locked, props.interactionMode, props.onDataChange, isEditable, isResizing]);
     
     const getCursorStyle = () => { if (node.locked || isResizing) return 'default'; if (isEditable && props.interactionMode === 'connect') return 'pointer'; if (isEditable && props.interactionMode === 'select') return 'move'; return 'default'; };
     
