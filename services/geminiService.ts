@@ -98,19 +98,21 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
       
       **Layout Guidelines:**
       1.  **Logical Flow & Symmetry**: Arrange components to represent a clear data flow, typically left-to-right. Strive for a visually balanced and symmetrical layout where possible.
-      2.  **Proactive Grouping**: You MUST proactively use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components. For example, if the prompt mentions "web tier" and "data tier," create distinct container boxes for them. If the prompt implies logical separation (e.g., 'public subnet', 'private subnet'), create containers for these. This is critical for a logical diagram.
+      2.  **Proactive Grouping**: You MUST proactively use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components. For example, if the prompt mentions "web tier" and "data tier," create distinct container boxes for them. This is critical for a logical diagram.
       3.  **Spacing & Alignment**: Ensure generous and consistent spacing between all elements. Align nodes vertically and horizontally to create a clean, grid-like structure. There must be absolutely NO overlaps between any nodes or containers.
       4.  **Sizing**: Choose an appropriate 'width' and 'height' for each node based on its label length to avoid text overflow. Minimum width should be 120 and minimum height 80, unless it's a special type.
       5.  **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left. Node 'x' and 'y' are the center of the node. Container 'x' and 'y' are the top-left corner.
       6.  **IDs**: Ensure all 'id' fields are unique, kebab-case strings.
       7.  **Connectivity**: Make sure all 'source' and 'target' IDs in links correspond to existing node IDs.
-      8.  **Bidirectional Communication**: When two components have a two-way communication flow (like a request and a response), you MUST represent this with TWO separate, unidirectional links, one for each direction. Each link can then have its own specific label (e.g., 'HTTP Request', 'JSON Response'). Do NOT use a single link with the 'bidirectional' property for these scenarios, as it prevents clear labeling of each communication path. This is a critical instruction.
+      8.  **Bidirectional Communication**: When two components have a two-way communication flow (like a request and a response), you MUST represent this with TWO separate, unidirectional links, one for each direction. Each link can then have its own specific label (e.g., 'HTTP Request', 'JSON Response'). This is not a suggestion, it is a mandatory rule. Using 'bidirectional: true' for these scenarios is incorrect.
       9.  **Clarity**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type' available from the predefined list.
-      10. **Node Types**: CRITICAL RULE: The 'neuron' type is reserved exclusively for diagrams that are explicitly about neural networks. For all other general software components (like servers, services, databases, etc.), you MUST use other, more appropriate types. Misusing the 'neuron' type is a failure to follow instructions.`,
+      10. **Node Types**: CRITICAL RULE: The 'neuron' type is reserved exclusively for diagrams that are explicitly about neural networks. For all other general software components (like servers, services, databases, etc.), you MUST use other, more appropriate types.
+      11. **Common Architecture Patterns**: For common patterns, use standard layouts. For a 3-tier web app, the flow must be left-to-right: User -> Load Balancer -> Web Tier (EC2 instances) -> Data Tier (RDS). Place Web and Data tiers in separate containers.
+      12. **Final Review Step**: Before finalizing the JSON, mentally review your generated diagram. Does it accurately represent every component and connection from the prompt? Is the layout balanced and free of clutter? Are all IDs unique and correctly referenced? Correct any deviations.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "You are an expert solutions architect and a talented graphic designer with an expertise in information architecture. Your task is to generate a valid JSON representation of a software architecture diagram. The layout must be clean, logical, symmetrical, and exceptionally visually appealing, resembling a publication-quality blueprint that looks like it was made by a professional designer. Strictly adhere to the provided JSON schema."
+        systemInstruction: "You are an expert solutions architect and a talented graphic designer with an expertise in information architecture. Your task is to generate a valid JSON representation of a software architecture diagram. The layout must be clean, logical, symmetrical, and exceptionally visually appealing, resembling a publication-quality blueprint that looks like it was made by a professional designer. Strictly adhere to all provided guidelines and the JSON schema."
       },
     });
 

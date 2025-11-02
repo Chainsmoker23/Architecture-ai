@@ -206,7 +206,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                     const sourceId = sourceNode.id;
                     const targetId = targetNode.id;
                     
-                    const LINK_SPACING = 30;
+                    const LINK_SPACING = 40;
                     const key = [sourceId, targetId].sort().join('--');
                     const group = linkGroups.get(key) || { fwd: [], bwd: [] };
                     
@@ -410,46 +410,21 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
 const DiagramLink = memo<{ link: Link; source: Node; target: Node; onContextMenu: (e: React.MouseEvent, item: Link) => void; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; offset: number; }>(({ link, source, target, onContextMenu, isSelected, onSelect, offset }) => {
     
     const pathD = useMemo(() => {
-        const cornerRadius = 20;
-        const sourceEdgeXRight = source.x + source.width / 2;
-        const sourceEdgeXLeft = source.x - source.width / 2;
-        const targetEdgeXLeft = target.x - target.width / 2;
-        const targetEdgeXRight = target.x + target.width / 2;
-
         const sourceIsLeft = source.x < target.x;
-        const p1 = { x: sourceIsLeft ? sourceEdgeXRight : sourceEdgeXLeft, y: source.y + offset };
-        const p4 = { x: sourceIsLeft ? targetEdgeXLeft : targetEdgeXRight, y: target.y };
-
-        if (Math.abs(p1.y - p4.y) < cornerRadius * 2 || Math.abs(p1.x - p4.x) < cornerRadius * 2) {
-            const midX = (p1.x + p4.x) / 2;
-            const p2 = { x: midX, y: p1.y };
-            const p3 = { x: midX, y: p4.y };
-            return `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y} L ${p4.x} ${p4.y}`;
-        }
-
-        const midX = (p1.x + p4.x) / 2;
-        const p2 = { x: midX, y: p1.y };
-        const p3 = { x: midX, y: p4.y };
-
-        const signX1 = Math.sign(p2.x - p1.x);
-        const signY1 = Math.sign(p3.y - p2.y);
-        const signX2 = Math.sign(p4.x - p3.x);
-        
-        return `M ${p1.x},${p1.y} 
-                L ${p2.x - cornerRadius * signX1},${p2.y} 
-                A ${cornerRadius},${cornerRadius} 0 0 ${signX1 * signY1 === 1 ? 1 : 0} ${p2.x},${p2.y + cornerRadius * signY1} 
-                L ${p3.x},${p3.y - cornerRadius * signY1} 
-                A ${cornerRadius},${cornerRadius} 0 0 ${signX2 * signY1 === 1 ? 0 : 1} ${p3.x + cornerRadius * signX2},${p3.y} 
-                L ${p4.x},${p4.y}`;
-    }, [source.x, source.y, source.width, target.x, target.y, target.width, offset]);
+        const p1 = { x: sourceIsLeft ? source.x + source.width / 2 : source.x - source.width / 2, y: source.y };
+        const p4 = { x: sourceIsLeft ? target.x - target.width / 2 : target.x + target.width / 2, y: target.y };
+        const midX = (p1.x + p4.x) / 2 + offset;
+        return `M ${p1.x} ${p1.y} L ${midX} ${p1.y} L ${midX} ${p4.y} L ${p4.x} ${p4.y}`;
+    }, [source, target, offset]);
 
 
     const labelPos = useMemo(() => {
         if (!link.label) return null;
-        // Simplified midpoint calculation for the label
         const sourceEdgeX = source.x < target.x ? source.x + source.width / 2 : source.x - source.width / 2;
-        const midX = (sourceEdgeX + (target.x < source.x ? target.x + target.width/2 : target.x - target.width/2)) / 2;
-        return { x: midX, y: source.y + offset };
+        const targetEdgeX = target.x < source.x ? target.x + target.width / 2 : target.x - target.width / 2;
+        const midX = (sourceEdgeX + targetEdgeX) / 2 + offset;
+        const midY = (source.y + target.y) / 2;
+        return { x: midX, y: midY };
     }, [source, target, offset, link.label]);
     
     const thicknessMap = { thin: 1.5, medium: 2, thick: 3.5 };
@@ -462,23 +437,34 @@ const DiagramLink = memo<{ link: Link; source: Node; target: Node; onContextMenu
             {/* Invisible wider path for easier clicking */}
             <path d={pathD} stroke="transparent" strokeWidth={20} fill="none" />
             <path d={pathD} stroke={color} strokeWidth={thicknessPx} strokeDasharray={dashArray} fill="none" markerEnd={`url(#arrowhead)`} markerStart={link.bidirectional ? `url(#arrowhead-reverse)` : undefined} />
-            {link.label && labelPos && (
-                <text
-                    x={labelPos.x}
-                    y={labelPos.y}
-                    dy=".3em"
-                    textAnchor="middle"
-                    fill="var(--color-text-secondary)"
-                    fontSize="11px"
-                    fontWeight="600"
-                    paintOrder="stroke"
-                    stroke="var(--color-canvas-bg)"
-                    strokeWidth="8px"
-                    strokeLinejoin="round"
-                >
-                    {link.label}
-                </text>
-            )}
+            {link.label && labelPos && (() => {
+                const labelWidth = link.label.length * 6 + 12;
+                const labelHeight = 18;
+                return (
+                    <g>
+                        <rect
+                            x={labelPos.x - labelWidth / 2}
+                            y={labelPos.y - labelHeight / 2}
+                            width={labelWidth}
+                            height={labelHeight}
+                            rx="4"
+                            ry="4"
+                            fill="var(--color-canvas-bg)"
+                        />
+                        <text
+                            x={labelPos.x}
+                            y={labelPos.y}
+                            dy=".3em"
+                            textAnchor="middle"
+                            fill="var(--color-text-secondary)"
+                            fontSize="11px"
+                            fontWeight="600"
+                        >
+                            {link.label}
+                        </text>
+                    </g>
+                );
+            })()}
         </g>
     );
 });
