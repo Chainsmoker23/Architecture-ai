@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DiagramData, Node, Container, Link, IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
 import PromptInput from './components/PromptInput';
@@ -22,7 +23,6 @@ import ApiKeyPage from './components/ApiKeyPage';
 import PrivacyPage from './components/PrivacyPage';
 import TermsPage from './components/TermsPage';
 import DocsPage from './components/DocsPage';
-import { useUser } from '@stackframe/react';
 
 // Helper to fetch and embed fonts as data URIs to prevent canvas tainting
 const getFontStyles = async (): Promise<string> => {
@@ -62,19 +62,10 @@ const getFontStyles = async (): Promise<string> => {
   }
 };
 
-
-const getPageFromHash = (): string => {
-    const hash = window.location.hash.replace(/^#\/?/, ''); // Removes #/ or #
-    if (hash.startsWith('handler/')) {
-        return 'auth';
-    }
-    return hash || 'landing';
-};
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs';
 
 const App: React.FC = () => {
-  const user = useUser();
-  const userStatus = user === undefined ? 'loading' : user ? 'authenticated' : 'unauthenticated';
-  const [page, setPage] = useState(getPageFromHash());
+  const [page, setPage] = useState<Page>('landing');
   
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [history, setHistory] = useState<(DiagramData | null)[]>([null]);
@@ -102,28 +93,13 @@ const App: React.FC = () => {
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   const [lastAction, setLastAction] = useState<{ type: 'generate' | 'explain', payload: any } | null>(null);
 
-  const navigate = useCallback((targetPage: string) => {
-    window.location.hash = `#/${targetPage.replace(/^\//, '')}`;
+  const handleLoginSuccess = useCallback(() => {
+    setPage('app');
   }, []);
 
-  useEffect(() => {
-    const handleHashChange = () => setPage(getPageFromHash());
-    window.addEventListener('hashchange', handleHashChange);
-    setPage(getPageFromHash()); // Set initial page
-    return () => window.removeEventListener('hashchange', handleHashChange);
+  const onNavigate = useCallback((targetPage: Page) => {
+    setPage(targetPage);
   }, []);
-
-  useEffect(() => {
-    if (userStatus !== 'loading') {
-      const currentPage = getPageFromHash();
-      if (userStatus === 'authenticated' && (currentPage === 'landing' || currentPage === 'auth')) {
-        navigate('app');
-      }
-      if (userStatus === 'unauthenticated' && currentPage === 'app') {
-        navigate('auth');
-      }
-    }
-  }, [userStatus, navigate]);
 
   useEffect(() => {
     try {
@@ -377,51 +353,35 @@ const App: React.FC = () => {
     setIsEditingTitle(false);
   };
   
-  const onNavigate = useCallback((p: 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs') => {
-    navigate(p);
-  }, [navigate]);
-
-  if (userStatus === 'loading') {
-    return (
-      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex items-center justify-center">
-        <Loader />
-      </div>
-    );
-  }
-  
   if (page === 'landing') {
-    return <LandingPage onLaunch={() => navigate('auth')} onNavigate={onNavigate} />;
+    return <LandingPage onLaunch={() => setPage('auth')} onNavigate={onNavigate} />;
   }
   if (page === 'auth') {
-    return <AuthPage onBack={() => navigate('landing')} />;
+    return <AuthPage onLogin={handleLoginSuccess} onBack={() => setPage('landing')} />;
   }
   if (page === 'contact') {
-    return <ContactPage onBack={() => navigate('landing')} onNavigate={onNavigate} />;
+    return <ContactPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'about') {
-    return <AboutPage onBack={() => navigate('landing')} onLaunch={() => navigate('auth')} onNavigate={onNavigate} />;
+    return <AboutPage onBack={() => setPage('landing')} onLaunch={() => setPage('auth')} onNavigate={onNavigate} />;
   }
   if (page === 'sdk') {
-    return <SdkPage onBack={() => navigate('landing')} onNavigate={onNavigate} />;
+    return <SdkPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'apiKey') {
-    return <ApiKeyPage onBack={() => navigate('landing')} onLaunch={() => navigate('auth')} onNavigate={onNavigate} />;
+    return <ApiKeyPage onBack={() => setPage('landing')} onLaunch={() => setPage('auth')} onNavigate={onNavigate} />;
   }
   if (page === 'privacy') {
-    return <PrivacyPage onBack={() => navigate('landing')} onNavigate={onNavigate} />;
+    return <PrivacyPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'terms') {
-    return <TermsPage onBack={() => navigate('landing')} onNavigate={onNavigate} />;
+    return <TermsPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'docs') {
-    return <DocsPage onBack={() => navigate('landing')} onLaunch={() => navigate('auth')} onNavigateToSdk={() => navigate('sdk')} onNavigate={onNavigate} />;
+    return <DocsPage onBack={() => setPage('landing')} onLaunch={() => setPage('auth')} onNavigateToSdk={() => setPage('sdk')} onNavigate={onNavigate} />;
   }
   
   if (page === 'app') {
-    if (userStatus !== 'authenticated') {
-      return <AuthPage onBack={() => navigate('landing')} />;
-    }
-
     if (isPlaygroundMode && diagramData) {
       return (
         <Playground
@@ -618,7 +578,7 @@ const App: React.FC = () => {
   }
 
   // Fallback for unknown pages
-  return <LandingPage onLaunch={() => navigate('auth')} onNavigate={onNavigate} />;
+  return <LandingPage onLaunch={() => setPage('auth')} onNavigate={onNavigate} />;
 };
 
 export default App;

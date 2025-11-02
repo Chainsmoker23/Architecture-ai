@@ -1,18 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { SignIn } from '@stackframe/react';
 
 interface AuthPageProps {
   onBack: () => void;
+  onLogin: () => void;
 }
 
-const AuthPage: React.FC<AuthPageProps> = ({ onBack }) => {
-  const [origin, setOrigin] = useState('');
-
-  useEffect(() => {
-    // This will get the correct origin URL, whether it's localhost or an AI Studio URL.
-    setOrigin(window.location.origin);
-  }, []);
+const AuthPage: React.FC<AuthPageProps> = ({ onBack, onLogin }) => {
 
   return (
     <div className="bg-white text-[#2B2B2B] min-h-screen">
@@ -33,22 +27,56 @@ const AuthPage: React.FC<AuthPageProps> = ({ onBack }) => {
           <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-[#F9D7E3]">
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-[#333]">
-                    Sign in or create an account
+                    Welcome to ArchiGen AI
                 </h1>
                 <p className="text-[#555555] mt-2">
-                    to continue to ArchiGen AI
+                    Sign in or create an account to continue
                 </p>
             </div>
-            {/* FIX: Removed invalid 'appearance' prop from SignIn component. Styling is now handled globally in index.tsx. */}
-            <SignIn />
             
-            {origin && (
-              <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                <p className="font-bold mb-2">Configuration Help</p>
-                <p>For authentication to work correctly, add this exact URL to your Stack Auth project's "Allowed Origins" list:</p>
-                <code className="block bg-amber-100 p-2 rounded-md mt-2 font-mono text-xs break-all">{origin}</code>
-              </div>
-            )}
+            <form onSubmit={(e) => { e.preventDefault(); onLogin(); }}>
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
+                        <input
+                            type="email"
+                            name="email"
+                            id="email"
+                            autoComplete="email"
+                            required
+                            className="w-full p-3 mt-1 bg-[#F8F1F3] border border-[#E8DCE0] rounded-xl focus:ring-2 focus:ring-[#F06292] focus:border-[#F06292]"
+                            defaultValue="architect@example.com"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="password"  className="block text-sm font-medium text-gray-700">Password</label>
+                        <input
+                            type="password"
+                            name="password"
+                            id="password"
+                            autoComplete="current-password"
+                            required
+                             className="w-full p-3 mt-1 bg-[#F8F1F3] border border-[#E8DCE0] rounded-xl focus:ring-2 focus:ring-[#F06292] focus:border-[#F06292]"
+                            defaultValue="password"
+                        />
+                    </div>
+                </div>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                    <button
+                        type="button"
+                        onClick={onLogin}
+                        className="w-full bg-[#F8F1F3] text-[#A61E4D] font-bold py-3 px-4 rounded-xl shadow-sm hover:bg-[#F0DAE2] transition-colors"
+                    >
+                        Sign Up
+                    </button>
+                    <button
+                        type="submit"
+                        className="w-full shimmer-button text-[#A61E4D] font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    >
+                        Sign In
+                    </button>
+                </div>
+            </form>
           </div>
         </motion.div>
       </main>
