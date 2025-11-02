@@ -10,6 +10,7 @@ import AddNodePanel from './AddNodePanel';
 import ContextualActionBar from './ContextualActionBar';
 import { customAlphabet } from 'nanoid';
 import { zoomIdentity, ZoomTransform } from 'd3-zoom';
+import AssistantWidget from './AssistantWidget';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -339,6 +340,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                     </motion.div>
                 )}
             </AnimatePresence>
+            <AssistantWidget />
         </div>
     );
 };

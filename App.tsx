@@ -418,6 +418,15 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)] flex transition-colors duration-300">
         <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
+        <button
+            onClick={() => setPage('landing')}
+            className="fixed top-6 right-6 z-40 p-2 rounded-full bg-[var(--color-panel-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)] shadow-sm hover:text-[var(--color-text-primary)] transition-colors"
+            aria-label="Back to Home"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
+        </button>
         <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6">
           <header className="w-full max-w-7xl mx-auto text-center relative py-4">
               <div className="absolute inset-0 flex items-center justify-center -z-10 pointer-events-none">
