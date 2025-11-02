@@ -517,6 +517,9 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
 });
 
 const getOrthogonalPath = (source: Node, target: Node, obstacles: Rect[], offset: number = 0): Point[] => {
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+
     const sourcePoints = {
         top: { x: source.x, y: source.y - source.height / 2 },
         bottom: { x: source.x, y: source.y + source.height / 2 },
@@ -530,20 +533,35 @@ const getOrthogonalPath = (source: Node, target: Node, obstacles: Rect[], offset
         right: { x: target.x + target.width / 2, y: target.y },
     };
 
-    const sourcePoint = source.x < target.x ? sourcePoints.right : sourcePoints.left;
-    const targetPoint = source.x < target.x ? targetPoints.left : targetPoints.right;
-    
-    const midX = sourcePoint.x + (targetPoint.x - sourcePoint.x) / 2 + offset;
+    // Primarily horizontal connection
+    if (Math.abs(dx) > Math.abs(dy)) {
+        const sourcePoint = dx > 0 ? sourcePoints.right : sourcePoints.left;
+        const targetPoint = dx > 0 ? targetPoints.left : targetPoints.right;
+        
+        // The vertical middle segment will be offset horizontally
+        const midX = sourcePoint.x + dx / 2;
+        
+        const p1 = sourcePoint;
+        const p2 = { x: midX + offset, y: p1.y };
+        const p3 = { x: midX + offset, y: targetPoint.y };
+        const p4 = targetPoint;
+        return [p1, p2, p3, p4];
 
-    const p1 = sourcePoint;
-    const p2 = { x: midX, y: sourcePoint.y };
-    const p3 = { x: midX, y: targetPoint.y };
-    const p4 = targetPoint;
-    
-    // This is a simplified implementation and does not use the obstacles.
-    // A full pathfinding algorithm (like A*) would be needed for obstacle avoidance.
-    return [p1, p2, p3, p4];
+    } else { // Primarily vertical connection
+        const sourcePoint = dy > 0 ? sourcePoints.bottom : sourcePoints.top;
+        const targetPoint = dy > 0 ? targetPoints.top : targetPoints.bottom;
+
+        // The horizontal middle segment will be offset vertically
+        const midY = sourcePoint.y + dy / 2;
+        
+        const p1 = sourcePoint;
+        const p2 = { x: p1.x, y: midY + offset };
+        const p3 = { x: targetPoint.x, y: midY + offset };
+        const p4 = targetPoint;
+        return [p1, p2, p3, p4];
+    }
 };
+
 const pointsToPath = (points: Point[], radius: number): string => {
     if (points.length < 2) return '';
     let path = `M ${points[0].x} ${points[0].y}`;
