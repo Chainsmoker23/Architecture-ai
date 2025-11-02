@@ -16,7 +16,8 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
   const [label, setLabel] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('#ffffff');
-  const [linkStyle, setLinkStyle] = useState<'solid' | 'dotted' | 'dashed'>('solid');
+  const [linkStyle, setLinkStyle] = useState<'solid' | 'dotted' | 'dashed' | 'double'>('solid');
+  const [nodeShape, setNodeShape] = useState<'rectangle' | 'ellipse' | 'diamond'>('rectangle');
 
   useEffect(() => {
     if (item) {
@@ -35,6 +36,11 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
       }
       if ('style' in item && item.style) {
         setLinkStyle(item.style);
+      }
+      if ('shape' in item && item.shape) {
+        setNodeShape(item.shape);
+      } else if('type' in item) {
+        setNodeShape('rectangle');
       }
     }
   }, [item]);
@@ -75,6 +81,7 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
   }
 
   const isLink = 'source' in item;
+  const isNode = 'type' in item && !('childNodeIds' in item);
 
   return (
     <motion.div 
@@ -108,6 +115,25 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
                     className="w-full p-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] rounded-xl focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)] resize-none"
                 />
             </div>
+        )}
+        {isNode && (
+          <div>
+              <label htmlFor="nodeShape" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Shape</label>
+              <select 
+                  id="nodeShape"
+                  value={nodeShape}
+                  onChange={(e) => {
+                      const newShape = e.target.value as typeof nodeShape;
+                      setNodeShape(newShape);
+                      handlePropertyUpdate({ shape: newShape });
+                  }}
+                  className="w-full p-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] rounded-xl focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
+              >
+                  <option value="rectangle">Rectangle</option>
+                  <option value="ellipse">Ellipse</option>
+                  <option value="diamond">Diamond</option>
+              </select>
+          </div>
         )}
         {!isLink && (
             <div>
@@ -148,6 +174,7 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
                     <option value="solid">Solid</option>
                     <option value="dotted">Dotted</option>
                     <option value="dashed">Dashed</option>
+                    <option value="double">Double</option>
                 </select>
             </div>
         )}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, memo } from 'react';
 import { select, pointer } from 'd3-selection';
 import { drag } from 'd3-drag';
 import { zoom, zoomIdentity, ZoomTransform } from 'd3-zoom';
@@ -9,7 +9,7 @@ import ContextMenu from './ContextMenu';
 
 const GRID_SIZE = 10;
 
-export type InteractionMode = 'select' | 'addNode' | 'connect';
+export type InteractionMode = 'select' | 'addNode' | 'connect' | 'addContainer';
 
 interface DiagramCanvasProps {
   data: DiagramData;
@@ -23,6 +23,8 @@ interface DiagramCanvasProps {
   onInteractionNodeClick?: (nodeId: string) => void;
   linkPreview?: { sourceNode: Node; targetCoords: { x: number; y: number } } | null;
   onTransformChange?: (transform: ZoomTransform) => void;
+  onContainerCreation?: (rect: Rect) => void;
+  containerCreationRect?: Rect | null;
 }
 
 interface Point { x: number; y: number; }
@@ -31,11 +33,11 @@ interface Rect { x: number; y: number; width: number; height: number; }
 const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ 
     data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
     interactionMode = 'select', onInteractionCanvasClick, onInteractionNodeClick, linkPreview,
-    onTransformChange
+    onTransformChange, onContainerCreation, containerCreationRect
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; link: Link; } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: Node | Link | Container; } | null>(null);
   
   const nodesById = useMemo(() => new Map(data.nodes.map(node => [node.id, node])), [data.nodes]);
   const isSelected = (id: string) => selectedIds.includes(id);
@@ -77,8 +79,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
       .filter(event => {
-        // Allow wheel zoom and right-click pan, but prevent left-click pan unless on background
-        return event.type === 'wheel' || event.button === 2 || (event.type === 'mousedown' && (event.target as HTMLElement)?.tagName === 'svg');
+        return event.type === 'wheel' || event.button === 2 || (interactionMode === 'select' && event.type === 'mousedown' && (event.target as HTMLElement)?.tagName === 'svg');
       })
       .on('zoom', (event) => {
         setViewTransform(event.transform);
@@ -118,7 +119,6 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     }
     
     const handleCanvasClick = (event: PointerEvent) => {
-        // Prevent deselecting when panning
         if (event.detail > 0 && (event.target as SVGSVGElement).tagName === 'svg') {
             const transformedPoint = pointer(event, svg.node());
             if (interactionMode === 'addNode' && onInteractionCanvasClick) {
@@ -144,26 +144,29 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     }
   }, [forwardedRef, setSelectedIds, data, fitScreenRef, interactionMode, onInteractionCanvasClick, onTransformChange]);
 
-  const handleLinkContextMenu = (e: React.MouseEvent, link: Link) => {
+  const handleItemContextMenu = (e: React.MouseEvent, item: Node | Link | Container) => {
     e.preventDefault();
     e.stopPropagation();
     if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        setContextMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top, link });
+        setContextMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top, item });
     }
   };
   
-  const handleLinkStyleToggle = (link: Link) => {
-    const newLinks = data.links.map((l): Link => l.id === link.id ? { ...l, style: l.style === 'dotted' ? 'solid' : 'dotted' } : l);
-    onDataChange({ ...data, links: newLinks }, true);
+  const handleDeleteItem = (item: Node | Link | Container) => {
+    const { id } = item;
+    const newNodes = data.nodes.filter(n => n.id !== id);
+    const newContainers = data.containers?.filter(c => c.id !== id);
+    const remainingNodeIds = new Set(newNodes.map(n => n.id));
+    const newLinks = data.links.filter(l => 
+        l.id !== id &&
+        remainingNodeIds.has(typeof l.source === 'string' ? l.source : l.source.id) && 
+        remainingNodeIds.has(typeof l.target === 'string' ? l.target : l.target.id)
+    );
+    onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks }, true);
     setContextMenu(null);
   }
 
-  const handleLinkDelete = (link: Link) => {
-    const newLinks = data.links.filter(l => l.id !== link.id);
-    onDataChange({ ...data, links: newLinks }, true);
-    setContextMenu(null);
-  }
 
   const obstacles = useMemo(() => {
     return [
@@ -185,7 +188,9 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     switch(interactionMode) {
       case 'addNode': return 'crosshair';
       case 'connect': return 'pointer';
-      default: return 'grab';
+      case 'addContainer': return 'crosshair';
+      case 'select': return 'grab';
+      default: return 'default';
     }
   };
 
@@ -221,6 +226,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                       onDataChange={onDataChange}
                       isSelected={isSelected(container.id)}
                       onSelect={handleItemSelection}
+                      onContextMenu={handleItemContextMenu}
                       selectedIds={selectedIds}
                       fillColor={fillColor}
                       interactionMode={interactionMode}
@@ -237,7 +243,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
               source={sourceNode} 
               target={targetNode} 
               obstacles={obstacles.filter(o => o.x !== (sourceNode.x - sourceNode.width/2) && o.x !== (targetNode.x - targetNode.width/2))}
-              onContextMenu={handleLinkContextMenu}
+              onContextMenu={handleItemContextMenu}
               isSelected={isSelected(link.id)}
               onSelect={handleItemSelection}
             />;
@@ -250,6 +256,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
               onDataChange={onDataChange}
               isSelected={isSelected(node.id)}
               onSelect={handleNodeClick}
+              onContextMenu={handleItemContextMenu}
               selectedIds={selectedIds}
               interactionMode={interactionMode}
             />
@@ -263,6 +270,19 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                 className="pointer-events-none"
             />
           )}
+          {containerCreationRect && (
+            <rect
+              x={containerCreationRect.x}
+              y={containerCreationRect.y}
+              width={containerCreationRect.width}
+              height={containerCreationRect.height}
+              fill="rgba(249, 215, 227, 0.3)"
+              stroke="var(--color-accent)"
+              strokeWidth="2"
+              strokeDasharray="4 4"
+              className="pointer-events-none"
+            />
+          )}
         </g>
       </svg>
       {contextMenu && (
@@ -270,8 +290,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
             x={contextMenu.x} 
             y={contextMenu.y}
             options={[
-                { label: `Style: ${contextMenu.link.style === 'dotted' ? 'Solid' : 'Dotted'}`, onClick: () => handleLinkStyleToggle(contextMenu.link) },
-                { label: 'Delete', onClick: () => handleLinkDelete(contextMenu.link) },
+                { label: 'Delete', onClick: () => handleDeleteItem(contextMenu.item) },
             ]}
             onClose={() => setContextMenu(null)}
         />
@@ -288,12 +307,13 @@ interface DraggableProps {
     interactionMode: InteractionMode;
 }
 
-const DiagramContainer: React.FC<{
+const DiagramContainer = memo<{
     container: Container;
     isSelected: boolean;
     onSelect: (e: React.MouseEvent, id: string) => void;
+    onContextMenu: (e: React.MouseEvent, item: Container) => void;
     fillColor: string;
-} & DraggableProps> = ({ container, isSelected, onSelect, fillColor, ...props }) => {
+} & DraggableProps>(({ container, isSelected, onSelect, onContextMenu, fillColor, ...props }) => {
     const ref = useRef<SVGGElement>(null);
     const { label, type, x, y, width, height } = container;
     
@@ -319,31 +339,25 @@ const DiagramContainer: React.FC<{
             .on('drag', (event) => {
                 const dx = event.x - event.subject.x;
                 const dy = event.y - event.subject.y;
-                g.attr('transform', `translate(${startX + dx}, ${startY + dy})`);
-                
-                // This part is tricky for performance without full state update
-            })
-            .on('end', (event) => {
-                const finalDx = event.x - event.subject.x;
-                const finalDy = event.y - event.subject.y;
-                const { data, onDataChange } = props;
 
+                const { data, onDataChange } = props;
                 const newNodes = data.nodes.map(n => {
                     if (container.childNodeIds.includes(n.id) && !n.locked) {
                         const startPos = childStartPositions.get(n.id);
-                        return { ...n, x: (startPos?.x || n.x) + finalDx, y: (startPos?.y || n.y) + finalDy };
+                        return { ...n, x: (startPos?.x || n.x) + dx, y: (startPos?.y || n.y) + dy };
                     }
                     return n;
                 });
-                
-                const newContainers = data.containers?.map(c => {
+                 const newContainers = data.containers?.map(c => {
                     if (c.id === container.id) {
-                         return { ...c, x: startX + finalDx, y: startY + finalDy };
+                         return { ...c, x: startX + dx, y: startY + dy };
                     }
                     return c;
                 }) || [];
-
-                onDataChange({ ...data, nodes: newNodes, containers: newContainers });
+                onDataChange({ ...data, nodes: newNodes, containers: newContainers }, true);
+            })
+            .on('end', (event) => {
+              // Final state is already set during drag, so this can be empty
             });
         g.call(dragHandler);
     }, [container, props]);
@@ -360,18 +374,36 @@ const DiagramContainer: React.FC<{
     }
 
     return (
-        <g ref={ref} transform={`translate(${x}, ${y})`} onClick={(e) => onSelect(e, container.id)} style={{ cursor: props.interactionMode === 'select' ? 'move' : 'default', filter: 'url(#drop-shadow)' }}>
+        <g ref={ref} transform={`translate(${x}, ${y})`} onClick={(e) => onSelect(e, container.id)} onContextMenu={(e) => onContextMenu(e, container)} style={{ cursor: props.interactionMode === 'select' ? 'move' : 'default', filter: 'url(#drop-shadow)' }}>
             <rect width={width} height={height} {...style} />
             <text x="15" y="25" fill="var(--color-text-secondary)" style={{ fontSize: '14px', fontWeight: 600, textTransform: 'uppercase' }}>{label}</text>
         </g>
     );
-}
+});
 
-const DiagramNode: React.FC<{
+const NodeShape: React.FC<{node: Node, isSelected: boolean}> = ({ node, isSelected }) => {
+    const { shape, width, height, color } = node;
+    const stroke = isSelected ? 'var(--color-accent)' : 'var(--color-border)';
+    const strokeWidth = 2;
+    const fill = color || "var(--color-node-bg)";
+
+    switch (shape) {
+        case 'ellipse':
+            return <ellipse cx={width / 2} cy={height / 2} rx={width / 2} ry={height / 2} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+        case 'diamond':
+            const points = `${width / 2},0 ${width},${height / 2} ${width / 2},${height} 0,${height / 2}`;
+            return <polygon points={points} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+        default: // rectangle
+            return <rect width={width} height={height} rx={12} ry={12} fill={fill} stroke={stroke} strokeWidth={strokeWidth} className="transition-all" />;
+    }
+};
+
+const DiagramNode = memo<{
     node: Node;
     isSelected: boolean;
     onSelect: (e: React.MouseEvent, id: string) => void;
-} & DraggableProps> = ({ node, isSelected, onSelect, ...props }) => {
+    onContextMenu: (e: React.MouseEvent, item: Node) => void;
+} & DraggableProps>(({ node, isSelected, onSelect, onContextMenu, ...props }) => {
     const ref = useRef<SVGGElement>(null);
 
     useEffect(() => {
@@ -400,32 +432,21 @@ const DiagramNode: React.FC<{
                 event.sourceEvent.stopPropagation();
             })
             .on('drag', function(event) {
-                const dx = event.x - event.subject.x;
+                 const dx = event.x - event.subject.x;
                 const dy = event.y - event.subject.y;
-                
-                startPositions.forEach((startPos, id) => {
-                    const el = select<SVGGElement, Node>(`#node-g-${id}`).node();
-                    if(el) {
-                        const n = props.data.nodes.find(node => node.id === id);
-                        if (n) {
-                           select(el).attr('transform', `translate(${startPos.x + dx - n.width / 2}, ${startPos.y + dy - n.height / 2})`);
-                        }
-                    }
-                });
-            })
-            .on('end', function(event) {
-                const finalDx = event.x - event.subject.x;
-                const finalDy = event.y - event.subject.y;
                 const { data, onDataChange } = props;
                 
                 const newNodes = data.nodes.map(n => {
                     const startPos = startPositions.get(n.id);
                     if (startPos && !n.locked) {
-                        return { ...n, x: startPos.x + finalDx, y: startPos.y + finalDy };
+                        return { ...n, x: startPos.x + dx, y: startPos.y + dy };
                     }
                     return n;
                 });
-                onDataChange({ ...data, nodes: newNodes });
+                onDataChange({ ...data, nodes: newNodes }, true);
+            })
+            .on('end', function(event) {
+                // Final state already set during drag
             });
             
         g.call(dragHandler);
@@ -444,7 +465,7 @@ const DiagramNode: React.FC<{
         return (
             <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
                style={{ cursor: getCursor() }}
-               onClick={(e) => onSelect(e, node.id)} >
+               onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} >
                 <circle 
                     cx={node.width / 2} 
                     cy={node.height / 2} 
@@ -477,9 +498,8 @@ const DiagramNode: React.FC<{
     return (
         <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`}
            style={{ cursor: getCursor(), filter: 'url(#drop-shadow)' }}
-           onClick={(e) => onSelect(e, node.id)} >
-            <rect width={node.width} height={node.height} rx={12} ry={12} fill={node.color || "var(--color-node-bg)"}
-                  stroke={isSelected ? 'var(--color-accent)' : 'var(--color-border)'} strokeWidth={2} className="transition-all" />
+           onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} >
+            <NodeShape node={node} isSelected={isSelected} />
             <foreignObject x="12" y="12" width="32" height="32">
                 <ArchitectureIcon type={node.type} className="w-8 h-8" />
             </foreignObject>
@@ -493,13 +513,12 @@ const DiagramNode: React.FC<{
             )}
         </g>
     );
-};
+});
 
 const getOrthogonalPath = (source: Node, target: Node, obstacles: Rect[]): Point[] => {
     const start: Point = { x: source.x, y: source.y };
     const end: Point = { x: target.x, y: target.y };
 
-    // For neuron-to-neuron connections, draw a straight line.
     if(source.type === 'neuron' && target.type === 'neuron') {
         return [start, end];
     }
@@ -560,11 +579,12 @@ const pointsToPath = (points: Point[], radius: number): string => {
     return path;
 };
 
-const getDashArray = (style?: 'solid' | 'dotted' | 'dashed') => {
+const getDashArray = (style?: 'solid' | 'dotted' | 'dashed' | 'double') => {
     switch (style) {
         case 'dotted': return '2 5';
         case 'dashed': return '10 5';
         case 'solid':
+        case 'double':
         default: return 'none';
     }
 }
@@ -574,7 +594,7 @@ const getStrokeWidth = (thickness?: 'thin' | 'medium' | 'thick', isSelected?: bo
     return isSelected ? baseWidth + 1.5 : baseWidth;
 }
 
-const DiagramLink: React.FC<{ link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, link: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void, isSelected: boolean }> = ({ link, source, target, obstacles, onContextMenu, onSelect, isSelected }) => {
+const DiagramLink = memo<{ link: Link, source: Node, target: Node, obstacles: Rect[], onContextMenu: (e: React.MouseEvent, item: Link) => void, onSelect: (e: React.MouseEvent, id: string) => void, isSelected: boolean }>(({ link, source, target, obstacles, onContextMenu, onSelect, isSelected }) => {
     const isNeuronLink = source.type === 'neuron' && target.type === 'neuron';
     const pathPoints = useMemo(() => getOrthogonalPath(source, target, obstacles), [source, target, obstacles]);
     
@@ -629,11 +649,18 @@ const DiagramLink: React.FC<{ link: Link, source: Node, target: Node, obstacles:
 
     return (
         <g onContextMenu={(e) => onContextMenu(e, link)} onClick={(e) => onSelect(e, link.id)}>
-            <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none"
-                  strokeDasharray={getDashArray(link.style)}
-                  markerStart={link.bidirectional ? "url(#arrowhead-reverse)" : undefined}
-                  markerEnd={isNeuronLink ? undefined : "url(#arrowhead)"}
-                  className="transition-all" />
+            {link.style === 'double' ? (
+                <>
+                 <path d={pathD} transform="translate(-2, -2)" stroke={strokeColor} strokeWidth={strokeWidth / 2} fill="none" className="transition-all" />
+                 <path d={pathD} transform="translate(2, 2)" stroke={strokeColor} strokeWidth={strokeWidth / 2} fill="none" className="transition-all" />
+                </>
+            ) : (
+                <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none"
+                    strokeDasharray={getDashArray(link.style)}
+                    markerStart={link.bidirectional ? "url(#arrowhead-reverse)" : undefined}
+                    markerEnd={isNeuronLink ? undefined : "url(#arrowhead)"}
+                    className="transition-all" />
+            )}
             <path d={pathD} stroke="transparent" strokeWidth="15" fill="none" className="cursor-pointer" />
             {link.label && (
                 <foreignObject x={midX - 75} y={midY - 15} width="150" height="30" style={{ pointerEvents: 'none' }}>
@@ -646,6 +673,6 @@ const DiagramLink: React.FC<{ link: Link, source: Node, target: Node, obstacles:
             )}
         </g>
     );
-};
+});
 
 export default DiagramCanvas;

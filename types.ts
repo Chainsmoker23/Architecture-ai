@@ -10,6 +10,7 @@ export interface Node {
   locked?: boolean;
   color?: string;
   animationOrder?: number;
+  shape?: 'rectangle' | 'ellipse' | 'diamond';
 }
 
 export interface Link {
@@ -17,7 +18,7 @@ export interface Link {
   source: string | Node;
   target: string | Node;
   label?: string;
-  style?: 'solid' | 'dotted' | 'dashed';
+  style?: 'solid' | 'dotted' | 'dashed' | 'double';
   color?: string;
   thickness?: 'thin' | 'medium' | 'thick';
   bidirectional?: boolean;

@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiagramData, Node, Link, Container, IconType } from '../types';
@@ -11,6 +12,9 @@ import ContextualActionBar from './ContextualActionBar';
 import { customAlphabet } from 'nanoid';
 import { zoomIdentity, ZoomTransform } from 'd3-zoom';
 import AssistantWidget from './AssistantWidget';
+import { select, pointer } from 'd3-selection';
+// Fix: Import 'drag' from 'd3-drag' to resolve reference error.
+import { drag } from 'd3-drag';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -39,6 +43,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     const [linkPreviewCoords, setLinkPreviewCoords] = useState<{x: number, y: number} | null>(null);
     const [actionBarPosition, setActionBarPosition] = useState<{ x: number; y: number } | null>(null);
     const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
+    const [containerCreation, setContainerCreation] = useState<{ start: { x: number, y: number }, end: { x: number, y: number } } | null>(null);
     
     const isPropertiesPanelOpen = selectedIds.length > 0;
 
@@ -106,6 +111,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                 width: 150,
                 height: 60,
                 locked: false,
+                shape: 'rectangle',
             };
             const newData = { ...data, nodes: [...data.nodes, newNode] };
             onDataChange(newData);
@@ -146,6 +152,81 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks }, true);
     };
 
+    const handleDeleteSelected = useCallback(() => {
+        if (selectedIds.length === 0) return;
+        const selectedIdsSet = new Set(selectedIds);
+        const newNodes = data.nodes.filter(n => !selectedIdsSet.has(n.id));
+        const newContainers = (data.containers || []).filter(c => !selectedIdsSet.has(c.id));
+        const newLinks = data.links.filter(l => !selectedIdsSet.has(l.id));
+
+        const remainingNodeIds = new Set(newNodes.map(n => n.id));
+        const finalLinks = newLinks.filter(l => 
+            remainingNodeIds.has(typeof l.source === 'string' ? l.source : l.source.id) &&
+            remainingNodeIds.has(typeof l.target === 'string' ? l.target : l.target.id)
+        );
+
+        onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: finalLinks });
+        setSelectedIds([]);
+    }, [data, onDataChange, selectedIds, setSelectedIds]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0) {
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+                    return;
+                }
+                e.preventDefault();
+                handleDeleteSelected();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedIds, handleDeleteSelected]);
+
+    useEffect(() => {
+        const svg = select(svgRef.current!);
+        if (interactionMode === 'addContainer') {
+            const dragBehavior = drag()
+                .on('start', (event) => {
+                    const [x, y] = pointer(event, svg.node());
+                    setContainerCreation({ start: { x, y }, end: { x, y } });
+                })
+                .on('drag', (event) => {
+                    const [x, y] = pointer(event, svg.node());
+                    setContainerCreation(prev => prev ? { ...prev, end: { x, y } } : null);
+                })
+                .on('end', (event) => {
+                    if (containerCreation) {
+                        const { start, end } = containerCreation;
+                        const newContainerRect = {
+                            x: Math.min(start.x, end.x),
+                            y: Math.min(start.y, end.y),
+                            width: Math.abs(start.x - end.x),
+                            height: Math.abs(start.y - end.y),
+                        };
+                        if (newContainerRect.width > 20 && newContainerRect.height > 20) {
+                             const newContainer: Container = {
+                                id: `container-${nanoid()}`,
+                                label: 'New Tier',
+                                type: 'tier',
+                                description: '',
+                                childNodeIds: [],
+                                ...newContainerRect,
+                            };
+                            onDataChange({ ...data, containers: [...(data.containers || []), newContainer] });
+                        }
+                    }
+                    setContainerCreation(null);
+                    setInteractionMode('select');
+                });
+            svg.call(dragBehavior as any);
+        } else {
+            svg.on('.drag', null);
+        }
+        return () => { svg.on('.drag', null) };
+    }, [interactionMode, onDataChange, data, containerCreation]);
+
     const handleMouseMove = useCallback((event: MouseEvent) => {
         if (interactionMode === 'connect' && linkSourceNodeId && svgRef.current) {
             const svgNode = svgRef.current;
@@ -160,8 +241,10 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     }, [interactionMode, linkSourceNodeId]);
 
     useEffect(() => {
-        window.addEventListener('mousemove', handleMouseMove);
-        return () => window.removeEventListener('mousemove', handleMouseMove);
+        const currentRef = canvasContainerRef.current;
+        if (!currentRef) return;
+        currentRef.addEventListener('mousemove', handleMouseMove);
+        return () => currentRef.removeEventListener('mousemove', handleMouseMove);
     }, [handleMouseMove]);
 
     const linkPreview = useMemo(() => {
@@ -170,19 +253,6 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         if (!sourceNode) return null;
         return { sourceNode, targetCoords: linkPreviewCoords };
     }, [linkSourceNodeId, linkPreviewCoords, data.nodes]);
-
-    const handleDeleteSelected = () => {
-        if (selectedIds.length === 0) return;
-        const selectedIdsSet = new Set(selectedIds);
-        const newNodes = data.nodes.filter(n => !selectedIdsSet.has(n.id));
-        const newContainers = data.containers?.filter(c => !selectedIdsSet.has(c.id));
-        const newLinks = data.links.filter(l => 
-            !selectedIdsSet.has(typeof l.source === 'string' ? l.source : l.source.id) && 
-            !selectedIdsSet.has(typeof l.target === 'string' ? l.target : l.target.id)
-        );
-        onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks });
-        setSelectedIds([]);
-    };
 
     const handleDuplicateSelected = () => {
         if (selectedIds.length === 0) return;
@@ -229,6 +299,17 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         });
         setSelectedIds(newSelectedIds);
     };
+    
+     const containerCreationRect = useMemo(() => {
+        if (!containerCreation) return null;
+        const { start, end } = containerCreation;
+        return {
+            x: Math.min(start.x, end.x),
+            y: Math.min(start.y, end.y),
+            width: Math.abs(start.x - end.x),
+            height: Math.abs(start.y - end.y),
+        };
+    }, [containerCreation]);
 
     return (
         <div className="w-screen h-screen bg-[var(--color-bg)] flex flex-col md:flex-row overflow-hidden">
@@ -260,6 +341,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         onInteractionNodeClick={handleNodeClick}
                         linkPreview={linkPreview}
                         onTransformChange={setViewTransform}
+                        containerCreationRect={containerCreationRect}
                     />
                     <AnimatePresence>
                         {actionBarPosition && (

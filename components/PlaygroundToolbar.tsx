@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { InteractionMode } from './DiagramCanvas';
 
@@ -83,6 +84,9 @@ const PlaygroundToolbar: React.FC<PlaygroundToolbarProps> = (props) => {
             </ToolButton>
              <ToolButton title="Connect (L)" onClick={() => onSetInteractionMode('connect')} isActive={interactionMode === 'connect'} className="w-14 h-14 md:w-12 md:h-12">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 9a3 3 0 100-6 3 3 0 000 6zM16 11a6 6 0 016 6h-2a4 4 0 00-4-4h-1a3 3 0 01-3-3 3.001 3.001 0 01.396-1.551A5.02 5.02 0 0116 11z" /></svg>
+            </ToolButton>
+             <ToolButton title="Add Container (B)" onClick={() => onSetInteractionMode('addContainer')} isActive={interactionMode === 'addContainer'} className="w-14 h-14 md:w-12 md:h-12">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 6" d="M9 11l-4 4m0-4l4 4m6-4v12m0 0l-4-4m4 4l4-4" transform="rotate(-45 12 12) scale(0.8)"/><rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="4 4" /></svg>
             </ToolButton>
             
             <div className="flex-grow hidden md:block" />
