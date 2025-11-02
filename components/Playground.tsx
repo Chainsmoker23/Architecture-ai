@@ -35,6 +35,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     const [actionBarPosition, setActionBarPosition] = useState<{ x: number; y: number } | null>(null);
     const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
     const [showMobileWarning, setShowMobileWarning] = useState(false);
+    const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
     
     const isPropertiesPanelOpen = selectedIds.length > 0;
 
@@ -86,6 +87,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         setInteractionMode(mode);
         setLinkSourceNodeId(null);
         setSelectedIds([]);
+        setResizingNodeId(null);
     };
     
     const handleNodeClick = (nodeId: string) => {
@@ -105,6 +107,19 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                 setInteractionMode('select');
             }
         }
+    };
+
+    const handleNodeDoubleClick = useCallback((nodeId: string) => {
+        setInteractionMode('select');
+        setResizingNodeId(prevId => (prevId === nodeId ? null : nodeId));
+        if (resizingNodeId !== nodeId) {
+            setSelectedIds([nodeId]);
+        }
+    }, [resizingNodeId, setSelectedIds]);
+
+    const handleCanvasClick = () => {
+        setSelectedIds([]);
+        setResizingNodeId(null);
     };
     
     const selectedItem = useMemo(() => {
@@ -228,6 +243,9 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                         interactionMode={interactionMode}
                         onInteractionNodeClick={handleNodeClick}
                         onTransformChange={setViewTransform}
+                        resizingNodeId={resizingNodeId}
+                        onNodeDoubleClick={handleNodeDoubleClick}
+                        onCanvasClick={handleCanvasClick}
                     />
                     <AnimatePresence>
                         {actionBarPosition && (

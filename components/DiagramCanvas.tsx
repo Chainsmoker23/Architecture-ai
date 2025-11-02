@@ -23,6 +23,9 @@ interface DiagramCanvasProps {
   interactionMode?: InteractionMode;
   onInteractionNodeClick?: (nodeId: string) => void;
   onTransformChange?: (transform: ZoomTransform) => void;
+  resizingNodeId?: string | null;
+  onNodeDoubleClick?: (nodeId: string) => void;
+  onCanvasClick?: () => void;
 }
 
 interface Point { x: number; y: number; }
@@ -32,7 +35,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
     isEditable = false,
     interactionMode = 'select', onInteractionNodeClick,
-    onTransformChange
+    onTransformChange, resizingNodeId = null, onNodeDoubleClick, onCanvasClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
@@ -100,7 +103,11 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     
     const handleCanvasClick = (event: PointerEvent) => {
         if (!event.defaultPrevented && (event.target as SVGSVGElement).tagName === 'svg') {
-            setSelectedIds([]);
+            if (onCanvasClick) {
+                onCanvasClick();
+            } else {
+                setSelectedIds([]);
+            }
             setContextMenu(null);
         }
     };
@@ -113,7 +120,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       svg.on('.zoom', null);
       if (fitScreenRef) fitScreenRef.current = null;
     }
-  }, [forwardedRef, setSelectedIds, data, fitScreenRef, isEditable, interactionMode, onTransformChange]);
+  }, [forwardedRef, setSelectedIds, data, fitScreenRef, isEditable, interactionMode, onTransformChange, onCanvasClick]);
 
   const handleItemContextMenu = (e: React.MouseEvent, item: Node | Link | Container) => {
     e.preventDefault(); e.stopPropagation();
@@ -189,7 +196,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
                 })}
             </g>
             <g> {/* Nodes Layer */}
-                {data.nodes.map(node => ( <DiagramNode key={node.id} node={node} data={data} onDataChange={onDataChange} isSelected={isSelected(node.id)} onSelect={handleNodeClick} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} interactionMode={interactionMode} isEditable={isEditable} /> ))}
+                {data.nodes.map(node => ( <DiagramNode key={node.id} node={node} data={data} onDataChange={onDataChange} isSelected={isSelected(node.id)} onSelect={handleNodeClick} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} interactionMode={interactionMode} isEditable={isEditable} resizingNodeId={resizingNodeId} onNodeDoubleClick={onNodeDoubleClick} /> ))}
             </g>
         </g>
       </svg>
@@ -292,10 +299,78 @@ const NodeShape: React.FC<{node: Node, isSelected: boolean}> = ({ node, isSelect
     return <rect rx={12} ry={12} {...commonProps} />;
 };
 
-const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Node) => void; isEditable: boolean; } & DraggableProps>(({ node, isSelected, onSelect, onContextMenu, isEditable, ...props }) => {
-    const ref = useRef<SVGGElement>(null);
+type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+const HANDLE_SIZE = 10;
+
+interface ResizeHandleProps {
+    node: Node; corner: Corner; onDataChange: (data: DiagramData, fromHistory?: boolean) => void; data: DiagramData;
+}
+
+const ResizeHandle: React.FC<ResizeHandleProps> = ({ node, corner, onDataChange, data }) => {
+    const ref = useRef<SVGRectElement>(null);
+
+    const getCursor = () => {
+        if (corner === 'top-left' || corner === 'bottom-right') return 'nwse-resize';
+        return 'nesw-resize';
+    };
+
+    const getHandlePosition = () => {
+        const x = corner.includes('left') ? -HANDLE_SIZE / 2 : node.width - HANDLE_SIZE / 2;
+        const y = corner.includes('top') ? -HANDLE_SIZE / 2 : node.height - HANDLE_SIZE / 2;
+        return { x, y };
+    };
+
     useEffect(() => {
-        if (!ref.current || node.locked || !isEditable || props.interactionMode !== 'select') { select(ref.current).on('.drag', null); return; }
+        if (!ref.current) return;
+        const rect = select(ref.current);
+        let startNode: Node;
+
+        const dragHandler = drag<SVGRectElement, unknown>()
+            .on('start', function(event) {
+                event.sourceEvent.stopPropagation();
+                startNode = { ...node };
+            })
+            .on('drag', function(event) {
+                if (!startNode) return;
+                const { x: dx, y: dy } = event;
+                
+                let newWidth = startNode.width, newHeight = startNode.height, newX = startNode.x, newY = startNode.y;
+
+                if (corner === 'bottom-right') {
+                    newWidth = Math.max(40, dx); newHeight = Math.max(40, dy);
+                    const anchorX = startNode.x - startNode.width / 2, anchorY = startNode.y - startNode.height / 2;
+                    newX = anchorX + newWidth / 2; newY = anchorY + newHeight / 2;
+                } else if (corner === 'top-left') {
+                    newWidth = Math.max(40, startNode.width - dx); newHeight = Math.max(40, startNode.height - dy);
+                    const anchorX = startNode.x + startNode.width / 2, anchorY = startNode.y + startNode.height / 2;
+                    newX = anchorX - newWidth / 2; newY = anchorY - newHeight / 2;
+                } else if (corner === 'bottom-left') {
+                    newWidth = Math.max(40, startNode.width - dx); newHeight = Math.max(40, dy);
+                    const anchorX = startNode.x + startNode.width / 2, anchorY = startNode.y - startNode.height / 2;
+                    newX = anchorX - newWidth / 2; newY = anchorY + newHeight / 2;
+                } else if (corner === 'top-right') {
+                    newWidth = Math.max(40, dx); newHeight = Math.max(40, startNode.height - dy);
+                    const anchorX = startNode.x - startNode.width / 2, anchorY = startNode.y + startNode.height / 2;
+                    newX = anchorX + newWidth / 2; newY = anchorY - newHeight / 2;
+                }
+                
+                const updatedNode = { ...node, width: newWidth, height: newHeight, x: newX, y: newY };
+                const newNodes = data.nodes.map(n => n.id === node.id ? updatedNode : n);
+                onDataChange({ ...data, nodes: newNodes }, true);
+            });
+        rect.call(dragHandler);
+    }, [node, data, onDataChange, corner]);
+
+    const { x, y } = getHandlePosition();
+    return ( <rect ref={ref} x={x} y={y} width={HANDLE_SIZE} height={HANDLE_SIZE} fill="var(--color-accent)" stroke="white" strokeWidth="1.5" rx="2" style={{ cursor: getCursor() }} /> );
+};
+
+const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Node) => void; isEditable: boolean; resizingNodeId: string | null; onNodeDoubleClick?: (nodeId: string) => void; } & DraggableProps>(({ node, isSelected, onSelect, onContextMenu, isEditable, resizingNodeId, onNodeDoubleClick, ...props }) => {
+    const ref = useRef<SVGGElement>(null);
+    const isResizing = isEditable && resizingNodeId === node.id;
+
+    useEffect(() => {
+        if (!ref.current || node.locked || !isEditable || props.interactionMode !== 'select' || isResizing) { select(ref.current).on('.drag', null); return; }
         const g = select(ref.current);
         let startPositions = new Map<string, {x: number, y: number}>();
         const dragHandler = drag<SVGGElement, unknown>()
@@ -314,16 +389,28 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
                 onDataChange({ ...data, nodes: newNodes }, true);
             });
         g.call(dragHandler);
-    }, [node.id, props.data.nodes, props.selectedIds, node.locked, props.interactionMode, props.onDataChange, isEditable]);
-    const getCursorStyle = () => { if (node.locked) return 'default'; if (isEditable && props.interactionMode === 'connect') return 'pointer'; if (isEditable && props.interactionMode === 'select') return 'move'; return 'default'; };
-    if (node.type === 'neuron') { return ( <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`} style={{ cursor: getCursorStyle() }} data-node-id={node.id} onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} > <circle cx={node.width / 2} cy={node.height / 2} r={Math.min(node.width, node.height) / 2} fill={node.color || "#CCCCCC"} stroke={isSelected ? 'var(--color-accent)' : '#000000'} strokeWidth={isSelected ? 2 : 1} /> </g> ); }
-    if (node.type === 'layer-label' || node.type === 'group-label') { return ( <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x}, ${node.y})`} style={{ cursor: getCursorStyle(), pointerEvents: 'none' }} > <text textAnchor="middle" dominantBaseline="middle" fill="var(--color-text-primary)" fontSize={node.type === 'group-label' ? "18" : "16"} fontWeight="600">{node.label}</text> </g> ); }
+    }, [node.id, props.data.nodes, props.selectedIds, node.locked, props.interactionMode, props.onDataChange, isEditable, isResizing]);
+    
+    const getCursorStyle = () => { if (node.locked || isResizing) return 'default'; if (isEditable && props.interactionMode === 'connect') return 'pointer'; if (isEditable && props.interactionMode === 'select') return 'move'; return 'default'; };
+    
+    if (node.type === 'neuron' || node.type === 'layer-label' || node.type === 'group-label') { 
+        return ( <g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`} style={{ cursor: getCursorStyle() }} data-node-id={node.id} onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} onDoubleClick={(e) => { if (isEditable && onNodeDoubleClick && node.type !== 'layer-label' && node.type !== 'group-label') { e.stopPropagation(); onNodeDoubleClick(node.id); } }} > {node.type === 'neuron' ? <circle cx={node.width / 2} cy={node.height / 2} r={Math.min(node.width, node.height) / 2} fill={node.color || "#CCCCCC"} stroke={isSelected ? 'var(--color-accent)' : '#000000'} strokeWidth={isSelected ? 2 : 1} /> : <text transform={`translate(${node.width/2}, ${node.height/2})`} textAnchor="middle" dominantBaseline="middle" fill="var(--color-text-primary)" fontSize={node.type === 'group-label' ? "18" : "16"} fontWeight="600">{node.label}</text>} </g> );
+    }
+
     return (
-        <motion.g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`} style={{ cursor: getCursorStyle(), filter: 'url(#drop-shadow)' }} data-node-id={node.id} onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)}>
+        <motion.g id={`node-g-${node.id}`} ref={ref} transform={`translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`} style={{ cursor: getCursorStyle(), filter: 'url(#drop-shadow)' }} data-node-id={node.id} onClick={(e) => onSelect(e, node.id)} onContextMenu={(e) => onContextMenu(e, node)} onDoubleClick={(e) => { if (isEditable && onNodeDoubleClick) { e.stopPropagation(); onNodeDoubleClick(node.id); } }}>
             <NodeShape node={node} isSelected={isSelected} />
             <foreignObject x="12" y="12" width="32" height="32"> <ArchitectureIcon type={node.type} className="w-8 h-8" /> </foreignObject>
             <foreignObject x="52" y="10" width={node.width - 60} height={node.height - 20} > <div className="label-text text-sm font-medium leading-tight h-full flex items-center" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{node.label}</div> </foreignObject>
             {node.locked && ( <path d="M12 1.5A3.5 3.5 0 008.5 5v1.5H7a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2v-7a2 2 0 00-2-2h-1.5V5A3.5 3.5 0 0012 1.5zM12 3a2 2 0 012 2v1.5H10V5a2 2 0 012-2z" fill="var(--color-text-tertiary)" transform={`translate(${node.width - 20}, 4) scale(0.7)`} /> )}
+            {isResizing && (
+                <>
+                    <ResizeHandle corner="top-left" node={node} data={props.data} onDataChange={props.onDataChange} />
+                    <ResizeHandle corner="top-right" node={node} data={props.data} onDataChange={props.onDataChange} />
+                    <ResizeHandle corner="bottom-left" node={node} data={props.data} onDataChange={props.onDataChange} />
+                    <ResizeHandle corner="bottom-right" node={node} data={props.data} onDataChange={props.onDataChange} />
+                </>
+            )}
         </motion.g>
     );
 });
