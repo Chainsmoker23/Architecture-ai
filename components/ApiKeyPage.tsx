@@ -74,11 +74,26 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate })
                             transition={{ duration: 0.6, ease: 'easeOut' }}
                             className="order-2 md:order-1"
                         >
-                            <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">Your Vision, Your Throughput.</h2>
-                            <ul className="space-y-4 text-lg text-[#555555]">
-                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> <b>No more rate limits.</b> Generate as many diagrams as you need, whenever you need them.</li>
-                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> <b>Priority access.</b> Get access to the latest models and features from Google.</li>
-                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> <b>Built for power users.</b> Perfect for teams and integrating into automated workflows via our SDK.</li>
+                            <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">Unleash Your Architectural Vision</h2>
+                            <ul className="space-y-6 text-lg text-[#555555]">
+                                <li className="flex items-start">
+                                    <b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b>
+                                    <div>
+                                        <b className="text-black">Infinite Canvas:</b> Say goodbye to shared quotas. Design, iterate, and generate without interruption, ensuring your creativity is never capped.
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b>
+                                    <div>
+                                        <b className="text-black">First-Class Access:</b> Leverage your own key to tap directly into the latest and most powerful models from Google, putting you at the forefront of AI-driven design.
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b>
+                                    <div>
+                                        <b className="text-black">Built for Builders:</b> The perfect companion for professionals. Integrate with our SDK to automate documentation, power internal tools, and scale your design process.
+                                    </div>
+                                </li>
                             </ul>
                         </motion.div>
                         <motion.div

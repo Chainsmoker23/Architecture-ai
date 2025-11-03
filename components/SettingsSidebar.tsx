@@ -18,6 +18,11 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   const [editingKey, setEditingKey] = useState(userApiKey || '');
   const [showSaved, setShowSaved] = useState(false);
 
+  // MOCK: Assume logged-in user is on a Pro plan for demonstration
+  const userPlan = currentUser ? 'Pro' : null; 
+  const isPremiumUser = userPlan && ['Hobbyist', 'Pro', 'Business'].includes(userPlan);
+
+
   useEffect(() => {
     // Sync local state if the userApiKey prop changes from outside
     setIsEditing(!userApiKey);
@@ -104,7 +109,12 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
               </div>
 
               {currentUser && (
-                <div className="mb-6 p-3 bg-[var(--color-bg-input)] rounded-xl flex items-center gap-3 border border-[var(--color-border)]">
+                <div className={`relative mb-6 p-3 bg-[var(--color-bg-input)] rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'border-[var(--color-accent)] shadow-md shadow-[var(--color-accent-soft)]' : 'border-[var(--color-border)]'}`}>
+                    {isPremiumUser && (
+                        <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+                            {userPlan} Member
+                        </div>
+                    )}
                     <img src={currentUser.photoURL || undefined} alt="User" className="w-10 h-10 rounded-full" />
                     <div>
                         <p className="font-semibold text-sm">{currentUser.displayName}</p>
