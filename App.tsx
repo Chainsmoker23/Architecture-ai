@@ -102,7 +102,7 @@ const App: React.FC = () => {
             window.localStorage.removeItem('user-api-key');
         }
     } catch (error) {
-        console.error("Could not access localStorage to save API key:", error);
+        console.error("Could not access localStorage to save API key:", String(error));
     }
   }, [userApiKey]);
 
@@ -143,27 +143,37 @@ const App: React.FC = () => {
 
     // --- 2. Fetch and embed all stylesheets ---
     const styleEl = document.createElement('style');
-    const cssTexts = [];
+    const cssTexts: string[] = [];
+    const promises: Promise<string>[] = [];
 
     for (const sheet of Array.from(document.styleSheets)) {
-        try {
-            if (sheet.href) {
-                const response = await fetch(sheet.href);
-                if (response.ok) {
-                    cssTexts.push(await response.text());
-                }
-            } else if (sheet.cssRules) {
+        if (sheet.href) {
+            promises.push(
+                fetch(sheet.href)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Failed to fetch stylesheet: ${sheet.href}`);
+                        return response.text();
+                    })
+                    .catch(err => {
+                        console.warn(err);
+                        return '';
+                    })
+            );
+        } else {
+            try {
                 cssTexts.push(Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n'));
+            } catch (e) {
+                console.warn("Could not read CSS rules from inline stylesheet:", e);
             }
-        } catch (e) {
-            console.warn("Could not read or fetch stylesheet: ", sheet.href, e);
         }
     }
+
+    const externalCssTexts = await Promise.all(promises);
+    cssTexts.push(...externalCssTexts);
     
     let combinedCss = cssTexts.join('\n');
-    const varRegex = /var\((--[\w-]+?)\)/g;
     const rootStyle = getComputedStyle(document.documentElement);
-    combinedCss = combinedCss.replace(varRegex, (match, varName) => {
+    combinedCss = combinedCss.replace(/var\((--[\w-]+?)\)/g, (match, varName) => {
         return rootStyle.getPropertyValue(varName).trim() || match;
     });
 
@@ -212,10 +222,12 @@ const App: React.FC = () => {
     if (gridRect) gridRect.remove();
     
     if (format === 'jpg') {
-        const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+        const themeBg = rootStyle.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
         const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        bgRect.setAttribute('width', '100%');
-        bgRect.setAttribute('height', '100%');
+        bgRect.setAttribute('x', `${bbox.x - padding}`);
+        bgRect.setAttribute('y', `${bbox.y - padding}`);
+        bgRect.setAttribute('width', `${exportWidth}`);
+        bgRect.setAttribute('height', `${exportHeight}`);
         bgRect.setAttribute('fill', themeBg);
         svgClone.insertBefore(bgRect, svgClone.firstChild);
     }
@@ -239,11 +251,11 @@ const App: React.FC = () => {
         const dataUri = 'data:image/svg+xml;base64,' + toBase64(source);
         
         img.onload = () => {
-            const pixelRatio = 2;
+            const pixelRatio = window.devicePixelRatio || 1;
             canvas.width = exportWidth * pixelRatio;
             canvas.height = exportHeight * pixelRatio;
             
-            context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+            context.scale(pixelRatio, pixelRatio);
             context.drawImage(img, 0, 0, exportWidth, exportHeight);
 
             const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
