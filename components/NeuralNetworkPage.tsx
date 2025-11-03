@@ -56,35 +56,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     URL.revokeObjectURL(url);
   };
   
-  const cssPropertiesToCopy = [
-    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-opacity', 'fill-opacity', 'opacity',
-    'font-family', 'font-size', 'font-weight', 'color', 'line-height', 'text-align', 'text-anchor',
-    'word-break', 'white-space', 'dominant-baseline',
-    'display', 'flex-direction', 'align-items', 'justify-content', 'gap',
-    'background-color', 'border', 'border-radius', 'padding',
-    'width', 'height', 'transform'
-  ];
-
-  function copyComputedStyles(source: Element, target: Element) {
-      const computedStyle = window.getComputedStyle(source);
-      let styleStr = "";
-      for (const prop of cssPropertiesToCopy) {
-          styleStr += `${prop}: ${computedStyle.getPropertyValue(prop)}; `;
-      }
-      target.setAttribute('style', styleStr);
-
-      if (target.tagName === 'foreignObject') {
-        const innerDiv = target.querySelector('div');
-        if (innerDiv && !innerDiv.hasAttribute('xmlns')) {
-          innerDiv.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-        }
-      }
-
-      for (let i = 0; i < source.children.length; i++) {
-          copyComputedStyles(source.children[i], target.children[i]);
-      }
-  }
-
  const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
     setIsExportMenuOpen(false);
     if (!diagramData) return;
@@ -100,9 +71,43 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const svgElement = svgRef.current;
     if (!svgElement) return;
 
+    // --- 1. Deep clone the SVG ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
-    copyComputedStyles(svgElement, svgClone);
+
+    // --- 2. Fetch and embed all stylesheets ---
+    const styleEl = document.createElement('style');
+    const cssTexts = [];
+
+    for (const sheet of Array.from(document.styleSheets)) {
+        try {
+            if (sheet.href) {
+                const response = await fetch(sheet.href);
+                if (response.ok) {
+                    cssTexts.push(await response.text());
+                }
+            } else if (sheet.cssRules) {
+                cssTexts.push(Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n'));
+            }
+        } catch (e) {
+            console.warn("Could not read or fetch stylesheet: ", sheet.href, e);
+        }
+    }
     
+    let combinedCss = cssTexts.join('\n');
+    const varRegex = /var\((--[\w-]+?)\)/g;
+    const rootStyle = getComputedStyle(document.documentElement);
+    combinedCss = combinedCss.replace(varRegex, (match, varName) => {
+        return rootStyle.getPropertyValue(varName).trim() || match;
+    });
+
+    styleEl.textContent = combinedCss;
+    const defsEl = svgClone.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defsEl.appendChild(styleEl);
+    if (!svgClone.contains(defsEl)) {
+      svgClone.insertBefore(defsEl, svgClone.firstChild);
+    }
+
+    // --- 3. Calculate bounding box ---
     document.body.appendChild(svgClone);
     svgClone.style.position = 'absolute';
     svgClone.style.top = '-9999px';
@@ -116,6 +121,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         return;
     };
 
+    // --- 4. Configure clone for export ---
     const padding = 50;
     const exportWidth = bbox.width + padding * 2;
     const exportHeight = bbox.height + padding * 2;
@@ -125,7 +131,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     svgClone.setAttribute('height', `${exportHeight}`);
     svgClone.setAttribute('viewBox', viewBox);
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    svgClone.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
     
     if (format === 'jpg') {
         const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';

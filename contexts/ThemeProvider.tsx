@@ -120,7 +120,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
-      console.error(`Could not access localStorage to save theme: ${String(error)}`);
+      console.error('Could not access localStorage to save theme:', error);
     }
   }, [theme]);
 
