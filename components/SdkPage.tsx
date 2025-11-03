@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
 
-type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
+type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth';
 
 interface SdkPageProps {
   onBack: () => void;
@@ -14,7 +14,7 @@ interface SdkPageProps {
 const useTypewriter = (text: string, enabled: boolean, speed = 10) => {
     const [displayedText, setDisplayedText] = useState('');
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (enabled && text) {
             setDisplayedText(''); // Reset on text change
             let i = 0;
@@ -141,18 +141,6 @@ print(response.json())`
 
 
 const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
-    const [apiKey, setApiKey] = useState('');
-    const [isKeyLoading, setIsKeyLoading] = useState(false);
-    const [billingCycle, setBillingCycle] = useState<'monthly' | 'lifetime'>('monthly');
-
-    const handleGetKey = () => {
-        setIsKeyLoading(true);
-        setTimeout(() => {
-            setApiKey(`cg-key-${[...Array(32)].map(() => Math.random().toString(36)[2]).join('')}`);
-            setIsKeyLoading(false);
-        }, 1000);
-    };
-
     const whyReasons = [
         { icon: IconType.Gear, title: "Automate Everything", description: "Integrate diagram generation directly into your CI/CD pipelines to keep documentation in sync with development." },
         { icon: IconType.FileCode, title: "Developer-First API", description: "A clean, predictable REST API with JSON responses. Get up and running in minutes, not days." },
@@ -160,13 +148,74 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     ];
 
     const pricingPlans = [
-        { name: 'Starter', price: '$0', frequency: '/ month', description: 'For individuals and small teams getting started.', features: ['10 Team Members', '1,000 API Calls / mo', 'Community Support'], isPopular: false, ctaText: 'Get Your API Key', isInteractive: true, cycle: 'monthly' },
-        { name: 'Pro', price: '$29', frequency: '/ month', description: 'For growing teams that need more power.', features: ['50 Team Members', '10,000 API Calls / mo', 'Email Support', 'Advanced Diagram Types'], isPopular: true, ctaText: 'Choose Pro', cycle: 'monthly' },
-        { name: 'Business', price: '$79', frequency: '/ month', description: 'For businesses that require scale and priority support.', features: ['Unlimited Members', '100,000 API Calls / mo', 'Priority Support', 'Advanced Customization'], isPopular: false, ctaText: 'Choose Business', cycle: 'monthly' },
-        { name: 'Enterprise', price: '$2000', frequency: 'Lifetime', description: 'One-time payment for ultimate access and support.', features: ['Everything in Business', 'Lifetime Access & Updates', 'Dedicated Account Manager', 'On-premise Option'], isPopular: false, ctaText: 'Get Lifetime Access', cycle: 'lifetime' },
+        { 
+            name: 'Free', 
+            price: '$0', 
+            frequency: 'Forever', 
+            description: 'For individuals getting started and exploring the platform.', 
+            features: [
+                '30 Diagram Generations', 
+                'Access to all core features', 
+                'Community Support'
+            ], 
+            isPopular: false, 
+            ctaText: 'Start for Free'
+        },
+        { 
+            name: 'Hobbyist', 
+            price: '$3', 
+            frequency: 'One-time', 
+            description: 'A top-up for when you need a few more diagrams.', 
+            features: [
+                '60 Diagram Generations', 
+                'One-time payment',
+                'No expiration on generations'
+            ], 
+            isPopular: false, 
+            ctaText: 'Purchase'
+        },
+        { 
+            name: 'Pro', 
+            price: '$10', 
+            frequency: '/ month', 
+            description: 'For professionals who design and iterate frequently.', 
+            features: [
+                'Unlimited Generations', 
+                'Priority Email Support', 
+                'Access to all diagram types'
+            ], 
+            isPopular: true, 
+            ctaText: 'Choose Pro'
+        },
+        { 
+            name: 'Business', 
+            price: '$50', 
+            frequency: '/ month', 
+            description: 'For teams that need automation and unlimited scale.', 
+            features: [
+                'Unlimited Generations', 
+                'Full API Access', 
+                'Priority Support',
+                'Team Collaboration (soon)'
+            ], 
+            isPopular: false, 
+            ctaText: 'Choose Business'
+        },
+        { 
+            name: 'Enterprise', 
+            price: 'Custom', 
+            frequency: '', 
+            description: 'For large organizations with specific security and support needs.', 
+            features: [
+                'Everything in Business',
+                'On-premise deployment option',
+                'Dedicated Account Manager',
+                'Custom Integrations'
+            ], 
+            isPopular: false, 
+            ctaText: 'Contact Sales'
+        },
     ];
-    
-    const filteredPlans = pricingPlans.filter(p => p.cycle === billingCycle);
 
   return (
     <div className="bg-white text-[#2B2B2B] overflow-x-hidden">
@@ -245,28 +294,25 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
                     Start for free and scale as you grow. Choose the plan that's right for you.
                 </p>
 
-                <div className="flex justify-center mb-10">
-                    <div className="relative flex items-center bg-[#F8F1F3] p-1 rounded-full border border-[#E8DCE0]">
-                        <button onClick={() => setBillingCycle('monthly')} className="px-6 py-2 text-sm font-semibold z-10 transition-colors duration-300">Monthly</button>
-                        <button onClick={() => setBillingCycle('lifetime')} className="px-6 py-2 text-sm font-semibold z-10 transition-colors duration-300">Lifetime</button>
-                         <motion.div 
-                           layoutId="billing-cycle-active"
-                           className="absolute h-full w-1/2 bg-white rounded-full shadow"
-                           initial={false}
-                           animate={{ x: billingCycle === 'monthly' ? 0 : '100%' }}
-                           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                         />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto items-start">
-                    {filteredPlans.map((plan, index) => (
+                <div className="flex flex-wrap items-stretch justify-center gap-8">
+                    {pricingPlans.map((plan, index) => {
+                         const handleCtaClick = () => {
+                            if (plan.name === 'Free') {
+                                onNavigate('auth');
+                            } else if (plan.name === 'Enterprise') {
+                                onNavigate('contact');
+                            } else {
+                                // Placeholder for payment integration
+                                alert(`"${plan.name}" plan selected. Payment integration is coming soon!`);
+                            }
+                        };
+                        return (
                          <motion.div 
                             key={plan.name}
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: index * 0.1, duration: 0.5 }}
-                            className={`relative bg-white p-8 rounded-2xl shadow-lg border ${plan.isPopular ? 'border-[#E91E63] border-2 md:scale-105' : 'border-[#F9D7E3]'} flex flex-col h-full`}
+                            className={`relative bg-white p-8 rounded-2xl shadow-lg border ${plan.isPopular ? 'border-[#E91E63] border-2 md:scale-105' : 'border-[#F9D7E3]'} flex flex-col w-full max-w-sm`}
                         >
                             {plan.isPopular && (
                                 <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-4 py-1 rounded-full">
@@ -285,36 +331,14 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
                                 ))}
                             </ul>
 
-                            {plan.isInteractive ? (
-                                <AnimatePresence mode="wait">
-                                {apiKey ? (
-                                    <motion.div key="api-key-display" initial={{opacity: 0, height: 0}} animate={{opacity: 1, height: 'auto'}} exit={{opacity: 0, height: 0}} className="text-left p-3 bg-[#F8F1F3] rounded-lg border border-[#E8DCE0]">
-                                        <p className="text-xs font-semibold text-[#555555] mb-1">Your sample API Key:</p>
-                                        <p className="text-xs font-mono break-all text-[#A61E4D]">{apiKey}</p>
-                                    </motion.div>
-                                ) : (
-                                    <motion.button 
-                                        key="get-api-key-button"
-                                        onClick={handleGetKey}
-                                        disabled={isKeyLoading}
-                                        className={`w-full font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center ${plan.isPopular ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F8F1F3] text-[#A61E4D]'}`}
-                                    >
-                                        {isKeyLoading ? (
-                                            <>
-                                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                            Generating...
-                                            </>
-                                        ) : plan.ctaText}
-                                    </motion.button>
-                                )}
-                                </AnimatePresence>
-                            ) : (
-                                <button className={`w-full font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ${plan.isPopular ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F8F1F3] text-[#A61E4D]'}`}>
-                                    {plan.ctaText}
-                                </button>
-                            )}
+                            <button 
+                                onClick={handleCtaClick}
+                                className={`w-full font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 mt-auto ${plan.isPopular ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F8F1F3] text-[#A61E4D]'}`}
+                            >
+                                {plan.ctaText}
+                            </button>
                         </motion.div>
-                    ))}
+                    )})}
                 </div>
                  <p className="text-xs text-gray-400 mt-8">For custom enterprise needs, please <button onClick={() => onNavigate('contact')} className="underline hover:text-[#D6336C]">contact sales</button>.</p>
             </div>
