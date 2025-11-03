@@ -26,6 +26,7 @@ import Logo from './components/Logo';
 import NeuralNetworkPage from './components/NeuralNetworkPage';
 import CareersPage from './components/CareersPage';
 import ResearchPage from './components/ResearchPage';
+import { useAuth } from './contexts/AuthContext';
 
 // Helper function to recursively copy computed styles from a source element to a destination element.
 // This is the key to making exports look exactly like the on-screen version.
@@ -68,6 +69,7 @@ const pageItemVariants: Variants = {
 };
 
 const App: React.FC = () => {
+  const { currentUser, loading: authLoading } = useAuth();
   const [page, setPage] = useState<Page>('landing');
   
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
@@ -98,9 +100,19 @@ const App: React.FC = () => {
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   const [lastAction, setLastAction] = useState<{ type: 'generate' | 'explain', payload: any } | null>(null);
 
-  const handleLoginSuccess = useCallback(() => {
-    setPage('app');
-  }, []);
+  useEffect(() => {
+    if (authLoading) {
+      // Don't change page while checking auth state
+      return;
+    }
+    if (currentUser && page === 'auth') {
+      setPage('app');
+    }
+    if (!currentUser && page === 'app') {
+      setPage('landing');
+    }
+  }, [currentUser, authLoading, page]);
+
 
   const onNavigate = useCallback((targetPage: Page) => {
     setPage(targetPage);
@@ -376,7 +388,7 @@ const App: React.FC = () => {
     return <LandingPage onLaunch={() => setPage('auth')} onNavigate={onNavigate} />;
   }
   if (page === 'auth') {
-    return <AuthPage onLogin={handleLoginSuccess} onBack={() => setPage('landing')} />;
+    return <AuthPage onBack={() => setPage('landing')} />;
   }
   if (page === 'contact') {
     return <ContactPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeProvider';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SettingsSidebarProps {
   userApiKey: string | null;
@@ -10,6 +11,7 @@ interface SettingsSidebarProps {
 const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserApiKey }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { currentUser, signOut } = useAuth();
   
   // State for managing the API key form
   const [isEditing, setIsEditing] = useState(!userApiKey);
@@ -88,7 +90,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
               exit="closed"
               className="fixed top-0 left-0 bottom-0 w-80 bg-[var(--color-panel-bg)] border-r border-[var(--color-border)] shadow-xl z-50 p-6 flex flex-col"
             >
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Settings</h2>
                 <button
                   onClick={() => setIsOpen(false)}
@@ -101,7 +103,18 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                 </button>
               </div>
 
-              <div className="space-y-8">
+              {currentUser && (
+                <div className="mb-6 p-3 bg-[var(--color-bg-input)] rounded-xl flex items-center gap-3 border border-[var(--color-border)]">
+                    <img src={currentUser.photoURL || undefined} alt="User" className="w-10 h-10 rounded-full" />
+                    <div>
+                        <p className="font-semibold text-sm">{currentUser.displayName}</p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">{currentUser.email}</p>
+                    </div>
+                </div>
+              )}
+
+
+              <div className="flex-1 flex flex-col space-y-8">
                  <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Theme</h3>
                     <div className="flex items-center space-x-2 bg-[var(--color-bg-input)] p-1 rounded-xl border border-[var(--color-border)]">
@@ -182,7 +195,12 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                     </div>
                  </div>
               </div>
-
+              <div className="mt-auto">
+                <button onClick={signOut} className="w-full flex items-center justify-center gap-2 bg-[var(--color-button-bg)] text-sm font-semibold text-[var(--color-text-secondary)] py-2.5 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>
+                    Sign Out
+                </button>
+              </div>
             </motion.div>
           </>
         )}
