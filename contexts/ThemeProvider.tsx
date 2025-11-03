@@ -120,6 +120,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
+      // FIX: In the catch block, explicitly cast the 'error' object to a string before logging it to resolve the TypeScript error about using an 'unknown' type in a template literal.
       console.error(`An unknown error occurred while saving theme to localStorage: ${String(error)}`);
     }
   }, [theme]);

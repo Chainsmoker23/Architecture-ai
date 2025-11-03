@@ -19,14 +19,33 @@ const ContactPage: React.FC<ContactPageProps> = ({ onBack, onNavigate }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => { 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => { 
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
+    
+    const formElement = e.currentTarget;
+    const data = new FormData(formElement);
+
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        body: data,
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setIsSubmitted(true);
+        setFormData({ name: '', email: '', subject: '', message: '' });
+      } else {
+        console.error('Form submission error:', result);
+        alert('There was an error submitting your form. Please try again.');
+      }
+    } catch (error) {
+      console.error('Form submission error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
       setIsSubmitting(false);
-      setIsSubmitted(true);
-    }, 1500);
+    }
   };
 
   return (
@@ -68,6 +87,9 @@ const ContactPage: React.FC<ContactPageProps> = ({ onBack, onNavigate }) => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg space-y-6 border border-[#F9D7E3]">
+                  <input type="hidden" name="access_key" value="1313aee6-47fd-4d0b-9e9a-07fff922b405" />
+                  <input type="hidden" name="subject" value="New Contact Form Submission from CubeGen AI" />
+                  <input type="hidden" name="from_name" value="CubeGen Contact Form" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-[#555555] mb-1">Full Name</label>
