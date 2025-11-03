@@ -25,7 +25,7 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate })
         {
             title: 'Get API Key',
             description: 'Look for a button labeled "Get API key" and click it. You may need to sign in with your Google account.',
-            icon: IconType.SecretsManager,
+            icon: IconType.Sparkles,
         },
         {
             title: 'Create a New Project',
@@ -54,10 +54,10 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate })
                 <div className="container mx-auto px-6 z-10 text-center">
                     <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
                         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
-                            Unlock <span className="animated-gradient-text text-transparent bg-clip-text">Unlimited</span> Potential
+                            Unlock <span className="animated-gradient-text text-transparent bg-clip-text">Pro</span> Capabilities
                         </h1>
                         <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-[#555555]">
-                            Bring your own Google Gemini API key to bypass shared usage limits and experience CubeGen AI without interruption.
+                            The "Bring Your Own Key" feature is available on our <b>Pro ($10/mo)</b> and <b>Business ($50/mo)</b> plans, allowing you to bypass shared usage limits and experience CubeGen AI without interruption.
                         </p>
                     </motion.div>
                 </div>
@@ -76,9 +76,9 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate })
                         >
                             <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">Your Vision, Your Throughput.</h2>
                             <ul className="space-y-4 text-lg text-[#555555]">
-                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> No more rate limits. Generate as many diagrams as you need, whenever you need them.</li>
-                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> Get priority access to the latest models and features from Google.</li>
-                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> Perfect for power users, teams, and integrating into automated workflows via our SDK.</li>
+                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> <b>No more rate limits.</b> Generate as many diagrams as you need, whenever you need them.</li>
+                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> <b>Priority access.</b> Get access to the latest models and features from Google.</li>
+                                <li className="flex items-start"><b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b> <b>Built for power users.</b> Perfect for teams and integrating into automated workflows via our SDK.</li>
                             </ul>
                         </motion.div>
                         <motion.div
@@ -133,12 +133,18 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate })
             <section className="py-24 bg-white">
                 <div className="container mx-auto px-6 text-center">
                     <motion.div initial={{ y: 20, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
-                    <h2 className="text-4xl md:text-5xl font-extrabold">Ready to Start Designing?</h2>
-                    <p className="mt-4 text-lg text-[#555555]">With your own key, your creativity is the only limit.</p>
-                    <button onClick={onLaunch}
-                        className="mt-8 shimmer-button text-[#A61E4D] font-bold py-4 px-10 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-lg">
-                        Launch the App
-                    </button>
+                    <h2 className="text-4xl md:text-5xl font-extrabold">Upgrade to Unlock Your Potential</h2>
+                    <p className="mt-4 text-lg text-[#555555]">Choose a Pro or Business plan to use your own API key and access unlimited generations.</p>
+                    <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+                        <button onClick={() => onNavigate('sdk')}
+                            className="bg-[#F9D7E3] text-[#A61E4D] font-bold py-4 px-10 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-lg">
+                            View Pro Plans
+                        </button>
+                         <button onClick={onLaunch}
+                            className="shimmer-button text-[#A61E4D] font-bold py-4 px-10 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-lg">
+                            Launch App & Add Key
+                        </button>
+                    </div>
                     </motion.div>
                 </div>
             </section>
