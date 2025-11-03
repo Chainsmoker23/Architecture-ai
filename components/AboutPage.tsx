@@ -4,7 +4,7 @@ import SharedFooter from './SharedFooter';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 
-type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey';
+type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
 
 interface AboutPageProps {
   onBack: () => void;

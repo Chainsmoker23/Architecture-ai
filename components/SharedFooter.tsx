@@ -2,7 +2,7 @@ import React from 'react';
 import { FOOTER_LINKS } from './constants';
 import Logo from './Logo';
 
-type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs';
+type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'careers' | 'research';
 
 interface SharedFooterProps {
   onNavigate: (page: Page | 'apiKey') => void;
@@ -10,7 +10,7 @@ interface SharedFooterProps {
 }
 
 const SharedFooter: React.FC<SharedFooterProps> = ({ onNavigate, activePage }) => {
-    const validPages: (Page)[] = ['contact', 'about', 'sdk', 'privacy', 'terms', 'docs'];
+    const validPages: (Page)[] = ['about', 'sdk', 'research', 'docs', 'careers', 'contact', 'privacy', 'terms'];
 
     return (
       <footer className="bg-gradient-to-t from-white to-[#FFF0F5]">

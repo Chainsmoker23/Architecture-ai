@@ -11,7 +11,7 @@ import Logo from './Logo';
 
 interface LandingPageProps {
   onLaunch: () => void;
-  onNavigate: (page: 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs') => void;
+  onNavigate: (page: 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'careers' | 'research') => void;
 }
 
 const containerVariants: Variants = {
@@ -41,7 +41,9 @@ const Header: React.FC<LandingPageProps & { isScrolled: boolean }> = ({ onLaunch
         <nav className="hidden md:flex items-center space-x-8">
           <button onClick={() => onNavigate('about')} className={navItemClass}>About</button>
           <button onClick={() => onNavigate('sdk')} className={navItemClass}>SDK</button>
+          <button onClick={() => onNavigate('research')} className={navItemClass}>Research</button>
           <button onClick={() => onNavigate('docs')} className={navItemClass}>Docs</button>
+          <button onClick={() => onNavigate('careers')} className={navItemClass}>Careers</button>
           <button onClick={() => onNavigate('contact')} className={navItemClass}>Contact</button>
         </nav>
         <button 
@@ -287,7 +289,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
               </button>
             </motion.div>
           </div>
-        </motion.section>
+        </section>
       </main>
 
       <SharedFooter onNavigate={onNavigate} />

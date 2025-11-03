@@ -24,6 +24,8 @@ import TermsPage from './components/TermsPage';
 import DocsPage from './components/DocsPage';
 import Logo from './components/Logo';
 import NeuralNetworkPage from './components/NeuralNetworkPage';
+import CareersPage from './components/CareersPage';
+import ResearchPage from './components/ResearchPage';
 
 // Helper function to recursively copy computed styles from a source element to a destination element.
 // This is the key to making exports look exactly like the on-screen version.
@@ -49,7 +51,7 @@ const copyStylesInline = (destinationNode: SVGElement, sourceNode: SVGElement) =
 };
 
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
 const pageContainerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -399,6 +401,12 @@ const App: React.FC = () => {
   }
   if (page === 'neuralNetwork') {
     return <NeuralNetworkPage onBack={() => setPage('app')} />;
+  }
+  if (page === 'careers') {
+    return <CareersPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
+  }
+  if (page === 'research') {
+    return <ResearchPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
   }
   
   if (page === 'app') {
