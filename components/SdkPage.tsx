@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
+import { useAuth } from '../contexts/AuthContext';
 
 type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth';
 
@@ -147,6 +148,19 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         { icon: IconType.Sparkles, title: "Endless Possibilities", description: "Build internal developer portals, automate presentations, or create custom tools tailored to your workflow." }
     ];
 
+    const { currentUser } = useAuth();
+    const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+
+    useEffect(() => {
+        // This is a placeholder for a real subscription check.
+        // For demonstration, we'll set a plan if the user is logged in.
+        if (currentUser) {
+            setCurrentPlan('Pro');
+        } else {
+            setCurrentPlan(null);
+        }
+    }, [currentUser]);
+
     const pricingPlans = [
         { 
             name: 'Free', 
@@ -181,6 +195,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
             description: 'For professionals who design and iterate frequently.', 
             features: [
                 'Unlimited Generations', 
+                'Bring Your Own API Key',
                 'Priority Email Support', 
                 'Access to all diagram types'
             ], 
@@ -194,7 +209,8 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
             description: 'For teams that need automation and unlimited scale.', 
             features: [
                 'Unlimited Generations', 
-                'Full API Access', 
+                'Full API Access (Key Provided)',
+                'Option to Bring Your Own Key',
                 'Priority Support',
                 'Team Collaboration (soon)'
             ], 
@@ -296,6 +312,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
 
                 <div className="flex flex-wrap items-stretch justify-center gap-8">
                     {pricingPlans.map((plan, index) => {
+                         const isCurrent = plan.name === currentPlan;
                          const handleCtaClick = () => {
                             if (plan.name === 'Free') {
                                 onNavigate('auth');
@@ -306,15 +323,28 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
                                 alert(`"${plan.name}" plan selected. Payment integration is coming soon!`);
                             }
                         };
+                        const cardClasses = `relative bg-white p-8 rounded-2xl shadow-lg border flex flex-col w-full max-w-sm transition-transform duration-300 ${
+                            isCurrent 
+                            ? 'border-blue-500 border-2 ring-4 ring-blue-500/20 md:scale-105' 
+                            : plan.isPopular 
+                            ? 'border-[#E91E63] border-2 md:scale-105' 
+                            : 'border-[#F9D7E3]'
+                        }`;
+
                         return (
                          <motion.div 
                             key={plan.name}
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: index * 0.1, duration: 0.5 }}
-                            className={`relative bg-white p-8 rounded-2xl shadow-lg border ${plan.isPopular ? 'border-[#E91E63] border-2 md:scale-105' : 'border-[#F9D7E3]'} flex flex-col w-full max-w-sm`}
+                            className={cardClasses}
                         >
-                            {plan.isPopular && (
+                            {isCurrent && (
+                                <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">
+                                    Current Plan
+                                </div>
+                            )}
+                            {!isCurrent && plan.isPopular && (
                                 <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-4 py-1 rounded-full">
                                     MOST POPULAR
                                 </div>
@@ -333,9 +363,16 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
 
                             <button 
                                 onClick={handleCtaClick}
-                                className={`w-full font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 mt-auto ${plan.isPopular ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F8F1F3] text-[#A61E4D]'}`}
+                                disabled={isCurrent}
+                                className={`w-full font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 mt-auto ${
+                                    isCurrent
+                                    ? 'bg-gray-200 text-gray-500 cursor-default'
+                                    : plan.isPopular
+                                    ? 'shimmer-button text-[#A61E4D] hover:shadow-xl hover:scale-105'
+                                    : 'bg-[#F8F1F3] text-[#A61E4D] hover:shadow-xl hover:scale-105'
+                                }`}
                             >
-                                {plan.ctaText}
+                                {isCurrent ? 'Your Current Plan' : plan.ctaText}
                             </button>
                         </motion.div>
                     )})}
