@@ -74,20 +74,22 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     // --- 1. Create a clone and embed all styles ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
 
+    const stylePromises = Array.from(document.styleSheets)
+        .filter(sheet => sheet.href)
+        .map(sheet => 
+            fetch(sheet.href!)
+                .then(response => response.text())
+                .catch(err => {
+                    console.warn(`Could not fetch stylesheet: ${sheet.href}`, err);
+                    return '';
+                })
+        );
+    
+    const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
+    const allCss = (await Promise.all(stylePromises)).join('\n');
+    
     const styleEl = document.createElement('style');
-    let cssText = '';
-    for (const sheet of Array.from(document.styleSheets)) {
-        try {
-            if (sheet.cssRules) {
-                for (const rule of Array.from(sheet.cssRules)) {
-                    cssText += rule.cssText;
-                }
-            }
-        } catch (e) {
-            console.warn("Could not read stylesheet for SVG export:", e);
-        }
-    }
-    styleEl.textContent = cssText;
+    styleEl.textContent = allCss + '\n' + inlineStyles;
 
     let defs = svgClone.querySelector('defs');
     if (!defs) {
@@ -113,36 +115,33 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     svgClone.setAttribute('height', `${exportHeight}`);
     svgClone.setAttribute('viewBox', viewBox);
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svgClone.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
 
     const serializer = new XMLSerializer();
-    let sourceForRaster = serializer.serializeToString(svgClone);
+    let source = serializer.serializeToString(svgClone);
+    
+    if (format === 'jpg') {
+        const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+        const bgRect = `<rect width="100%" height="100%" fill="${themeBg}" x="${bbox.x - padding}" y="${bbox.y - padding}"></rect>`;
+        source = source.replace(/<svg[^>]*>/, `$&${bgRect}`);
+    }
     
     if (format === 'svg') {
-        const svgBlob = new Blob([sourceForRaster], { type: 'image/svg+xml;charset=utf-8' });
+        const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
         downloadBlob(svgBlob, `${filename}.svg`);
         return;
     }
     
-    if (format === 'jpg') {
-        const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        bgRect.setAttribute('width', `${exportWidth}`);
-        bgRect.setAttribute('height', `${exportHeight}`);
-        bgRect.setAttribute('x', `${bbox.x - padding}`);
-        bgRect.setAttribute('y', `${bbox.y - padding}`);
-        bgRect.setAttribute('fill', themeBg);
-        svgClone.insertBefore(bgRect, svgClone.firstChild);
-        sourceForRaster = serializer.serializeToString(svgClone);
-    }
-    
-    // 4. Convert via Data URI
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) return;
         
         const img = new Image();
-        const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sourceForRaster);
+        img.width = exportWidth;
+        img.height = exportHeight;
+        
+        const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
         
         img.onload = () => {
             const pixelRatio = window.devicePixelRatio || 1;

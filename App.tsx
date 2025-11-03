@@ -141,47 +141,37 @@ const App: React.FC = () => {
     // --- 1. Create a clone and embed all styles ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
     
-    // Create a style element and aggregate all CSS rules.
+    // Fetch and embed all stylesheets
+    const stylePromises = Array.from(document.styleSheets)
+        .filter(sheet => sheet.href)
+        .map(sheet => 
+            fetch(sheet.href!)
+                .then(response => response.text())
+                .catch(err => {
+                    console.warn(`Could not fetch stylesheet: ${sheet.href}`, err);
+                    return '';
+                })
+        );
+    
+    const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
+    const allCss = (await Promise.all(stylePromises)).join('\n');
+    
     const styleEl = document.createElement('style');
-    let cssText = '';
-    // Use Array.from to be safe with StyleSheetList
-    for (const sheet of Array.from(document.styleSheets)) {
-        try {
-            // Some stylesheets might be cross-origin and inaccessible.
-            if (sheet.cssRules) {
-                for (const rule of Array.from(sheet.cssRules)) {
-                    cssText += rule.cssText;
-                }
-            }
-        } catch (e) {
-            // Log errors but continue, as most styles should be accessible.
-            console.warn("Could not read stylesheet for SVG export:", e);
-        }
-    }
-    styleEl.textContent = cssText;
+    styleEl.textContent = allCss + '\n' + inlineStyles;
 
-    // Append the styles to the SVG's defs.
     let defs = svgClone.querySelector('defs');
     if (!defs) {
         defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        // Prepending ensures styles are available before elements are rendered.
         svgClone.insertBefore(defs, svgClone.firstChild);
     }
     defs.appendChild(styleEl);
     
-    // --- 2. Calculate bounding box to crop the image correctly ---
+    // --- 2. Calculate bounding box ---
     const contentGroup = svgClone.querySelector('#diagram-content');
     if (!contentGroup) return;
 
-    // Temporarily remove transform to calculate the true bounding box of the content
-    const originalTransform = contentGroup.getAttribute('transform');
-    contentGroup.removeAttribute('transform');
     const bbox = (contentGroup as SVGGraphicsElement).getBBox();
-    if (originalTransform) {
-        contentGroup.setAttribute('transform', originalTransform);
-    }
-    
-    if (bbox.width === 0 || bbox.height === 0) return; // Don't export empty diagrams
+    if (bbox.width === 0 || bbox.height === 0) return;
 
     // --- 3. Configure the clone for export ---
     const padding = 50;
@@ -193,42 +183,39 @@ const App: React.FC = () => {
     svgClone.setAttribute('height', `${exportHeight}`);
     svgClone.setAttribute('viewBox', viewBox);
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svgClone.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
     
-    // Remove the grid background for a clean export
-    const gridRect = svgClone.querySelector('rect[fill="url(#grid)"]');
+    const gridRect = svgClone.querySelector('rect[fill*="url(#grid)"]');
     if (gridRect) gridRect.remove();
 
     const serializer = new XMLSerializer();
-    let sourceForRaster = serializer.serializeToString(svgClone); // Base for PNG/JPG
-    
-    // --- Handle SVG export ---
-    if (format === 'svg') {
-        const svgBlob = new Blob([sourceForRaster], { type: 'image/svg+xml;charset=utf-8' });
-        downloadBlob(svgBlob, `${filename}.svg`);
-        return;
-    }
+    let source = serializer.serializeToString(svgClone);
     
     // --- Handle JPG background injection ---
     if (format === 'jpg') {
         const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        bgRect.setAttribute('width', '100%');
-        bgRect.setAttribute('height', '100%');
-        bgRect.setAttribute('fill', themeBg);
-        bgRect.setAttribute('x', `${bbox.x - padding}`);
-        bgRect.setAttribute('y', `${bbox.y - padding}`);
-        svgClone.insertBefore(bgRect, svgClone.firstChild);
-        sourceForRaster = serializer.serializeToString(svgClone);
+        const bgRect = `<rect width="100%" height="100%" fill="${themeBg}" x="${bbox.x - padding}" y="${bbox.y - padding}"></rect>`;
+        source = source.replace(/<svg[^>]*>/, `$&${bgRect}`);
     }
     
-    // --- 4. Convert SVG to PNG or JPG via Data URI ---
+    // --- 4. Export SVG ---
+    if (format === 'svg') {
+        const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+        downloadBlob(svgBlob, `${filename}.svg`);
+        return;
+    }
+    
+    // --- 5. Convert SVG to PNG or JPG ---
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) return;
         
         const img = new Image();
-        const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sourceForRaster);
+        img.width = exportWidth;
+        img.height = exportHeight;
+        
+        const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
         
         img.onload = () => {
             const pixelRatio = window.devicePixelRatio || 1;
