@@ -123,6 +123,36 @@ const App: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  
+  const cssPropertiesToCopy = [
+    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-opacity', 'fill-opacity', 'opacity',
+    'font-family', 'font-size', 'font-weight', 'color', 'line-height', 'text-align', 'text-anchor',
+    'word-break', 'white-space', 'dominant-baseline',
+    'display', 'flex-direction', 'align-items', 'justify-content', 'gap',
+    'background-color', 'border', 'border-radius', 'padding',
+    'width', 'height', 'transform'
+  ];
+
+  function copyComputedStyles(source: Element, target: Element) {
+      const computedStyle = window.getComputedStyle(source);
+      let styleStr = "";
+      for (const prop of cssPropertiesToCopy) {
+          styleStr += `${prop}: ${computedStyle.getPropertyValue(prop)}; `;
+      }
+      target.setAttribute('style', styleStr);
+
+      // Add xmlns for foreignObject content
+      if (target.tagName === 'foreignObject') {
+        const innerDiv = target.querySelector('div');
+        if (innerDiv && !innerDiv.hasAttribute('xmlns')) {
+          innerDiv.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+        }
+      }
+
+      for (let i = 0; i < source.children.length; i++) {
+          copyComputedStyles(source.children[i], target.children[i]);
+      }
+  }
 
   const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
     if (!diagramData) return;
@@ -138,55 +168,14 @@ const App: React.FC = () => {
     const svgElement = svgRef.current;
     if (!svgElement) return;
 
-    // --- 1. Create a clone ---
+    // --- 1. Deep clone the SVG ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
-    
-    // --- 2. Embed all stylesheets ---
-    const stylePromises = Array.from(document.styleSheets)
-        .filter(sheet => {
-            try { return sheet.href; } catch { return false; }
-        })
-        .map(sheet => 
-            fetch(sheet.href!)
-                .then(response => response.text())
-                .catch(err => {
-                    console.warn(`Could not fetch stylesheet: ${sheet.href}`, err);
-                    return '';
-                })
-        );
-    
-    const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
-    const allCss = (await Promise.all(stylePromises)).join('\n') + '\n' + inlineStyles;
-    
-    // --- 3. Inject CSS Variables ---
-    const rootStyles = getComputedStyle(document.documentElement);
-    let cssVariables = ':root { ';
-    for (let i = 0; i < rootStyles.length; i++) {
-        const prop = rootStyles[i];
-        if (prop.startsWith('--')) {
-            cssVariables += `${prop}: ${rootStyles.getPropertyValue(prop)}; `;
-        }
-    }
-    cssVariables += '}';
 
-    const styleEl = document.createElement('style');
-    styleEl.textContent = allCss + '\n' + cssVariables;
-
-    let defs = svgClone.querySelector('defs');
-    if (!defs) {
-        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        svgClone.insertBefore(defs, svgClone.firstChild);
-    }
-    defs.appendChild(styleEl);
-
-    // --- 4. CRITICAL FIX: Add xmlns to foreignObject content ---
-    svgClone.querySelectorAll('foreignObject > div').forEach(div => {
-        if (!div.hasAttribute('xmlns')) {
-            div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-        }
-    });
+    // --- 2. Recursively apply computed styles inline ---
+    copyComputedStyles(svgElement, svgClone);
     
-    // --- 5. Calculate bounding box ---
+    // --- 3. Calculate bounding box of the actual diagram content ---
+    // Temporarily append to DOM to calculate bbox
     document.body.appendChild(svgClone);
     svgClone.style.position = 'absolute';
     svgClone.style.top = '-9999px';
@@ -200,7 +189,7 @@ const App: React.FC = () => {
         return;
     };
 
-    // --- 6. Configure the clone for export ---
+    // --- 4. Configure the clone for export ---
     const padding = 50;
     const exportWidth = bbox.width + padding * 2;
     const exportHeight = bbox.height + padding * 2;
@@ -214,25 +203,28 @@ const App: React.FC = () => {
     
     const gridRect = svgClone.querySelector('rect[fill*="url(#grid)"]');
     if (gridRect) gridRect.remove();
-
-    const serializer = new XMLSerializer();
-    let source = serializer.serializeToString(svgClone);
     
-    // --- 7. Handle JPG background injection ---
+    // --- 5. Handle JPG background injection via DOM ---
     if (format === 'jpg') {
-        const themeBg = rootStyles.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-        const bgRect = `<rect width="100%" height="100%" fill="${themeBg}"></rect>`;
-        source = source.replace(/<svg[^>]*>/, `$&${bgRect}`);
+        const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgRect.setAttribute('width', '100%');
+        bgRect.setAttribute('height', '100%');
+        bgRect.setAttribute('fill', themeBg);
+        svgClone.insertBefore(bgRect, svgClone.firstChild);
     }
     
-    // --- 8. Export SVG ---
+    const serializer = new XMLSerializer();
+    const source = serializer.serializeToString(svgClone);
+    
+    // --- 6. Export SVG ---
     if (format === 'svg') {
         const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
         downloadBlob(svgBlob, `${filename}.svg`);
         return;
     }
     
-    // --- 9. Convert SVG to PNG or JPG ---
+    // --- 7. Convert SVG to PNG or JPG ---
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -243,7 +235,7 @@ const App: React.FC = () => {
         const dataUri = 'data:image/svg+xml;base64,' + toBase64(source);
         
         img.onload = () => {
-            const pixelRatio = 2; // Export at 2x resolution for better quality
+            const pixelRatio = 2; // Export at 2x resolution
             canvas.width = exportWidth * pixelRatio;
             canvas.height = exportHeight * pixelRatio;
             
@@ -263,7 +255,7 @@ const App: React.FC = () => {
         };
         img.onerror = (e) => {
           console.error("Error loading SVG data URI for image conversion.", e);
-          setError("Failed to export image. The SVG data could not be loaded.");
+          setError("Failed to export image. The SVG data was invalid.");
         }
         img.src = dataUri;
     }
