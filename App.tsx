@@ -138,13 +138,16 @@ const App: React.FC = () => {
     const svgElement = svgRef.current;
     if (!svgElement) return;
 
-    // --- 1. Create a clone and embed all styles ---
+    // --- 1. Create a clone ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
     
+    // --- 2. Embed all stylesheets ---
     const stylePromises = Array.from(document.styleSheets)
-        .filter(sheet => sheet.href)
+        .filter(sheet => {
+            try { return sheet.href; } catch { return false; }
+        })
         .map(sheet => 
-            fetch(sheet.href)
+            fetch(sheet.href!)
                 .then(response => response.text())
                 .catch(err => {
                     console.warn(`Could not fetch stylesheet: ${sheet.href}`, err);
@@ -153,11 +156,21 @@ const App: React.FC = () => {
         );
     
     const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
-    
     const allCss = (await Promise.all(stylePromises)).join('\n') + '\n' + inlineStyles;
     
+    // --- 3. Inject CSS Variables ---
+    const rootStyles = getComputedStyle(document.documentElement);
+    let cssVariables = ':root { ';
+    for (let i = 0; i < rootStyles.length; i++) {
+        const prop = rootStyles[i];
+        if (prop.startsWith('--')) {
+            cssVariables += `${prop}: ${rootStyles.getPropertyValue(prop)}; `;
+        }
+    }
+    cssVariables += '}';
+
     const styleEl = document.createElement('style');
-    styleEl.textContent = allCss;
+    styleEl.textContent = allCss + '\n' + cssVariables;
 
     let defs = svgClone.querySelector('defs');
     if (!defs) {
@@ -166,15 +179,14 @@ const App: React.FC = () => {
     }
     defs.appendChild(styleEl);
 
-    // CRITICAL FIX: Add xmlns to foreignObject content for proper rendering
+    // --- 4. CRITICAL FIX: Add xmlns to foreignObject content ---
     svgClone.querySelectorAll('foreignObject > div').forEach(div => {
         if (!div.hasAttribute('xmlns')) {
             div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
         }
     });
     
-    // --- 2. Calculate bounding box ---
-    // Temporarily add to DOM to get accurate BBox
+    // --- 5. Calculate bounding box ---
     document.body.appendChild(svgClone);
     svgClone.style.position = 'absolute';
     svgClone.style.top = '-9999px';
@@ -188,7 +200,7 @@ const App: React.FC = () => {
         return;
     };
 
-    // --- 3. Configure the clone for export ---
+    // --- 6. Configure the clone for export ---
     const padding = 50;
     const exportWidth = bbox.width + padding * 2;
     const exportHeight = bbox.height + padding * 2;
@@ -206,44 +218,45 @@ const App: React.FC = () => {
     const serializer = new XMLSerializer();
     let source = serializer.serializeToString(svgClone);
     
-    // --- Handle JPG background injection ---
+    // --- 7. Handle JPG background injection ---
     if (format === 'jpg') {
-        const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-        const bgRect = `<rect width="100%" height="100%" fill="${themeBg}" x="${bbox.x - padding}" y="${bbox.y - padding}"></rect>`;
+        const themeBg = rootStyles.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+        const bgRect = `<rect width="100%" height="100%" fill="${themeBg}"></rect>`;
         source = source.replace(/<svg[^>]*>/, `$&${bgRect}`);
     }
     
-    // --- 4. Export SVG ---
+    // --- 8. Export SVG ---
     if (format === 'svg') {
         const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
         downloadBlob(svgBlob, `${filename}.svg`);
         return;
     }
     
-    // --- 5. Convert SVG to PNG or JPG ---
+    // --- 9. Convert SVG to PNG or JPG ---
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) return;
         
         const img = new Image();
-        
         const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
         
         img.onload = () => {
-            const pixelRatio = window.devicePixelRatio || 1;
+            const pixelRatio = 2; // Export at 2x resolution for better quality
             canvas.width = exportWidth * pixelRatio;
             canvas.height = exportHeight * pixelRatio;
+            
             context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
             context.drawImage(img, 0, 0, exportWidth, exportHeight);
 
             const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
-            const quality = format === 'jpg' ? 0.9 : undefined;
+            const quality = format === 'jpg' ? 0.95 : undefined;
             
             canvas.toBlob((imageBlob) => {
                 if (imageBlob) {
                     downloadBlob(imageBlob, `${filename}.${format}`);
+                } else {
+                     setError("Export failed: Could not create image blob.");
                 }
             }, mimeType, quality);
         };

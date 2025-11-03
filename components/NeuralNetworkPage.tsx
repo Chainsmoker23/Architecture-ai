@@ -71,11 +71,14 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const svgElement = svgRef.current;
     if (!svgElement) return;
 
-    // --- 1. Create a clone and embed all styles ---
+    // --- 1. Create a clone ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
 
+    // --- 2. Embed all stylesheets ---
     const stylePromises = Array.from(document.styleSheets)
-        .filter(sheet => sheet.href)
+        .filter(sheet => {
+            try { return sheet.href; } catch { return false; }
+        })
         .map(sheet => 
             fetch(sheet.href!)
                 .then(response => response.text())
@@ -88,8 +91,19 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
     const allCss = (await Promise.all(stylePromises)).join('\n') + '\n' + inlineStyles;
     
+    // --- 3. Inject CSS Variables ---
+    const rootStyles = getComputedStyle(document.documentElement);
+    let cssVariables = ':root { ';
+    for (let i = 0; i < rootStyles.length; i++) {
+        const prop = rootStyles[i];
+        if (prop.startsWith('--')) {
+            cssVariables += `${prop}: ${rootStyles.getPropertyValue(prop)}; `;
+        }
+    }
+    cssVariables += '}';
+
     const styleEl = document.createElement('style');
-    styleEl.textContent = allCss;
+    styleEl.textContent = allCss + '\n' + cssVariables;
 
     let defs = svgClone.querySelector('defs');
     if (!defs) {
@@ -97,19 +111,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         svgClone.insertBefore(defs, svgClone.firstChild);
     }
     defs.appendChild(styleEl);
-
-    // CRITICAL FIX: Inline CSS variables onto the SVG root
-    const rootStyles = getComputedStyle(document.documentElement);
-    let cssVariables = '';
-    for (let i = 0; i < rootStyles.length; i++) {
-        const prop = rootStyles[i];
-        if (prop.startsWith('--')) {
-            cssVariables += `${prop}: ${rootStyles.getPropertyValue(prop)}; `;
-        }
-    }
-    svgClone.style.cssText += cssVariables;
     
-    // 2. Temporarily add to DOM to get BBox
+    // 4. Temporarily add to DOM to get BBox
     document.body.appendChild(svgClone);
     svgClone.style.position = 'absolute';
     svgClone.style.top = '-9999px';
@@ -123,7 +126,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         return;
     };
     
-    // 3. Configure clone
+    // 5. Configure clone
     const padding = 50;
     const exportWidth = bbox.width + padding * 2;
     const exportHeight = bbox.height + padding * 2;
@@ -137,9 +140,10 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const serializer = new XMLSerializer();
     let source = serializer.serializeToString(svgClone);
     
+    // 6. Handle JPG background
     if (format === 'jpg') {
-        const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-        const bgRect = `<rect width="100%" height="100%" fill="${themeBg}" x="${bbox.x - padding}" y="${bbox.y - padding}"></rect>`;
+        const themeBg = rootStyles.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+        const bgRect = `<rect width="100%" height="100%" fill="${themeBg}"></rect>`;
         source = source.replace(/<svg[^>]*>/, `$&${bgRect}`);
     }
     
@@ -149,6 +153,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         return;
     }
     
+    // 7. Convert to raster image
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -158,7 +163,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
         
         img.onload = () => {
-            const pixelRatio = window.devicePixelRatio || 1;
+            const pixelRatio = 2; // 2x resolution
             canvas.width = exportWidth * pixelRatio;
             canvas.height = exportHeight * pixelRatio;
             context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
@@ -166,11 +171,13 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
             context.drawImage(img, 0, 0, exportWidth, exportHeight);
 
             const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
-            const quality = format === 'jpg' ? 0.9 : undefined;
+            const quality = format === 'jpg' ? 0.95 : undefined;
             
             canvas.toBlob((imageBlob) => {
                 if (imageBlob) {
                     downloadBlob(imageBlob, `${filename}.${format}`);
+                } else {
+                    setError("Export failed: Could not create image blob.");
                 }
             }, mimeType, quality);
         };
