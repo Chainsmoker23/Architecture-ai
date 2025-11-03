@@ -239,7 +239,8 @@ const App: React.FC = () => {
         if (!context) return;
         
         const img = new Image();
-        const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+        const toBase64 = (str: string) => window.btoa(unescape(encodeURIComponent(str)));
+        const dataUri = 'data:image/svg+xml;base64,' + toBase64(source);
         
         img.onload = () => {
             const pixelRatio = 2; // Export at 2x resolution for better quality

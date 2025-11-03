@@ -56,7 +56,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     URL.revokeObjectURL(url);
   };
   
-  const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
+ const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
     setIsExportMenuOpen(false);
     if (!diagramData) return;
     const filename = diagramData.title.replace(/[\s/]/g, '_').toLowerCase();
@@ -73,7 +73,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
     // --- 1. Create a clone ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
-
+    
     // --- 2. Embed all stylesheets ---
     const stylePromises = Array.from(document.styleSheets)
         .filter(sheet => {
@@ -111,8 +111,15 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         svgClone.insertBefore(defs, svgClone.firstChild);
     }
     defs.appendChild(styleEl);
+
+    // --- 4. CRITICAL FIX: Add xmlns to foreignObject content ---
+    svgClone.querySelectorAll('foreignObject > div').forEach(div => {
+        if (!div.hasAttribute('xmlns')) {
+            div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+        }
+    });
     
-    // 4. Temporarily add to DOM to get BBox
+    // --- 5. Calculate bounding box ---
     document.body.appendChild(svgClone);
     svgClone.style.position = 'absolute';
     svgClone.style.top = '-9999px';
@@ -122,11 +129,11 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     document.body.removeChild(svgClone); // Cleanup
 
     if (bbox.width === 0 || bbox.height === 0) {
-        setError("Export failed: Diagram has no content or dimensions.");
+        setError("Export failed: Could not determine diagram dimensions.");
         return;
     };
-    
-    // 5. Configure clone
+
+    // --- 6. Configure the clone for export ---
     const padding = 50;
     const exportWidth = bbox.width + padding * 2;
     const exportHeight = bbox.height + padding * 2;
@@ -136,38 +143,44 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     svgClone.setAttribute('height', `${exportHeight}`);
     svgClone.setAttribute('viewBox', viewBox);
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svgClone.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
+    
+    const gridRect = svgClone.querySelector('rect[fill*="url(#grid)"]');
+    if (gridRect) gridRect.remove();
 
     const serializer = new XMLSerializer();
     let source = serializer.serializeToString(svgClone);
     
-    // 6. Handle JPG background
+    // --- 7. Handle JPG background injection ---
     if (format === 'jpg') {
         const themeBg = rootStyles.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
         const bgRect = `<rect width="100%" height="100%" fill="${themeBg}"></rect>`;
         source = source.replace(/<svg[^>]*>/, `$&${bgRect}`);
     }
     
+    // --- 8. Export SVG ---
     if (format === 'svg') {
         const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
         downloadBlob(svgBlob, `${filename}.svg`);
         return;
     }
     
-    // 7. Convert to raster image
+    // --- 9. Convert SVG to PNG or JPG ---
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) return;
         
         const img = new Image();
-        const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+        const toBase64 = (str: string) => window.btoa(unescape(encodeURIComponent(str)));
+        const dataUri = 'data:image/svg+xml;base64,' + toBase64(source);
         
         img.onload = () => {
-            const pixelRatio = 2; // 2x resolution
+            const pixelRatio = 2; // Export at 2x resolution for better quality
             canvas.width = exportWidth * pixelRatio;
             canvas.height = exportHeight * pixelRatio;
+            
             context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
             context.drawImage(img, 0, 0, exportWidth, exportHeight);
 
             const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
@@ -177,14 +190,14 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
                 if (imageBlob) {
                     downloadBlob(imageBlob, `${filename}.${format}`);
                 } else {
-                    setError("Export failed: Could not create image blob.");
+                     setError("Export failed: Could not create image blob.");
                 }
             }, mimeType, quality);
         };
         img.onerror = (e) => {
           console.error("Error loading SVG data URI for image conversion.", e);
-          setError("Failed to export image.");
-        };
+          setError("Failed to export image. The SVG data could not be loaded.");
+        }
         img.src = dataUri;
     }
   };
