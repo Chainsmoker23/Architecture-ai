@@ -5,9 +5,11 @@ import {
     User, 
     GoogleAuthProvider, 
     GithubAuthProvider,
-    OAuthProvider,
     signInWithPopup, 
-    signOut as firebaseSignOut 
+    signOut as firebaseSignOut,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    updateProfile
 } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 
@@ -16,7 +18,8 @@ interface AuthContextType {
     loading: boolean;
     signInWithGoogle: () => Promise<void>;
     signInWithGitHub: () => Promise<void>;
-    signInWithApple: () => Promise<void>;
+    signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
+    signInWithEmail: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
 }
 
@@ -36,37 +39,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const signInWithGoogle = async () => {
         const provider = new GoogleAuthProvider();
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            console.error("Google Sign-In Error:", error);
-        }
+        await signInWithPopup(auth, provider);
     };
 
     const signInWithGitHub = async () => {
         const provider = new GithubAuthProvider();
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            console.error("GitHub Sign-In Error:", error);
-        }
+        await signInWithPopup(auth, provider);
     };
     
-    const signInWithApple = async () => {
-        const provider = new OAuthProvider('apple.com');
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            console.error("Apple Sign-In Error:", error);
+    const signUpWithEmail = async (email: string, password: string, displayName: string) => {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        if (userCredential.user) {
+            await updateProfile(userCredential.user, { displayName });
         }
     };
 
+    const signInWithEmail = async (email: string, password: string) => {
+        await signInWithEmailAndPassword(auth, email, password);
+    };
+
     const signOut = async () => {
-        try {
-            await firebaseSignOut(auth);
-        } catch (error) {
-            console.error("Sign Out Error:", error);
-        }
+        await firebaseSignOut(auth);
     };
 
     const value = {
@@ -74,7 +67,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading,
         signInWithGoogle,
         signInWithGitHub,
-        signInWithApple,
+        signUpWithEmail,
+        signInWithEmail,
         signOut,
     };
 

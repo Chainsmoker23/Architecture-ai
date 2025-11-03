@@ -120,8 +120,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
-      // Fix: The 'error' variable in a catch block is of type 'unknown' by default and cannot be used in a template literal without casting.
-      console.error(`An unknown error occurred while saving theme to localStorage: ${String(error)}`);
+      // FIX: The 'error' variable is of type 'unknown' in a catch block. Pass it as a separate argument to console.error to avoid string casting issues.
+      console.error('An unknown error occurred while saving theme to localStorage:', error);
     }
   }, [theme]);
 
