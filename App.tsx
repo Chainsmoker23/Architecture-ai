@@ -32,12 +32,17 @@ import { useAuth } from './contexts/AuthContext';
 // This is the key to making exports look exactly like the on-screen version.
 const copyStylesInline = (destinationNode: SVGElement, sourceNode: SVGElement) => {
   const computedStyle = window.getComputedStyle(sourceNode);
-  const styleProperties = Array.from(computedStyle);
+  const styleProperties = [
+    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
+    'stroke-linejoin', 'font-family', 'font-size', 'font-weight',
+    'text-anchor', 'dominant-baseline', 'opacity', 'visibility',
+    'filter', 'transform', 'color'
+  ];
   let styleValue = '';
   for (const property of styleProperties) {
-    // Only copy properties that are relevant for SVG rendering
-    if (['fill', 'stroke', 'stroke-width', 'font-size', 'font-family', 'font-weight', 'opacity', 'visibility', 'text-anchor'].includes(property)) {
-      styleValue += `${property}:${computedStyle.getPropertyValue(property)};`;
+    const value = computedStyle.getPropertyValue(property);
+    if (value) {
+      styleValue += `${property}:${value};`;
     }
   }
   destinationNode.setAttribute('style', styleValue);
@@ -193,19 +198,33 @@ const App: React.FC = () => {
     const gridRect = svgClone.querySelector('rect[fill="url(#grid)"]');
     if (gridRect) gridRect.remove();
 
-    // Serialize the styled SVG to a blob
     const serializer = new XMLSerializer();
-    let source = serializer.serializeToString(svgClone);
-     // Add a background rect to the SVG source itself for formats that need it (like JPG)
-    const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-    source = source.replace('>', `><rect width="100%" height="100%" fill="${themeBg}"></rect>`);
 
-    const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+    // --- SVG for direct download (transparent background) ---
+    const sourceForSvg = serializer.serializeToString(svgClone);
+    const svgBlobForSvg = new Blob([sourceForSvg], { type: 'image/svg+xml;charset=utf-8' });
 
     if (format === 'svg') {
-        downloadBlob(svgBlob, `${filename}.svg`);
+        downloadBlob(svgBlobForSvg, `${filename}.svg`);
         return;
     }
+    
+    // --- SVG for rasterization (PNG/JPG) ---
+    const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+    let sourceForRaster: string;
+
+    if (format === 'jpg') {
+        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgRect.setAttribute('width', '100%');
+        bgRect.setAttribute('height', '100%');
+        bgRect.setAttribute('fill', themeBg);
+        svgClone.insertBefore(bgRect, svgClone.firstChild);
+        sourceForRaster = serializer.serializeToString(svgClone);
+        svgClone.removeChild(bgRect); 
+    } else { // For PNG, use the transparent version
+        sourceForRaster = sourceForSvg;
+    }
+    const svgBlobForRaster = new Blob([sourceForRaster], { type: 'image/svg+xml;charset=utf-8' });
     
     // --- Convert SVG blob to PNG or JPG ---
     if (format === 'png' || format === 'jpg') {
@@ -214,7 +233,7 @@ const App: React.FC = () => {
         if (!context) return;
         
         const img = new Image();
-        const url = URL.createObjectURL(svgBlob);
+        const url = URL.createObjectURL(svgBlobForRaster);
         
         img.onload = () => {
             const pixelRatio = window.devicePixelRatio || 1;
@@ -222,6 +241,7 @@ const App: React.FC = () => {
             canvas.height = exportHeight * pixelRatio;
             context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
+            // For JPG, we still fill the canvas as a safety measure, though the SVG now contains a background.
             if (format === 'jpg') {
                 context.fillStyle = themeBg;
                 context.fillRect(0, 0, exportWidth, exportHeight);

@@ -7,16 +7,22 @@ import ArchitectureIcon from './ArchitectureIcon';
 import NeuralNetworkCanvas from './NeuralNetworkCanvas';
 import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
-import Logo from './Logo';
+import Logo from './components/Logo';
 
 // Helper function to recursively copy computed styles from a source element to a destination element.
 const copyStylesInline = (destinationNode: SVGElement, sourceNode: SVGElement) => {
   const computedStyle = window.getComputedStyle(sourceNode);
-  const styleProperties = Array.from(computedStyle);
+  const styleProperties = [
+    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
+    'stroke-linejoin', 'font-family', 'font-size', 'font-weight',
+    'text-anchor', 'dominant-baseline', 'opacity', 'visibility',
+    'filter', 'transform', 'color'
+  ];
   let styleValue = '';
   for (const property of styleProperties) {
-    if (['fill', 'stroke', 'stroke-width', 'font-size', 'font-family', 'font-weight', 'opacity', 'visibility', 'text-anchor'].includes(property)) {
-      styleValue += `${property}:${computedStyle.getPropertyValue(property)};`;
+    const value = computedStyle.getPropertyValue(property);
+    if (value) {
+      styleValue += `${property}:${value};`;
     }
   }
   destinationNode.setAttribute('style', styleValue);
@@ -112,23 +118,40 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
     const serializer = new XMLSerializer();
-    let source = serializer.serializeToString(svgClone);
-    const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-    source = source.replace('>', `><rect width="100%" height="100%" fill="${themeBg}"></rect>`);
-    const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+    
+    // --- SVG for direct download (transparent background) ---
+    const sourceForSvg = serializer.serializeToString(svgClone);
+    const svgBlobForSvg = new Blob([sourceForSvg], { type: 'image/svg+xml;charset=utf-8' });
 
     if (format === 'svg') {
-        downloadBlob(svgBlob, `${filename}.svg`);
+        downloadBlob(svgBlobForSvg, `${filename}.svg`);
         return;
     }
     
+    // --- SVG for rasterization (PNG/JPG) ---
+    const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+    let sourceForRaster: string;
+
+    if (format === 'jpg') {
+        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgRect.setAttribute('width', '100%');
+        bgRect.setAttribute('height', '100%');
+        bgRect.setAttribute('fill', themeBg);
+        svgClone.insertBefore(bgRect, svgClone.firstChild);
+        sourceForRaster = serializer.serializeToString(svgClone);
+        svgClone.removeChild(bgRect); 
+    } else { // For PNG, use the transparent version
+        sourceForRaster = sourceForSvg;
+    }
+    const svgBlobForRaster = new Blob([sourceForRaster], { type: 'image/svg+xml;charset=utf-8' });
+
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) return;
         
         const img = new Image();
-        const url = URL.createObjectURL(svgBlob);
+        const url = URL.createObjectURL(svgBlobForRaster);
         
         img.onload = () => {
             const pixelRatio = window.devicePixelRatio || 1;
