@@ -86,10 +86,10 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         );
     
     const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
-    const allCss = (await Promise.all(stylePromises)).join('\n');
+    const allCss = (await Promise.all(stylePromises)).join('\n') + '\n' + inlineStyles;
     
     const styleEl = document.createElement('style');
-    styleEl.textContent = allCss + '\n' + inlineStyles;
+    styleEl.textContent = allCss;
 
     let defs = svgClone.querySelector('defs');
     if (!defs) {
@@ -97,13 +97,31 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         svgClone.insertBefore(defs, svgClone.firstChild);
     }
     defs.appendChild(styleEl);
-    
-    // 2. Get BBox
-    const contentGroup = svgClone.querySelector('g[transform]');
-    if (!contentGroup) return;
 
+    // CRITICAL FIX: Inline CSS variables onto the SVG root
+    const rootStyles = getComputedStyle(document.documentElement);
+    let cssVariables = '';
+    for (let i = 0; i < rootStyles.length; i++) {
+        const prop = rootStyles[i];
+        if (prop.startsWith('--')) {
+            cssVariables += `${prop}: ${rootStyles.getPropertyValue(prop)}; `;
+        }
+    }
+    svgClone.style.cssText += cssVariables;
+    
+    // 2. Temporarily add to DOM to get BBox
+    document.body.appendChild(svgClone);
+    svgClone.style.position = 'absolute';
+    svgClone.style.top = '-9999px';
+    const contentGroup = svgClone.querySelector('g[transform]');
+    if (!contentGroup) { document.body.removeChild(svgClone); return; }
     const bbox = (contentGroup as SVGGraphicsElement).getBBox();
-    if (bbox.width === 0 || bbox.height === 0) return;
+    document.body.removeChild(svgClone); // Cleanup
+
+    if (bbox.width === 0 || bbox.height === 0) {
+        setError("Export failed: Diagram has no content or dimensions.");
+        return;
+    };
     
     // 3. Configure clone
     const padding = 50;
@@ -115,7 +133,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     svgClone.setAttribute('height', `${exportHeight}`);
     svgClone.setAttribute('viewBox', viewBox);
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    svgClone.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
 
     const serializer = new XMLSerializer();
     let source = serializer.serializeToString(svgClone);
@@ -138,9 +155,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         if (!context) return;
         
         const img = new Image();
-        img.width = exportWidth;
-        img.height = exportHeight;
-        
         const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
         
         img.onload = () => {

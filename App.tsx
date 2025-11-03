@@ -141,11 +141,10 @@ const App: React.FC = () => {
     // --- 1. Create a clone and embed all styles ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
     
-    // Fetch and embed all stylesheets
     const stylePromises = Array.from(document.styleSheets)
         .filter(sheet => sheet.href)
         .map(sheet => 
-            fetch(sheet.href!)
+            fetch(sheet.href)
                 .then(response => response.text())
                 .catch(err => {
                     console.warn(`Could not fetch stylesheet: ${sheet.href}`, err);
@@ -154,10 +153,11 @@ const App: React.FC = () => {
         );
     
     const inlineStyles = Array.from(document.querySelectorAll('style')).map(style => style.innerHTML).join('\n');
-    const allCss = (await Promise.all(stylePromises)).join('\n');
+    
+    const allCss = (await Promise.all(stylePromises)).join('\n') + '\n' + inlineStyles;
     
     const styleEl = document.createElement('style');
-    styleEl.textContent = allCss + '\n' + inlineStyles;
+    styleEl.textContent = allCss;
 
     let defs = svgClone.querySelector('defs');
     if (!defs) {
@@ -165,13 +165,28 @@ const App: React.FC = () => {
         svgClone.insertBefore(defs, svgClone.firstChild);
     }
     defs.appendChild(styleEl);
+
+    // CRITICAL FIX: Add xmlns to foreignObject content for proper rendering
+    svgClone.querySelectorAll('foreignObject > div').forEach(div => {
+        if (!div.hasAttribute('xmlns')) {
+            div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+        }
+    });
     
     // --- 2. Calculate bounding box ---
+    // Temporarily add to DOM to get accurate BBox
+    document.body.appendChild(svgClone);
+    svgClone.style.position = 'absolute';
+    svgClone.style.top = '-9999px';
     const contentGroup = svgClone.querySelector('#diagram-content');
-    if (!contentGroup) return;
-
+    if (!contentGroup) { document.body.removeChild(svgClone); return; }
     const bbox = (contentGroup as SVGGraphicsElement).getBBox();
-    if (bbox.width === 0 || bbox.height === 0) return;
+    document.body.removeChild(svgClone); // Cleanup
+
+    if (bbox.width === 0 || bbox.height === 0) {
+        setError("Export failed: Could not determine diagram dimensions.");
+        return;
+    };
 
     // --- 3. Configure the clone for export ---
     const padding = 50;
@@ -212,8 +227,6 @@ const App: React.FC = () => {
         if (!context) return;
         
         const img = new Image();
-        img.width = exportWidth;
-        img.height = exportHeight;
         
         const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
         
