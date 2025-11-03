@@ -9,8 +9,8 @@ const getGenAIClient = (userApiKey?: string) => {
     return new GoogleGenAI({ apiKey: userApiKey });
   }
 
-  // Otherwise, use the shared environment key.
-  const apiKey = process.env.VITE_API_KEY;
+  // Use Vite's standard import.meta.env to read the environment variable.
+  const apiKey = import.meta.env.VITE_API_KEY;
   if (!apiKey) {
     throw new Error("VITE_API_KEY is not configured. Please set it in your .env file or provide one in the app settings.");
   }
