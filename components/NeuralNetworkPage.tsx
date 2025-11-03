@@ -7,7 +7,7 @@ import ArchitectureIcon from './ArchitectureIcon';
 import NeuralNetworkCanvas from './NeuralNetworkCanvas';
 import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
-import Logo from './components/Logo';
+import Logo from './Logo';
 
 // Helper function to recursively copy computed styles from a source element to a destination element.
 const copyStylesInline = (destinationNode: SVGElement, sourceNode: SVGElement) => {
