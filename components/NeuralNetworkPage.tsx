@@ -9,34 +9,6 @@ import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
 import Logo from './Logo';
 
-// Helper function to recursively copy computed styles from a source element to a destination element.
-const copyStylesInline = (destinationNode: SVGElement, sourceNode: SVGElement) => {
-  const computedStyle = window.getComputedStyle(sourceNode);
-  const styleProperties = [
-    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
-    'stroke-linejoin', 'font-family', 'font-size', 'font-weight',
-    'text-anchor', 'dominant-baseline', 'opacity', 'visibility',
-    'filter', 'transform', 'color'
-  ];
-  let styleValue = '';
-  for (const property of styleProperties) {
-    const value = computedStyle.getPropertyValue(property);
-    if (value) {
-      styleValue += `${property}:${value};`;
-    }
-  }
-  destinationNode.setAttribute('style', styleValue);
-
-  for (let i = 0; i < sourceNode.children.length; i++) {
-    const sourceChild = sourceNode.children[i];
-    const destinationChild = destinationNode.children[i];
-    if (sourceChild instanceof SVGElement && destinationChild instanceof SVGElement) {
-      copyStylesInline(destinationChild, sourceChild);
-    }
-  }
-};
-
-// Fix: Define props interface for the component.
 interface NeuralNetworkPageProps {
   onBack: () => void;
 }
@@ -99,14 +71,39 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const svgElement = svgRef.current;
     if (!svgElement) return;
 
+    // --- 1. Create a clone and embed all styles ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
-    copyStylesInline(svgClone, svgElement);
+
+    const styleEl = document.createElement('style');
+    let cssText = '';
+    for (const sheet of Array.from(document.styleSheets)) {
+        try {
+            if (sheet.cssRules) {
+                for (const rule of Array.from(sheet.cssRules)) {
+                    cssText += rule.cssText;
+                }
+            }
+        } catch (e) {
+            console.warn("Could not read stylesheet for SVG export:", e);
+        }
+    }
+    styleEl.textContent = cssText;
+
+    let defs = svgClone.querySelector('defs');
+    if (!defs) {
+        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        svgClone.insertBefore(defs, svgClone.firstChild);
+    }
+    defs.appendChild(styleEl);
     
+    // 2. Get BBox
     const contentGroup = svgClone.querySelector('g[transform]');
     if (!contentGroup) return;
 
     const bbox = (contentGroup as SVGGraphicsElement).getBBox();
+    if (bbox.width === 0 || bbox.height === 0) return;
     
+    // 3. Configure clone
     const padding = 50;
     const exportWidth = bbox.width + padding * 2;
     const exportHeight = bbox.height + padding * 2;
@@ -118,51 +115,40 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
     const serializer = new XMLSerializer();
+    let sourceForRaster = serializer.serializeToString(svgClone);
     
-    // --- SVG for direct download (transparent background) ---
-    const sourceForSvg = serializer.serializeToString(svgClone);
-    const svgBlobForSvg = new Blob([sourceForSvg], { type: 'image/svg+xml;charset=utf-8' });
-
     if (format === 'svg') {
-        downloadBlob(svgBlobForSvg, `${filename}.svg`);
+        const svgBlob = new Blob([sourceForRaster], { type: 'image/svg+xml;charset=utf-8' });
+        downloadBlob(svgBlob, `${filename}.svg`);
         return;
     }
     
-    // --- SVG for rasterization (PNG/JPG) ---
-    const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-    let sourceForRaster: string;
-
     if (format === 'jpg') {
+        const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
         const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        bgRect.setAttribute('width', '100%');
-        bgRect.setAttribute('height', '100%');
+        bgRect.setAttribute('width', `${exportWidth}`);
+        bgRect.setAttribute('height', `${exportHeight}`);
+        bgRect.setAttribute('x', `${bbox.x - padding}`);
+        bgRect.setAttribute('y', `${bbox.y - padding}`);
         bgRect.setAttribute('fill', themeBg);
         svgClone.insertBefore(bgRect, svgClone.firstChild);
         sourceForRaster = serializer.serializeToString(svgClone);
-        svgClone.removeChild(bgRect); 
-    } else { // For PNG, use the transparent version
-        sourceForRaster = sourceForSvg;
     }
-    const svgBlobForRaster = new Blob([sourceForRaster], { type: 'image/svg+xml;charset=utf-8' });
-
+    
+    // 4. Convert via Data URI
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) return;
         
         const img = new Image();
-        const url = URL.createObjectURL(svgBlobForRaster);
+        const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sourceForRaster);
         
         img.onload = () => {
             const pixelRatio = window.devicePixelRatio || 1;
             canvas.width = exportWidth * pixelRatio;
             canvas.height = exportHeight * pixelRatio;
             context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-            if (format === 'jpg') {
-                context.fillStyle = themeBg;
-                context.fillRect(0, 0, exportWidth, exportHeight);
-            }
 
             context.drawImage(img, 0, 0, exportWidth, exportHeight);
 
@@ -173,12 +159,16 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
                 if (imageBlob) {
                     downloadBlob(imageBlob, `${filename}.${format}`);
                 }
-                URL.revokeObjectURL(url);
             }, mimeType, quality);
         };
-        img.src = url;
+        img.onerror = (e) => {
+          console.error("Error loading SVG data URI for image conversion.", e);
+          setError("Failed to export image.");
+        };
+        img.src = dataUri;
     }
   };
+
 
   const handleGenerate = useCallback(async (keyOverride?: string) => {
     if (!prompt) {
@@ -217,7 +207,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   return (
     <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col transition-colors duration-300 app-bg">
-      <header className="flex justify-between items-center p-4 border-b border-[var(--color-border)] bg-[var(--color-panel-bg)]/80 backdrop-blur-sm">
+      <header className="relative z-40 flex justify-between items-center p-4 border-b border-[var(--color-border)] bg-[var(--color-panel-bg)]/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
             <ArchitectureIcon type={IconType.Brain} className="w-8 h-8 text-[var(--color-accent-text)]" />
             <div>

@@ -28,35 +28,6 @@ import CareersPage from './components/CareersPage';
 import ResearchPage from './components/ResearchPage';
 import { useAuth } from './contexts/AuthContext';
 
-// Helper function to recursively copy computed styles from a source element to a destination element.
-// This is the key to making exports look exactly like the on-screen version.
-const copyStylesInline = (destinationNode: SVGElement, sourceNode: SVGElement) => {
-  const computedStyle = window.getComputedStyle(sourceNode);
-  const styleProperties = [
-    'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
-    'stroke-linejoin', 'font-family', 'font-size', 'font-weight',
-    'text-anchor', 'dominant-baseline', 'opacity', 'visibility',
-    'filter', 'transform', 'color'
-  ];
-  let styleValue = '';
-  for (const property of styleProperties) {
-    const value = computedStyle.getPropertyValue(property);
-    if (value) {
-      styleValue += `${property}:${value};`;
-    }
-  }
-  destinationNode.setAttribute('style', styleValue);
-
-  for (let i = 0; i < sourceNode.children.length; i++) {
-    const sourceChild = sourceNode.children[i];
-    const destinationChild = destinationNode.children[i];
-    if (sourceChild instanceof SVGElement && destinationChild instanceof SVGElement) {
-      copyStylesInline(destinationChild, sourceChild);
-    }
-  }
-};
-
-
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
 const pageContainerVariants: Variants = {
@@ -131,7 +102,7 @@ const App: React.FC = () => {
             window.localStorage.removeItem('user-api-key');
         }
     } catch (error) {
-        console.error("Could not access localStorage to save API key:", String(error));
+        console.error("Could not access localStorage to save API key:", error);
     }
   }, [userApiKey]);
 
@@ -167,15 +138,42 @@ const App: React.FC = () => {
     const svgElement = svgRef.current;
     if (!svgElement) return;
 
-    // --- Create a clone and inline all styles ---
+    // --- 1. Create a clone and embed all styles ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
-    copyStylesInline(svgClone, svgElement);
     
-    // --- Calculate bounding box to crop the image correctly ---
+    // Create a style element and aggregate all CSS rules.
+    const styleEl = document.createElement('style');
+    let cssText = '';
+    // Use Array.from to be safe with StyleSheetList
+    for (const sheet of Array.from(document.styleSheets)) {
+        try {
+            // Some stylesheets might be cross-origin and inaccessible.
+            if (sheet.cssRules) {
+                for (const rule of Array.from(sheet.cssRules)) {
+                    cssText += rule.cssText;
+                }
+            }
+        } catch (e) {
+            // Log errors but continue, as most styles should be accessible.
+            console.warn("Could not read stylesheet for SVG export:", e);
+        }
+    }
+    styleEl.textContent = cssText;
+
+    // Append the styles to the SVG's defs.
+    let defs = svgClone.querySelector('defs');
+    if (!defs) {
+        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        // Prepending ensures styles are available before elements are rendered.
+        svgClone.insertBefore(defs, svgClone.firstChild);
+    }
+    defs.appendChild(styleEl);
+    
+    // --- 2. Calculate bounding box to crop the image correctly ---
     const contentGroup = svgClone.querySelector('#diagram-content');
     if (!contentGroup) return;
 
-    // Temporarily remove transform to calculate the true bounding box
+    // Temporarily remove transform to calculate the true bounding box of the content
     const originalTransform = contentGroup.getAttribute('transform');
     contentGroup.removeAttribute('transform');
     const bbox = (contentGroup as SVGGraphicsElement).getBBox();
@@ -183,7 +181,9 @@ const App: React.FC = () => {
         contentGroup.setAttribute('transform', originalTransform);
     }
     
-    // --- Configure the clone for export ---
+    if (bbox.width === 0 || bbox.height === 0) return; // Don't export empty diagrams
+
+    // --- 3. Configure the clone for export ---
     const padding = 50;
     const exportWidth = bbox.width + padding * 2;
     const exportHeight = bbox.height + padding * 2;
@@ -199,53 +199,42 @@ const App: React.FC = () => {
     if (gridRect) gridRect.remove();
 
     const serializer = new XMLSerializer();
-
-    // --- SVG for direct download (transparent background) ---
-    const sourceForSvg = serializer.serializeToString(svgClone);
-    const svgBlobForSvg = new Blob([sourceForSvg], { type: 'image/svg+xml;charset=utf-8' });
-
+    let sourceForRaster = serializer.serializeToString(svgClone); // Base for PNG/JPG
+    
+    // --- Handle SVG export ---
     if (format === 'svg') {
-        downloadBlob(svgBlobForSvg, `${filename}.svg`);
+        const svgBlob = new Blob([sourceForRaster], { type: 'image/svg+xml;charset=utf-8' });
+        downloadBlob(svgBlob, `${filename}.svg`);
         return;
     }
     
-    // --- SVG for rasterization (PNG/JPG) ---
-    const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-    let sourceForRaster: string;
-
+    // --- Handle JPG background injection ---
     if (format === 'jpg') {
+        const themeBg = getComputedStyle(document.documentElement).getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
         const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         bgRect.setAttribute('width', '100%');
         bgRect.setAttribute('height', '100%');
         bgRect.setAttribute('fill', themeBg);
+        bgRect.setAttribute('x', `${bbox.x - padding}`);
+        bgRect.setAttribute('y', `${bbox.y - padding}`);
         svgClone.insertBefore(bgRect, svgClone.firstChild);
         sourceForRaster = serializer.serializeToString(svgClone);
-        svgClone.removeChild(bgRect); 
-    } else { // For PNG, use the transparent version
-        sourceForRaster = sourceForSvg;
     }
-    const svgBlobForRaster = new Blob([sourceForRaster], { type: 'image/svg+xml;charset=utf-8' });
     
-    // --- Convert SVG blob to PNG or JPG ---
+    // --- 4. Convert SVG to PNG or JPG via Data URI ---
     if (format === 'png' || format === 'jpg') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) return;
         
         const img = new Image();
-        const url = URL.createObjectURL(svgBlobForRaster);
+        const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sourceForRaster);
         
         img.onload = () => {
             const pixelRatio = window.devicePixelRatio || 1;
             canvas.width = exportWidth * pixelRatio;
             canvas.height = exportHeight * pixelRatio;
             context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-            // For JPG, we still fill the canvas as a safety measure, though the SVG now contains a background.
-            if (format === 'jpg') {
-                context.fillStyle = themeBg;
-                context.fillRect(0, 0, exportWidth, exportHeight);
-            }
 
             context.drawImage(img, 0, 0, exportWidth, exportHeight);
 
@@ -256,14 +245,13 @@ const App: React.FC = () => {
                 if (imageBlob) {
                     downloadBlob(imageBlob, `${filename}.${format}`);
                 }
-                URL.revokeObjectURL(url);
             }, mimeType, quality);
         };
         img.onerror = (e) => {
-          console.error("Error loading SVG for image conversion.", e);
-          URL.revokeObjectURL(url);
+          console.error("Error loading SVG data URI for image conversion.", e);
+          setError("Failed to export image. The SVG data could not be loaded.");
         }
-        img.src = url;
+        img.src = dataUri;
     }
   };
 
