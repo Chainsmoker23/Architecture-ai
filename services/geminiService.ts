@@ -10,9 +10,9 @@ const getGenAIClient = (userApiKey?: string) => {
   }
 
   // Otherwise, use the shared environment key.
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.VITE_API_KEY;
   if (!apiKey) {
-    throw new Error("API_KEY is not configured. Please set it in environment variables or provide one.");
+    throw new Error("VITE_API_KEY is not configured. Please set it in your .env file or provide one in the app settings.");
   }
 
   return new GoogleGenAI({ apiKey });
