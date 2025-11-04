@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DiagramData, Node, Container, Link, IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
@@ -193,11 +194,10 @@ const App: React.FC = () => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Explicitly type the querySelector result to avoid type inference issues.
-    const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
-    if (clonedContentGroup) {
+    // FIX: Using a type guard to ensure the selected node is an Element before appending.
+    const clonedContentGroup = svgClone.querySelector('#diagram-content');
+    if (clonedContentGroup instanceof Element) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        // FIX: Removed problematic cast to Element. `clonedContentGroup` is an SVGGElement and can be appended directly.
         exportRoot.appendChild(clonedContentGroup);
     }
     
@@ -216,7 +216,7 @@ const App: React.FC = () => {
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
     // Clean up namespace that can cause issues
-    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
+    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w.org\/1999\/xlink"/g, '');
 
     if (format === 'html') {
       const htmlString = `
