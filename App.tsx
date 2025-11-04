@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DiagramData, Node, Container, Link, IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
@@ -194,9 +196,9 @@ const App: React.FC = () => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Using a type guard to ensure the selected node is an Element before appending.
+    // FIX: Using a truthiness check to ensure the selected node is not null before appending.
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
-    if (clonedContentGroup instanceof Element) {
+    if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }

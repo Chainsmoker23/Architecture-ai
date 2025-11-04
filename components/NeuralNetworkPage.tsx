@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiagramData, IconType } from '../types';
+import { DiagramData, IconType, Node } from '../types';
 import { generateNeuralNetworkData } from '../services/geminiService';
 import Loader from './Loader';
 import ArchitectureIcon from './ArchitectureIcon';
@@ -39,7 +39,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+      // FIX: Cast event.target to globalThis.Node to avoid type collision with the imported 'Node' type.
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as globalThis.Node)) {
         setIsExportMenuOpen(false);
       }
     };
@@ -81,9 +82,9 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     
     // --- Recursively inline all computed styles ---
     const originalElements = Array.from(svgElement.querySelectorAll('*'));
-    originalElements.unshift(svgElement); // Add root SVG element
+    originalElements.unshift(svgElement);
     const clonedElements = Array.from(svgClone.querySelectorAll('*'));
-    clonedElements.unshift(svgClone); // Add root SVG element
+    clonedElements.unshift(svgClone);
     
     originalElements.forEach((sourceEl, index) => {
         const targetEl = clonedElements[index] as SVGElement;
@@ -98,50 +99,91 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         }
     });
 
-    // --- Robust BBox Calculation by iterating through all elements ---
-    const contentGroup = svgElement.querySelector('#diagram-content');
-    if (!contentGroup) {
-        setError("Export failed: Diagram content not found.");
-        return;
+    // --- BBox Calculation from data, independent of canvas view ---
+    const { nodes } = diagramData;
+    if (!nodes) { 
+        setError("Export failed: Diagram data is missing nodes.");
+        return; 
     }
 
-    const elements = Array.from(contentGroup.querySelectorAll('circle, text, path'));
-    if (elements.length === 0) {
-        setError("Export failed: No diagram elements found to export.");
-        return;
-    }
+    const NEURON_RADIUS = 25;
+    const VERTICAL_SPACING = 30;
+    const HORIZONTAL_SPACING = 250;
+    const LABEL_OFFSET_Y = 60;
+    const ARROWHEAD_BUFFER = 10;
 
+    const neurons = nodes.filter(n => n.type === 'neuron');
+    const labels = nodes.filter(n => n.type === 'layer-label');
+
+    const layers = new Map<number, Node[]>();
+    neurons.forEach(neuron => {
+      const layer = neuron.layer ?? 0;
+      if (!layers.has(layer)) layers.set(layer, []);
+      layers.get(layer)!.push(neuron);
+    });
+    
+    const sortedLayerKeys = Array.from(layers.keys()).sort((a, b) => a - b);
+    
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    sortedLayerKeys.forEach((layerIndex, i) => {
+        const layerNeurons = layers.get(layerIndex) || [];
+        const layerHeight = layerNeurons.length * (NEURON_RADIUS * 2 + VERTICAL_SPACING) - VERTICAL_SPACING;
+        const layerX = (i + 1) * HORIZONTAL_SPACING;
+        // Calculate Y positions centered around a y=0 axis, independent of canvas size
+        const startY = -layerHeight / 2;
 
-    elements.forEach(el => {
-        const element = el as SVGGraphicsElement;
-        // Skip elements that won't contribute to bounds (e.g., empty paths in defs)
-        if (typeof element.getBBox !== 'function') return;
-        const { x, y, width, height } = element.getBBox();
-        
-        // Ignore elements with no dimensions
-        if (width === 0 && height === 0) return;
+        layerNeurons.forEach((neuron, j) => {
+            const cx = layerX;
+            const cy = startY + j * (NEURON_RADIUS * 2 + VERTICAL_SPACING) + NEURON_RADIUS;
+            minX = Math.min(minX, cx - NEURON_RADIUS);
+            maxX = Math.max(maxX, cx + NEURON_RADIUS);
+            minY = Math.min(minY, cy - NEURON_RADIUS);
+            maxY = Math.max(maxY, cy + NEURON_RADIUS);
+        });
+    });
 
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x + width > maxX) maxX = x + width;
-        if (y + height > maxY) maxY = y + height;
+    labels.forEach(label => {
+        const layerIndex = label.layer ?? 0;
+        const i = sortedLayerKeys.indexOf(layerIndex);
+        const layerNeurons = layers.get(layerIndex);
+        if (layerNeurons && layerNeurons.length > 0) {
+            const layerHeight = layerNeurons.length * (NEURON_RADIUS * 2 + VERTICAL_SPACING) - VERTICAL_SPACING;
+            const layerX = (i + 1) * HORIZONTAL_SPACING;
+            const startY = -layerHeight / 2;
+            const firstNeuronY = startY + NEURON_RADIUS;
+            const labelY = firstNeuronY - LABEL_OFFSET_Y;
+
+            // Estimate label bbox for bounds calculation
+            const labelWidth = (label.label?.length || 10) * 9; // Approx 9px per char for font-semibold
+            const labelHeight = 24;
+
+            minX = Math.min(minX, layerX - labelWidth / 2);
+            maxX = Math.max(maxX, layerX + labelWidth / 2);
+            minY = Math.min(minY, labelY - labelHeight / 2);
+            maxY = Math.max(maxY, labelY + labelHeight / 2);
+        }
     });
 
     if (!isFinite(minX)) {
-        setError("Export failed: Could not determine diagram bounds.");
+        setError("Export failed: Could not calculate diagram bounds from data.");
         return;
     }
+
+    // Add buffer for link arrowheads which can extend beyond neuron bounds
+    minX -= ARROWHEAD_BUFFER;
+    maxX += ARROWHEAD_BUFFER;
 
     const bbox = {
         x: minX,
         y: minY,
         width: maxX - minX,
-        height: maxY - minY,
+        height: maxY - minY
     };
+    // --- End of BBox Calculation ---
     
     // --- Configure the cloned SVG for export ---
-    const padding = 20;
+    const padding = 40; // More padding for NN diagrams
     const exportWidth = Math.round(bbox.width + padding * 2);
     const exportHeight = Math.round(bbox.height + padding * 2);
     
@@ -160,9 +202,9 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Using a type guard to ensure the selected node is an Element before appending.
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
-    if (clonedContentGroup instanceof Element) {
+    // FIX: Changed 'instanceof Element' to a truthiness check, which also correctly narrows the type from 'Element | null' to 'Element'.
+    if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }
@@ -180,7 +222,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     // --- Serialize and download ---
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
-    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
+    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w.org\/1999\/xlink"/g, '');
 
     if (format === 'html') {
       const htmlString = `
@@ -248,6 +290,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
       const data = await generateNeuralNetworkData(prompt, apiKeyToUse || undefined);
       setDiagramData(data);
     } catch (err) {
+      // FIX: Explicitly convert the unknown error object to a string for safe logging.
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
       if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
