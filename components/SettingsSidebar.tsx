@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeProvider';
 import { useAuth } from '../contexts/AuthContext';
+import ArchitectureIcon from './ArchitectureIcon';
+import { IconType } from '../types';
 
 interface SettingsSidebarProps {
   userApiKey: string | null;
@@ -70,12 +72,11 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-6 left-6 z-40 p-2 rounded-full bg-[var(--color-panel-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)] shadow-sm hover:text-[var(--color-text-primary)] transition-colors"
+        className="p-2 bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors"
         aria-label="Open settings"
+        title="Settings"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
-        </svg>
+        <ArchitectureIcon type={IconType.Gear} className="w-5 h-5" />
       </button>
 
       <AnimatePresence>
@@ -93,7 +94,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
               initial="closed"
               animate="open"
               exit="closed"
-              className="fixed top-0 left-0 bottom-0 w-80 bg-[var(--color-panel-bg)] border-r border-[var(--color-border)] shadow-xl z-50 p-6 flex flex-col"
+              className="fixed top-0 left-0 bottom-0 w-80 glass-panel shadow-xl z-50 p-6 flex flex-col"
             >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Settings</h2>

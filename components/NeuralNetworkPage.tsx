@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
@@ -134,11 +127,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // Use `instanceof globalThis.Element` to explicitly reference the DOM Element.
-    // This resolves the type ambiguity caused by the imported `Node` interface,
-    // which can confuse TypeScript's type checker for `appendChild`.
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
-    if (clonedContentGroup instanceof globalThis.Element) {
+    if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         // FIX: The `instanceof` check is insufficient due to a type collision with a custom `Node` interface.
         // Casting to `globalThis.Element` explicitly resolves the type for `appendChild`.

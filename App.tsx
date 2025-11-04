@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
 import type { DiagramData, Node, Container, Link } from './types';
@@ -11,7 +12,7 @@ import Loader from './components/Loader';
 import PropertiesSidebar from './components/PropertiesSidebar';
 import SettingsSidebar from './components/SettingsSidebar';
 import { EXAMPLE_PROMPT, EXAMPLE_PROMPTS_LIST } from './components/constants';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import LandingPage from './components/LandingPage';
 import ContactPage from './components/ContactPage';
 import AboutPage from './components/AboutPage';
@@ -31,20 +32,6 @@ import { useAuth } from './contexts/AuthContext';
 import AuthPage from './components/AuthPage';
 
 type Page = 'landing' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'auth';
-
-const pageContainerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } },
-};
-
-const pageItemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    transition: { type: 'spring', damping: 15, stiffness: 100 } 
-  },
-};
 
 const App: React.FC = () => {
   const { currentUser } = useAuth();
@@ -465,65 +452,18 @@ const App: React.FC = () => {
     }
 
     return (
-      <div className="min-h-screen text-[var(--color-text-primary)] flex transition-colors duration-300 app-bg">
-        <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
-        <button
-            onClick={() => setPage('landing')}
-            className="fixed top-6 right-6 z-40 p-2 rounded-full bg-[var(--color-panel-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)] shadow-sm hover:text-[var(--color-text-primary)] transition-colors"
-            aria-label="Back to Home"
+      <div className="h-screen w-screen text-[var(--color-text-primary)] flex flex-col transition-colors duration-300 app-bg overflow-hidden">
+        
+        <motion.header 
+          initial={{ y: -80 }}
+          animate={{ y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="absolute top-0 left-0 right-0 z-20"
         >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L9 4.414V17a1 1 0 102 0V4.414l5.293 5.293a1 1 0 001.414-1.414l-7-7z" />
-            </svg>
-        </button>
-
-        <main className="flex-1 flex flex-col items-center justify-center p-6 pt-20">
-          <motion.div 
-            className="w-full max-w-7xl flex-1 flex flex-col"
-            variants={pageContainerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <motion.div 
-              variants={pageItemVariants} 
-              className="relative w-full max-w-3xl mx-auto flex flex-col items-center text-center"
-            >
-              <div className="absolute -top-12 inset-x-0 h-40 header-glow-effect -z-1" />
-              <div className="flex items-center gap-2">
-                  <Logo className="h-10 w-10 text-[var(--color-accent-text)]" />
-                  <h1 className="text-4xl font-bold">Cube<span className="text-[var(--color-accent-text)]">Gen</span> AI</h1>
-              </div>
-              <p className="mt-2 text-[var(--color-text-secondary)]">Generate professional software architecture diagrams instantly from a single prompt.</p>
-            </motion.div>
-            
-            <motion.div 
-              variants={pageItemVariants} 
-              className="mt-6 w-full max-w-2xl mx-auto"
-            >
-              <PromptInput
-                prompt={prompt}
-                setPrompt={setPrompt}
-                onGenerate={() => handleGenerate()}
-                isLoading={isLoading}
-              />
-              <div className="mt-3 flex justify-center items-center gap-4">
-                  <button onClick={handleCyclePrompt} className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors font-medium flex items-center gap-1">
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h5M20 20v-5h-5" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 9a9 9 0 0114.65-5.65l1.35 1.35M20 15a9 9 0 01-14.65 5.65l-1.35-1.35" /></svg>
-                      Try an example
-                  </button>
-                  <span className="text-gray-300">|</span>
-                   <button onClick={() => setPage('neuralNetwork')} className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors font-medium flex items-center gap-1">
-                      <ArchitectureIcon type={IconType.Brain} className="w-4 h-4" />
-                      Neural Network Modeler
-                  </button>
-              </div>
-            </motion.div>
-
-            <motion.section
-              variants={pageItemVariants} 
-              className="flex-1 mt-6 w-full bg-[var(--color-panel-bg)] rounded-2xl shadow-sm flex flex-col border border-[var(--color-border)]"
-            >
-              <header className="flex justify-between items-center p-3 border-b border-[var(--color-border)]">
+          <div className="p-4">
+            <div className="w-full max-w-7xl mx-auto glass-panel p-2 rounded-2xl shadow-md flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <Logo className="h-8 w-8 text-[var(--color-accent-text)]" />
                  {isEditingTitle ? (
                     <input
                         ref={titleInputRef}
@@ -537,14 +477,16 @@ const App: React.FC = () => {
                  ) : (
                     <div 
                       onDoubleClick={() => { if(diagramData) { setIsEditingTitle(true); setEditingTitle(diagramData.title); }}}
-                      className="flex items-center gap-2 cursor-pointer"
+                      className="flex items-center gap-2 cursor-pointer group"
                       title="Double-click to edit title"
                     >
                       <h2 className="text-lg font-semibold truncate pr-4">{diagramData?.title || 'Untitled Diagram'}</h2>
-                       {diagramData && <ArchitectureIcon type={IconType.Edit} className="w-4 h-4 text-[var(--color-text-secondary)] opacity-50" />}
+                       {diagramData && <ArchitectureIcon type={IconType.Edit} className="w-4 h-4 text-[var(--color-text-secondary)] opacity-0 group-hover:opacity-50 transition-opacity" />}
                     </div>
                  )}
-                
+              </div>
+              
+              <div className="flex items-center gap-2">
                 {diagramData && (
                   <Toolbar
                     onExport={handleExport}
@@ -559,49 +501,79 @@ const App: React.FC = () => {
                     canGoToPlayground={!!diagramData}
                   />
                 )}
-              </header>
-              <div className="flex-1 relative">
-                <AnimatePresence>
-                {(isLoading) && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex flex-col items-center justify-center z-20 rounded-b-2xl"
-                  >
-                    <Loader />
-                  </motion.div>
-                )}
-                </AnimatePresence>
-                
-                <AnimatePresence>
-                {!diagramData && !isLoading && (
-                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex-1 flex flex-col items-center justify-center text-center p-8 h-full"
-                  >
-                    <ArchitectureIcon type={IconType.Cloud} className="h-20 w-20 text-[var(--color-text-tertiary)]" />
-                    <h3 className="mt-4 text-xl font-semibold text-[var(--color-text-primary)]">Your architecture diagram will appear here</h3>
-                    <p className="mt-1 text-[var(--color-text-secondary)]">Enter a prompt above and click "Generate Diagram" to start.</p>
-                  </motion.div>
-                )}
-                </AnimatePresence>
-                
-                {diagramData && (
-                   <DiagramCanvas
-                    forwardedRef={svgRef}
-                    fitScreenRef={fitScreenRef}
-                    data={diagramData}
-                    onDataChange={(newData) => handleDiagramUpdate(newData, true)}
-                    selectedIds={selectedIds}
-                    setSelectedIds={setSelectedIds}
-                  />
-                )}
-                
-                {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
+                <div className="w-px h-6 bg-[var(--color-border)] mx-1"></div>
+                <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
+                <button
+                    onClick={() => setPage('landing')}
+                    className="p-2 bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors"
+                    aria-label="Back to Home"
+                    title="Back to Home"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                </button>
               </div>
-            </motion.section>
+            </div>
+          </div>
+        </motion.header>
+
+        <main className="flex-1 flex flex-col relative pt-24 pb-32">
+          <div className="flex-1 relative w-full h-full">
+            <AnimatePresence>
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex flex-col items-center justify-center z-20"
+              >
+                <Loader />
+              </motion.div>
+            )}
+            </AnimatePresence>
+            
+            <AnimatePresence>
+            {!diagramData && !isLoading && (
+                <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="w-full h-full flex flex-col items-center justify-center text-center p-8"
+              >
+                <ArchitectureIcon type={IconType.Cloud} className="h-20 w-20 text-[var(--color-text-tertiary)]" />
+                <h3 className="mt-4 text-xl font-semibold text-[var(--color-text-primary)]">Your architecture diagram will appear here</h3>
+                <p className="mt-1 text-[var(--color-text-secondary)]">Enter a prompt below and click "Generate" to start.</p>
+              </motion.div>
+            )}
+            </AnimatePresence>
+            
+            {diagramData && (
+                <DiagramCanvas
+                forwardedRef={svgRef}
+                fitScreenRef={fitScreenRef}
+                data={diagramData}
+                onDataChange={(newData) => handleDiagramUpdate(newData, true)}
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
+              />
+            )}
+            
+            {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
+          </div>
+
+          <motion.div
+            initial={{ y: 80 }}
+            animate={{ y: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.3 }}
+            className="absolute bottom-0 left-0 right-0 z-20 p-4"
+          >
+            <div className="w-full max-w-3xl mx-auto">
+                <PromptInput
+                  prompt={prompt}
+                  setPrompt={setPrompt}
+                  onGenerate={() => handleGenerate()}
+                  isLoading={isLoading}
+                  onCyclePrompt={handleCyclePrompt}
+                />
+            </div>
           </motion.div>
         </main>
         
@@ -611,13 +583,15 @@ const App: React.FC = () => {
                     key="sidebar"
                     initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                     transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                    className="fixed top-0 right-0 h-full w-[350px] bg-[var(--color-panel-bg)] p-6 z-30 shadow-2xl border-l border-[var(--color-border)]"
+                    className="fixed top-0 right-0 h-full w-[350px] z-30"
                  >
-                    <PropertiesSidebar 
-                        item={selectedItem}
-                        onPropertyChange={handlePropertyChange}
-                        selectedCount={selectedIds.length}
-                    />
+                    <div className="p-4 h-full">
+                       <PropertiesSidebar 
+                          item={selectedItem}
+                          onPropertyChange={handlePropertyChange}
+                          selectedCount={selectedIds.length}
+                      />
+                    </div>
                 </motion.aside>
             )}
         </AnimatePresence>

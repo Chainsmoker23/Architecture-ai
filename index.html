@@ -8,7 +8,7 @@
     <!-- Primary Meta Tags -->
     <meta name="description" content="Generate professional software architecture diagrams instantly from a single prompt with CubeGen AI. AI-powered design for AWS, GCP, Azure, microservices, and more." />
     <meta name="keywords" content="AI, architecture generator, cube design, cloud design, microservices, AWS, GCP, Azure, blockchain, software architecture, diagram tool" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 184'%3E%3Cpath fill='%23D6336C' d='M79.998 21.6L1.898 67.5v93l78.1 45.9 78.1-45.9v-93L79.998 21.6zm0 11.603l68.7 40.502v82.79l-68.7 40.503-68.7-40.502v-82.79L79.998 33.203z M79.998 44.805L21.298 78.607v65.603l58.7 34.402 58.7-34.402V78.607L79.998 44.805zm0 11.603l49.3 28.902v54.002l-49.3 28.902-49.3-28.902V85.31l49.3-28.902z M79.998 68.01l-39.9 23.4v42.4l39.9 23.4 39.9-23.4v-42.4l-39.9-23.4z'/%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w.org/2000/svg' viewBox='0 0 160 184'%3E%3Cpath fill='%23D6336C' d='M79.998 21.6L1.898 67.5v93l78.1 45.9 78.1-45.9v-93L79.998 21.6zm0 11.603l68.7 40.502v82.79l-68.7 40.503-68.7-40.502v-82.79L79.998 33.203z M79.998 44.805L21.298 78.607v65.603l58.7 34.402 58.7-34.402V78.607L79.998 44.805zm0 11.603l49.3 28.902v54.002l-49.3 28.902-49.3-28.902V85.31l49.3-28.902z M79.998 68.01l-39.9 23.4v42.4l39.9 23.4 39.9-23.4v-42.4l-39.9-23.4z'/%3E%3C/svg%3E">
     <link rel="canonical" href="https://cubegen.ai/" />
 
     <!-- Open Graph / Facebook -->
@@ -147,22 +147,6 @@
       .token.operator { color: #FC5FA3; }
       .token.plain-text { color: #E5E5E5; }
 
-      /* Creative Header Glow for App Page */
-      .header-glow-effect {
-        width: 30%;
-        min-width: 200px;
-        height: 100px;
-        background-image: radial-gradient(ellipse at center, var(--color-accent-soft) 0%, transparent 70%);
-        opacity: 0.6;
-        filter: blur(30px);
-        animation: header-glow-anim 10s ease-in-out infinite alternate;
-      }
-
-      @keyframes header-glow-anim {
-        from { transform: scale(0.9); opacity: 0.5; }
-        to { transform: scale(1.1); opacity: 0.7; }
-      }
-
       /* --- NEW CREATIVE STYLES FOR APP PAGE --- */
       .app-bg {
         background-color: var(--color-bg);
@@ -179,9 +163,19 @@
 
       .glass-panel {
           background-color: var(--color-panel-bg-translucent) !important;
-          backdrop-filter: saturate(180%) blur(10px);
-          -webkit-backdrop-filter: saturate(180%) blur(10px);
+          backdrop-filter: saturate(180%) blur(12px);
+          -webkit-backdrop-filter: saturate(180%) blur(12px);
           border: 1px solid var(--color-border-translucent);
+      }
+      
+      .prompt-bar-input {
+        background-color: var(--color-panel-bg);
+        color: var(--color-text-primary);
+        border: 1px solid var(--color-border);
+      }
+      .prompt-bar-input:focus {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 2px var(--color-accent-soft);
       }
     </style>
   <script type="importmap">
