@@ -4,6 +4,7 @@ import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
 import { useAuth } from '../contexts/AuthContext';
+import { redirectToCheckout } from '../services/stripeService';
 
 type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth';
 
@@ -150,6 +151,8 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
 
     const { currentUser } = useAuth();
     const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+    const [isRedirecting, setIsRedirecting] = useState<string | null>(null); // Store priceId of redirecting plan
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         // This is a placeholder for a real subscription check.
@@ -164,6 +167,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     const pricingPlans = [
         { 
             name: 'Free', 
+            priceId: null,
             price: '$0', 
             frequency: 'Forever', 
             description: 'For individuals getting started and exploring the platform.', 
@@ -177,6 +181,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         },
         { 
             name: 'Hobbyist', 
+            priceId: 'price_1PLaF8RsL5ht22L1bA5g4e3f', // Replace with your actual Price ID
             price: '$3', 
             frequency: 'One-time', 
             description: 'A top-up for when you need a few more diagrams.', 
@@ -190,6 +195,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         },
         { 
             name: 'Pro', 
+            priceId: 'price_1PLaGBRsL5ht22L1cDEf6a7b', // Replace with your actual Price ID
             price: '$10', 
             frequency: '/ month', 
             description: 'For professionals who design and iterate frequently.', 
@@ -204,6 +210,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         },
         { 
             name: 'Business', 
+            priceId: 'price_1PLaGZRsL5ht22L1dEfg9h0i', // Replace with your actual Price ID
             price: '$50', 
             frequency: '/ month', 
             description: 'For teams that need automation and unlimited scale.', 
@@ -219,6 +226,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         },
         { 
             name: 'Enterprise', 
+            priceId: null,
             price: 'Custom', 
             frequency: '', 
             description: 'For large organizations with specific security and support needs.', 
@@ -232,6 +240,29 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
             ctaText: 'Contact Sales'
         },
     ];
+
+  const handleCtaClick = async (plan: typeof pricingPlans[0]) => {
+    setError(null);
+    if (!currentUser) {
+        onNavigate('auth');
+        return;
+    }
+    if (plan.name === 'Enterprise') {
+        onNavigate('contact');
+        return;
+    }
+    if (plan.priceId) {
+        setIsRedirecting(plan.priceId);
+        try {
+            await redirectToCheckout(plan.priceId, currentUser.email || '');
+            // The user will be redirected to Stripe, so no need to reset loading state here.
+        } catch (err) {
+            console.error(err);
+            setError(err instanceof Error ? err.message : 'Could not redirect to checkout.');
+            setIsRedirecting(null);
+        }
+    }
+  };
 
   return (
     <div className="bg-white text-[#2B2B2B] overflow-x-hidden">
@@ -313,17 +344,8 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
                 <div className="flex flex-wrap items-stretch justify-center gap-8">
                     {pricingPlans.map((plan, index) => {
                          const isCurrent = plan.name === currentPlan;
-                         const handleCtaClick = () => {
-                            if (plan.name === 'Free') {
-                                onNavigate('auth');
-                            } else if (plan.name === 'Enterprise') {
-                                onNavigate('contact');
-                            } else {
-                                // Placeholder for payment integration
-                                alert(`"${plan.name}" plan selected. Payment integration is coming soon!`);
-                            }
-                        };
-                        const cardClasses = `relative bg-white p-8 rounded-2xl shadow-lg border flex flex-col w-full max-w-sm transition-transform duration-300 ${
+                         const isProcessing = isRedirecting === plan.priceId;
+                         const cardClasses = `relative bg-white p-8 rounded-2xl shadow-lg border flex flex-col w-full max-w-sm transition-transform duration-300 ${
                             isCurrent 
                             ? 'border-blue-500 border-2 ring-4 ring-blue-500/20 md:scale-105' 
                             : plan.isPopular 
@@ -362,21 +384,29 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
                             </ul>
 
                             <button 
-                                onClick={handleCtaClick}
-                                disabled={isCurrent}
-                                className={`w-full font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 mt-auto ${
+                                onClick={() => handleCtaClick(plan)}
+                                disabled={isCurrent || !!isRedirecting}
+                                className={`w-full font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 mt-auto flex items-center justify-center ${
                                     isCurrent
                                     ? 'bg-gray-200 text-gray-500 cursor-default'
+                                    : isProcessing
+                                    ? 'bg-gray-200 text-gray-500 cursor-wait'
                                     : plan.isPopular
                                     ? 'shimmer-button text-[#A61E4D] hover:shadow-xl hover:scale-105'
                                     : 'bg-[#F8F1F3] text-[#A61E4D] hover:shadow-xl hover:scale-105'
                                 }`}
                             >
-                                {isCurrent ? 'Your Current Plan' : plan.ctaText}
+                                {isProcessing ? (
+                                    <>
+                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Redirecting...
+                                    </>
+                                ) : isCurrent ? 'Your Current Plan' : plan.ctaText}
                             </button>
                         </motion.div>
                     )})}
                 </div>
+                {error && <p className="text-red-500 text-sm text-center mt-4">{error}</p>}
                  <p className="text-xs text-gray-400 mt-8">For custom enterprise needs, please <button onClick={() => onNavigate('contact')} className="underline hover:text-[#D6336C]">contact sales</button>.</p>
             </div>
         </section>
