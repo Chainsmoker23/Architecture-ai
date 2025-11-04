@@ -21,7 +21,12 @@ interface Layout {
   height: number;
 }
 
-const useNeuralNetworkLayout = (data: DiagramData, canvasWidth: number, canvasHeight: number): Layout => {
+// Define a large, fixed virtual canvas for consistent layout calculations,
+// independent of the screen's viewport size. This is crucial for reliable exports.
+const VIRTUAL_CANVAS_WIDTH = 4000;
+const VIRTUAL_CANVAS_HEIGHT = 3000;
+
+const useNeuralNetworkLayout = (data: DiagramData): Layout => {
   return useMemo(() => {
     if (!data || !data.nodes) return { nodes: [], links: [], width: 0, height: 0 };
     
@@ -45,6 +50,7 @@ const useNeuralNetworkLayout = (data: DiagramData, canvasWidth: number, canvasHe
     const sortedLayerKeys = Array.from(layers.keys()).sort((a, b) => a - b);
     const numLayers = sortedLayerKeys.length;
     
+    // The total width of the diagram content.
     const layoutWidth = (numLayers + 1) * HORIZONTAL_SPACING;
     let maxLayerHeight = 0;
 
@@ -57,8 +63,9 @@ const useNeuralNetworkLayout = (data: DiagramData, canvasWidth: number, canvasHe
       const layerHeight = numNeuronsInLayer * (NEURON_RADIUS * 2 + VERTICAL_SPACING) - VERTICAL_SPACING;
       maxLayerHeight = Math.max(maxLayerHeight, layerHeight);
 
-      const layerX = (i + 1) * HORIZONTAL_SPACING;
-      const startY = (canvasHeight / 2) - (layerHeight / 2);
+      const layerX = (VIRTUAL_CANVAS_WIDTH / 2) - (layoutWidth / 2) + (i + 1) * HORIZONTAL_SPACING;
+      // Center the layer vertically on the large virtual canvas.
+      const startY = (VIRTUAL_CANVAS_HEIGHT / 2) - (layerHeight / 2);
       
       layerNeurons.forEach((neuron, j) => {
         const calculatedX = layerX;
@@ -72,10 +79,12 @@ const useNeuralNetworkLayout = (data: DiagramData, canvasWidth: number, canvasHe
         const layerIndex = label.layer ?? 0;
         const layerNeurons = layers.get(layerIndex);
         if (layerNeurons && layerNeurons.length > 0) {
-            const firstNeuronY = (canvasHeight / 2) - ((layerNeurons.length * (NEURON_RADIUS * 2 + VERTICAL_SPACING) - VERTICAL_SPACING) / 2);
+            const layerHeight = layerNeurons.length * (NEURON_RADIUS * 2 + VERTICAL_SPACING) - VERTICAL_SPACING;
+            const firstNeuronY = (VIRTUAL_CANVAS_HEIGHT / 2) - (layerHeight / 2);
+            
             drawableNodes.push({
                 ...label,
-                calculatedX: (sortedLayerKeys.indexOf(layerIndex) + 1) * HORIZONTAL_SPACING,
+                calculatedX: (VIRTUAL_CANVAS_WIDTH / 2) - (layoutWidth / 2) + (sortedLayerKeys.indexOf(layerIndex) + 1) * HORIZONTAL_SPACING,
                 calculatedY: firstNeuronY - LABEL_OFFSET_Y,
             });
         }
@@ -104,30 +113,16 @@ const useNeuralNetworkLayout = (data: DiagramData, canvasWidth: number, canvasHe
       };
     }).filter(l => l.sourcePos && l.targetPos);
 
-    return { nodes: drawableNodes, links: drawableLinks, width: layoutWidth, height: maxLayerHeight };
-  }, [data, canvasWidth, canvasHeight]);
+    return { nodes: drawableNodes, links: drawableLinks, width: layoutWidth, height: maxLayerHeight + (LABEL_OFFSET_Y * 2) };
+  }, [data]);
 };
 
 
 const NeuralNetworkCanvas: React.FC<{ data: DiagramData, forwardedRef: React.RefObject<SVGSVGElement> }> = ({ data, forwardedRef }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver(entries => {
-      if (entries[0]) {
-        const { width, height } = entries[0].contentRect;
-        setDimensions({ width, height });
-      }
-    });
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  const layout = useNeuralNetworkLayout(data, dimensions.width, dimensions.height);
+  const layout = useNeuralNetworkLayout(data);
 
   useEffect(() => {
     if (!forwardedRef.current || !containerRef.current || layout.width === 0) return;
@@ -140,22 +135,36 @@ const NeuralNetworkCanvas: React.FC<{ data: DiagramData, forwardedRef: React.Ref
       
     svg.call(zoomBehavior);
     
-    const parentWidth = containerRef.current.clientWidth;
-    const parentHeight = containerRef.current.clientHeight;
-    
-    const scale = Math.min(1.5, 0.9 / Math.max(layout.width / parentWidth, layout.height / parentHeight));
-    const tx = parentWidth / 2 - (layout.width / 2) * scale;
-    const ty = parentHeight / 2 - (layout.height / 2) * scale;
-    
-    svg.transition().duration(750).call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(scale));
+    const fitToScreen = () => {
+        const contentGroup = svg.select<SVGGElement>('#diagram-content').node();
+        if (!contentGroup || !containerRef.current) return;
+        
+        const bounds = contentGroup.getBBox();
+        const parentWidth = containerRef.current.clientWidth;
+        const parentHeight = containerRef.current.clientHeight;
+        const { width: diagramWidth, height: diagramHeight, x: diagramX, y: diagramY } = bounds;
+
+        if (diagramWidth <= 0 || diagramHeight <= 0) return;
+        
+        const scale = Math.min(1.5, 0.9 / Math.max(diagramWidth / parentWidth, diagramHeight / parentHeight));
+        const tx = parentWidth / 2 - (diagramX + diagramWidth / 2) * scale;
+        const ty = parentHeight / 2 - (diagramY + diagramHeight / 2) * scale;
+        
+        svg.transition().duration(750).call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(scale));
+    };
+
+    fitToScreen(); // Fit on initial render/layout change
 
     return () => { svg.on('.zoom', null); }
-  }, [layout.width, layout.height, forwardedRef]);
+  }, [layout.width, layout.height, forwardedRef, data]); // Rerun fit on data change
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-[var(--color-canvas-bg)] rounded-xl">
       <svg ref={forwardedRef} className="w-full h-full absolute inset-0">
          <defs>
+          <pattern id="grid" width={10} height={10} patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="var(--color-grid-dot)"></circle>
+          </pattern>
           <radialGradient id="nn-neuron-gradient-dark">
             <stop offset="0%" stopColor="#888" />
             <stop offset="90%" stopColor="#2B2B2B" />
@@ -168,6 +177,7 @@ const NeuralNetworkCanvas: React.FC<{ data: DiagramData, forwardedRef: React.Ref
             <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-link)" opacity="0.6"/>
           </marker>
         </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
         <g id="diagram-content" transform={viewTransform.toString()}>
             {/* Links */}
             <g>
