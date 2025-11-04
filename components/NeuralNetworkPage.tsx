@@ -1,7 +1,5 @@
 
 
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
@@ -44,7 +42,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // FIX: Explicitly cast `event.target` to `Node` to resolve compiler confusion caused by a name collision.
-      if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target as Node)) {
+      if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target)) {
         setIsExportMenuOpen(false);
       }
     };
@@ -81,19 +79,18 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         return;
     }
 
-    // --- Create a deep clone to manipulate ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
     
-    // --- Recursively inline all computed styles ---
     const originalElements = Array.from(svgElement.querySelectorAll('*'));
-    originalElements.unshift(svgElement); // Add root SVG element
+    originalElements.unshift(svgElement);
     const clonedElements = Array.from(svgClone.querySelectorAll('*'));
-    clonedElements.unshift(svgClone); // Add root SVG element
+    clonedElements.unshift(svgClone);
 
     originalElements.forEach((sourceEl, index) => {
         const targetEl = clonedElements[index] as SVGElement;
         if (targetEl && targetEl.style) {
-            const computedStyle = window.getComputedStyle(sourceEl);
+            // FIX: Explicitly cast sourceEl to globalThis.Element to resolve type ambiguity caused by 'Node' type collision.
+            const computedStyle = window.getComputedStyle(sourceEl as globalThis.Element);
             let cssText = '';
             for (let i = 0; i < computedStyle.length; i++) {
                 const prop = computedStyle[i];
@@ -103,7 +100,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         }
     });
     
-    // --- BBox Calculation on original content for accurate dimensions ---
     // FIX: Use a generic type argument with querySelector to specify the returned element type,
     // which avoids type conflicts with the imported 'Node' interface.
     const contentGroup = svgElement.querySelector<SVGGElement>('#diagram-content');
@@ -113,8 +109,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     }
     const bbox = contentGroup.getBBox();
 
-    // --- Configure the cloned SVG for export ---
-    const padding = 20; // Reduced padding for a tighter crop
+    const padding = 20;
     const exportWidth = Math.round(bbox.width + padding * 2);
     const exportHeight = Math.round(bbox.height + padding * 2);
     
@@ -122,7 +117,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     svgClone.setAttribute('height', `${exportHeight}`);
     svgClone.setAttribute('viewBox', `0 0 ${exportWidth} ${exportHeight}`);
     
-    // --- Create a new root group with background and transform ---
     const exportRoot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -146,16 +140,13 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
     }
     
-    // Replace clone's content with this new root
     while (svgClone.firstChild) {
       svgClone.removeChild(svgClone.firstChild);
     }
     svgClone.appendChild(exportRoot);
 
-    // --- Serialize and download ---
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
-    // Clean up namespace that can cause issues
     svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
 
     if (format === 'html') {

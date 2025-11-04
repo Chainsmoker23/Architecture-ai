@@ -1,8 +1,5 @@
 
 
-
-
-
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
 import type { DiagramData, Node, Container, Link } from './types';
@@ -38,7 +35,7 @@ import AuthPage from './components/AuthPage';
 type Page = 'landing' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'auth';
 
 const App: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const [page, setPage] = useState<Page>('landing');
   
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
@@ -70,26 +67,18 @@ const App: React.FC = () => {
   const [lastAction, setLastAction] = useState<{ type: 'generate' | 'explain', payload: any } | null>(null);
 
   const onNavigate = useCallback((targetPage: Page) => {
-    if (targetPage === 'app' && !currentUser) {
-        setPage('auth');
-    } else {
-        setPage(targetPage);
-    }
-  }, [currentUser]);
+    setPage(targetPage);
+  }, []);
 
   useEffect(() => {
-    // If the user just logged in (we have a user but are still on the auth page),
-    // redirect them to the app.
+    if (authLoading) return;
     if (currentUser && page === 'auth') {
       onNavigate('app');
     }
-
-    // If the user logs out while on the main app page,
-    // redirect them to the landing page.
     if (!currentUser && page === 'app') {
       onNavigate('landing');
     }
-  }, [currentUser, page, onNavigate]);
+  }, [currentUser, page, onNavigate, authLoading]);
 
   useEffect(() => {
     try {
@@ -138,19 +127,18 @@ const App: React.FC = () => {
         return;
     }
 
-    // --- Create a deep clone to manipulate ---
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
     
-    // --- Recursively inline all computed styles ---
     const originalElements = Array.from(svgElement.querySelectorAll('*'));
-    originalElements.unshift(svgElement); // Add root SVG element
+    originalElements.unshift(svgElement);
     const clonedElements = Array.from(svgClone.querySelectorAll('*'));
-    clonedElements.unshift(svgClone); // Add root SVG element
+    clonedElements.unshift(svgClone);
 
     originalElements.forEach((sourceEl, index) => {
         const targetEl = clonedElements[index] as SVGElement;
         if (targetEl && targetEl.style) {
-            const computedStyle = window.getComputedStyle(sourceEl);
+            // FIX: Explicitly cast sourceEl to globalThis.Element to resolve type ambiguity caused by 'Node' type collision.
+            const computedStyle = window.getComputedStyle(sourceEl as globalThis.Element);
             let cssText = '';
             for (let i = 0; i < computedStyle.length; i++) {
                 const prop = computedStyle[i];
@@ -160,9 +148,6 @@ const App: React.FC = () => {
         }
     });
     
-    // --- BBox Calculation on original content for accurate dimensions ---
-    // FIX: Use a generic type argument with querySelector to specify the returned element type,
-    // which avoids type conflicts with the imported 'Node' interface and subsequent errors.
     const contentGroup = svgElement.querySelector<SVGGElement>('#diagram-content');
     if (!contentGroup) {
         setError("Export failed: Diagram content not found.");
@@ -170,8 +155,7 @@ const App: React.FC = () => {
     }
     const bbox = contentGroup.getBBox();
 
-    // --- Configure the cloned SVG for export ---
-    const padding = 20; // Reduced padding for a tighter crop
+    const padding = 20;
     const exportWidth = Math.round(bbox.width + padding * 2);
     const exportHeight = Math.round(bbox.height + padding * 2);
     
@@ -179,7 +163,6 @@ const App: React.FC = () => {
     svgClone.setAttribute('height', `${exportHeight}`);
     svgClone.setAttribute('viewBox', `0 0 ${exportWidth} ${exportHeight}`);
     
-    // --- Create a new root group with background and transform ---
     const exportRoot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -190,8 +173,6 @@ const App: React.FC = () => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Use a generic type argument with querySelector to specify the returned element type,
-    // which avoids type conflicts with the imported 'Node' interface.
     const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
@@ -203,16 +184,13 @@ const App: React.FC = () => {
         exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
     }
     
-    // Replace clone's content with this new root
     while (svgClone.firstChild) {
       svgClone.removeChild(svgClone.firstChild);
     }
     svgClone.appendChild(exportRoot);
 
-    // --- Serialize and download ---
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
-    // Clean up namespace that can cause issues
     svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
 
     if (format === 'html') {
@@ -233,7 +211,6 @@ const App: React.FC = () => {
 
     if (format === 'png') {
       const canvas = document.createElement('canvas');
-      // Set a higher resolution for better quality, then scale down if needed
       const scale = 2;
       canvas.width = exportWidth * scale;
       canvas.height = exportHeight * scale;
@@ -246,7 +223,6 @@ const App: React.FC = () => {
       ctx.scale(scale, scale);
   
       const img = new Image();
-      // Use btoa for binary data encoding, and encodeURIComponent for special characters in SVG.
       const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
   
       img.onload = () => {
@@ -267,7 +243,6 @@ const App: React.FC = () => {
       img.src = svgUrl;
     }
   };
-
 
   const handleDiagramUpdate = (newData: DiagramData, fromHistory = false) => {
     if (fromHistory) {
@@ -317,10 +292,8 @@ const App: React.FC = () => {
       const data = await generateDiagramData(prompt, apiKeyToUse || undefined);
       setHistory([data]);
       setHistoryIndex(0);
-      // Add a small delay for the canvas to render before fitting
       setTimeout(() => handleFitToScreen(), 100);
     } catch (err) {
-      // FIX: Explicitly convert the unknown error object to a string for safe logging.
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
       if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
@@ -347,7 +320,6 @@ const App: React.FC = () => {
       setSummary(explanation);
       setShowSummaryModal(true);
     } catch (err) {
-       // FIX: Explicitly convert the unknown error object to a string for safe logging.
        console.error(String(err));
        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
        if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
@@ -408,19 +380,19 @@ const App: React.FC = () => {
   };
   
   if (page === 'landing') {
-    return <LandingPage onLaunch={() => onNavigate('app')} onNavigate={onNavigate} />;
+    return <LandingPage onLaunch={() => onNavigate('auth')} onNavigate={onNavigate} />;
   }
   if (page === 'contact') {
     return <ContactPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'about') {
-    return <AboutPage onBack={() => setPage('landing')} onLaunch={() => onNavigate('app')} onNavigate={onNavigate} />;
+    return <AboutPage onBack={() => setPage('landing')} onLaunch={() => onNavigate('auth')} onNavigate={onNavigate} />;
   }
   if (page === 'sdk') {
     return <SdkPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'apiKey') {
-    return <ApiKeyPage onBack={() => setPage('landing')} onLaunch={() => onNavigate('app')} onNavigate={onNavigate} />;
+    return <ApiKeyPage onBack={() => setPage('landing')} onLaunch={() => onNavigate('auth')} onNavigate={onNavigate} />;
   }
   if (page === 'privacy') {
     return <PrivacyPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
@@ -429,7 +401,7 @@ const App: React.FC = () => {
     return <TermsPage onBack={() => setPage('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'docs') {
-    return <DocsPage onBack={() => setPage('landing')} onLaunch={() => onNavigate('app')} onNavigateToSdk={() => setPage('sdk')} onNavigate={onNavigate} />;
+    return <DocsPage onBack={() => setPage('landing')} onLaunch={() => onNavigate('auth')} onNavigateToSdk={() => setPage('sdk')} onNavigate={onNavigate} />;
   }
   if (page === 'neuralNetwork') {
     return <NeuralNetworkPage onBack={() => setPage('app')} />;
@@ -465,14 +437,8 @@ const App: React.FC = () => {
     }
 
     return (
-      <div className="h-screen w-screen text-[var(--color-text-primary)] transition-colors duration-300 app-bg overflow-hidden relative">
-        <motion.header 
-          initial={{ y: -80 }}
-          animate={{ y: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="absolute top-4 left-4 right-4 z-20"
-        >
-          <div className="w-full max-w-7xl mx-auto glass-panel p-2 rounded-2xl shadow-md flex justify-between items-center">
+      <div className="h-screen w-screen text-[var(--color-text-primary)] flex flex-col transition-colors duration-300 app-bg overflow-hidden">
+        <header className="flex-shrink-0 p-3 border-b border-[var(--color-border)] bg-[var(--color-panel-bg)]/80 backdrop-blur-sm flex justify-between items-center z-20">
             <div className="flex items-center gap-3">
               <Logo className="h-8 w-8 text-[var(--color-accent-text)]" />
                {isEditingTitle ? (
@@ -523,67 +489,82 @@ const App: React.FC = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
               </button>
             </div>
-          </div>
-        </motion.header>
+        </header>
 
-        <main className="absolute top-0 left-0 right-0 bottom-0">
-          <div className="relative w-full h-full">
-            <AnimatePresence>
-            {isLoading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex flex-col items-center justify-center z-20"
-              >
-                <Loader />
-              </motion.div>
-            )}
-            </AnimatePresence>
-            
-            <AnimatePresence>
-            {!diagramData && !isLoading && (
+        <div className="flex-1 flex flex-row overflow-hidden">
+            <main className="flex-1 relative">
+                <AnimatePresence>
+                {isLoading && (
                 <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full h-full flex flex-col items-center justify-center text-center p-8"
-              >
-                <ArchitectureIcon type={IconType.Cloud} className="h-20 w-20 text-[var(--color-text-tertiary)]" />
-                <h3 className="mt-4 text-xl font-semibold text-[var(--color-text-primary)]">Your architecture diagram will appear here</h3>
-                <p className="mt-1 text-[var(--color-text-secondary)]">Enter a prompt below and click "Generate" to start.</p>
-              </motion.div>
-            )}
-            </AnimatePresence>
-            
-            {diagramData && (
-                <DiagramCanvas
-                forwardedRef={svgRef}
-                fitScreenRef={fitScreenRef}
-                data={diagramData}
-                onDataChange={(newData) => handleDiagramUpdate(newData, true)}
-                selectedIds={selectedIds}
-                setSelectedIds={setSelectedIds}
-              />
-            )}
-            
-            {error && <div className="absolute bottom-28 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
-          </div>
-        </main>
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex flex-col items-center justify-center z-20"
+                >
+                    <Loader />
+                </motion.div>
+                )}
+                </AnimatePresence>
+                
+                <AnimatePresence>
+                {!diagramData && !isLoading && (
+                    <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full h-full flex flex-col items-center justify-center text-center p-8"
+                >
+                    <ArchitectureIcon type={IconType.Cloud} className="h-20 w-20 text-[var(--color-text-tertiary)]" />
+                    <h3 className="mt-4 text-xl font-semibold text-[var(--color-text-primary)]">Your architecture diagram will appear here</h3>
+                    <p className="mt-1 text-[var(--color-text-secondary)]">Enter a prompt below and click "Generate" to start.</p>
+                </motion.div>
+                )}
+                </AnimatePresence>
+                
+                {diagramData && (
+                    <DiagramCanvas
+                    forwardedRef={svgRef}
+                    fitScreenRef={fitScreenRef}
+                    data={diagramData}
+                    onDataChange={(newData) => handleDiagramUpdate(newData, true)}
+                    selectedIds={selectedIds}
+                    setSelectedIds={setSelectedIds}
+                />
+                )}
+                
+                {error && <div className="absolute bottom-24 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg z-10">{error}</div>}
 
-        <motion.div
-          initial={{ y: 80 }}
-          animate={{ y: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.3 }}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-3xl px-4"
-        >
-          <PromptInput
-            prompt={prompt}
-            setPrompt={setPrompt}
-            onGenerate={() => handleGenerate()}
-            isLoading={isLoading}
-            onCyclePrompt={handleCyclePrompt}
-          />
-        </motion.div>
+                <motion.div
+                    initial={{ y: 80 }}
+                    animate={{ y: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.3 }}
+                    className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-3xl px-4"
+                >
+                    <PromptInput
+                        prompt={prompt}
+                        setPrompt={setPrompt}
+                        onGenerate={() => handleGenerate()}
+                        isLoading={isLoading}
+                        onCyclePrompt={handleCyclePrompt}
+                    />
+                </motion.div>
+            </main>
+            <AnimatePresence>
+                {selectedIds.length > 0 && diagramData && (
+                    <motion.aside 
+                        key="properties-sidebar-desktop"
+                        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                        className="w-[350px] bg-transparent p-4 hidden md:flex"
+                    >
+                        <PropertiesSidebar 
+                            item={selectedItem}
+                            onPropertyChange={handlePropertyChange}
+                            selectedCount={selectedIds.length}
+                        />
+                    </motion.aside>
+                )}
+            </AnimatePresence>
+        </div>
         
         <AnimatePresence>
           {selectedIds.length > 0 && diagramData && (
@@ -601,8 +582,8 @@ const App: React.FC = () => {
                 transition={{ type: 'spring', stiffness: 400, damping: 40 }}
                 className="fixed bottom-0 left-0 right-0 h-[60vh] bg-[var(--color-panel-bg)] rounded-t-2xl border-t border-[var(--color-border)] shadow-2xl z-40 md:hidden"
               >
-                <div className="w-12 h-1.5 bg-[var(--color-border)] rounded-full mx-auto my-4" />
-                <div className="overflow-y-auto h-[calc(100%-40px)]">
+                <div className="w-12 h-1.5 bg-[var(--color-border)] rounded-full mx-auto my-3" />
+                <div className="overflow-y-auto h-[calc(100%-30px)] px-4 pb-4">
                   <PropertiesSidebar 
                     item={selectedItem}
                     onPropertyChange={handlePropertyChange}
@@ -610,20 +591,6 @@ const App: React.FC = () => {
                   />
                 </div>
               </motion.div>
-              
-              {/* Desktop: Side Panel */}
-              <motion.aside 
-                  key="properties-sidebar-desktop"
-                  initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                  className="fixed top-20 right-4 bottom-20 w-[350px] z-30 hidden md:block"
-              >
-                  <PropertiesSidebar 
-                    item={selectedItem}
-                    onPropertyChange={handlePropertyChange}
-                    selectedCount={selectedIds.length}
-                  />
-              </motion.aside>
             </>
           )}
         </AnimatePresence>
