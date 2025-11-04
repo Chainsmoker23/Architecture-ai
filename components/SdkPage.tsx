@@ -5,6 +5,7 @@ import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
 import { useAuth } from '../contexts/AuthContext';
 import { redirectToCheckout } from '../services/stripeService';
+import Toast from './Toast';
 
 type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth';
 
@@ -152,15 +153,29 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     const { currentUser } = useAuth();
     const [currentPlan, setCurrentPlan] = useState<string | null>(null);
     const [isRedirecting, setIsRedirecting] = useState<string | null>(null); // Store priceId of redirecting plan
-    const [error, setError] = useState<string | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     useEffect(() => {
-        // This is a placeholder for a real subscription check.
-        // For demonstration, we'll set a plan if the user is logged in.
+        // This is a placeholder for a real subscription check from Firestore.
+        // For demonstration, we'll just show "Pro" if logged in.
+        // In a real app, you would fetch the user's document from Firestore here.
         if (currentUser) {
             setCurrentPlan('Pro');
         } else {
             setCurrentPlan(null);
+        }
+
+        // Check for payment status from Stripe redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment_success')) {
+            setToastMessage("Payment successful! Your account has been upgraded.");
+        }
+        if (urlParams.get('payment_cancelled')) {
+            setToastMessage("Payment was cancelled. You can try again anytime.");
+        }
+        // Clean up URL parameters
+        if (urlParams.has('payment_success') || urlParams.has('payment_cancelled')) {
+            window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, [currentUser]);
 
@@ -247,7 +262,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     ];
 
   const handleCtaClick = async (plan: typeof pricingPlans[0]) => {
-    setError(null);
+    setToastMessage(null);
     if (!currentUser) {
         onNavigate('auth');
         return;
@@ -259,11 +274,11 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     if (plan.priceId && plan.mode) {
         setIsRedirecting(plan.priceId);
         try {
-            await redirectToCheckout(plan.priceId, currentUser.email || '', plan.mode);
+            await redirectToCheckout(plan.priceId, currentUser.email || '', currentUser.uid, plan.mode);
             // The user will be redirected to Stripe, so no need to reset loading state here.
         } catch (err) {
             console.error(err);
-            setError(err instanceof Error ? err.message : 'Could not redirect to checkout.');
+            setToastMessage(err instanceof Error ? err.message : 'Could not redirect to checkout.');
             setIsRedirecting(null);
         }
     }
@@ -279,6 +294,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
       </header>
 
       <main>
+        {toastMessage && <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
         {/* Hero Section */}
         <section className="relative flex items-center justify-center overflow-hidden sdk-hero-bg py-20 pt-32 md:pt-40">
           <div className="container mx-auto px-6 z-10 text-center">
@@ -411,7 +427,6 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
                         </motion.div>
                     )})}
                 </div>
-                {error && <p className="text-red-500 text-sm text-center mt-4">{error}</p>}
                  <p className="text-xs text-gray-400 mt-8">For custom enterprise needs, please <button onClick={() => onNavigate('contact')} className="underline hover:text-[#D6336C]">contact sales</button>.</p>
             </div>
         </section>
