@@ -199,7 +199,9 @@ const App: React.FC = () => {
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
     if (clonedContentGroup instanceof globalThis.Element) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        exportRoot.appendChild(clonedContentGroup);
+        // FIX: The imported 'Node' type conflicts with the DOM's 'Node' type.
+        // Casting to Element resolves the ambiguity for appendChild.
+        exportRoot.appendChild(clonedContentGroup as Element);
     }
     
     const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');

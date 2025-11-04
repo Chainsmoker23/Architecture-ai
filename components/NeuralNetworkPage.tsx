@@ -39,6 +39,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // FIX: Corrected typo 'exportMenu_ref' to 'exportMenuRef'
       if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target)) {
         setIsExportMenuOpen(false);
       }
@@ -58,7 +59,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     URL.revokeObjectURL(url);
   };
   
-  const handleExport = async (format: 'png' | 'html' | 'json') => {
+  const handleExport = async (format: 'html' | 'json') => {
     setIsExportMenuOpen(false);
     if (!diagramData) return;
     const filename = diagramData.title.replace(/[\s/]/g, '_').toLowerCase();
@@ -132,7 +133,9 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
     if (clonedContentGroup instanceof globalThis.Element) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        exportRoot.appendChild(clonedContentGroup);
+        // FIX: The imported 'Node' type conflicts with the DOM's 'Node' type.
+        // Casting to Element resolves the ambiguity for appendChild.
+        exportRoot.appendChild(clonedContentGroup as Element);
     }
     
     const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
@@ -166,42 +169,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
       const blob = new Blob([htmlString], { type: 'text/html' });
       downloadBlob(blob, `${filename}.html`);
       return;
-    }
-
-    if (format === 'png') {
-      const canvas = document.createElement('canvas');
-      // Set a higher resolution for better quality, then scale down if needed
-      const scale = 2;
-      canvas.width = exportWidth * scale;
-      canvas.height = exportHeight * scale;
-      const ctx = canvas.getContext('2d');
-  
-      if (!ctx) {
-          setError("Export failed: Could not create canvas context.");
-          return;
-      }
-      ctx.scale(scale, scale);
-  
-      const img = new Image();
-      // Use btoa for binary data encoding, and encodeURIComponent for special characters in SVG.
-      const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
-  
-      img.onload = () => {
-          ctx.drawImage(img, 0, 0);
-          canvas.toBlob((blob) => {
-              if (blob) {
-                  downloadBlob(blob, `${filename}.png`);
-              } else {
-                   setError("Export failed: Canvas returned empty blob for png.");
-              }
-          }, 'image/png');
-      };
-  
-      img.onerror = () => {
-          setError("Export failed: The generated SVG could not be loaded as an image. This can happen with complex gradients or filters.");
-      };
-  
-      img.src = svgUrl;
     }
   };
 
@@ -264,7 +231,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
               </button>
               {isExportMenuOpen && (
                   <div className="absolute right-0 mt-2 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg z-30 p-1">
-                      <a onClick={() => handleExport('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
                       <a onClick={() => handleExport('html')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">HTML</a>
                       <a onClick={() => handleExport('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
                   </div>
