@@ -1,9 +1,7 @@
-
-
-
-
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { DiagramData, Node, Container, Link, IconType } from './types';
+// FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
+import type { DiagramData, Node, Container, Link } from './types';
+import { IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
 import PromptInput from './components/PromptInput';
 import DiagramCanvas from './components/DiagramCanvas';
@@ -195,11 +193,11 @@ const App: React.FC = () => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Use `instanceof Element` as a type guard. This correctly types the result of
-    // querySelector, resolving the 'unknown' type error on `appendChild` that occurs due
-    // to a type name collision with the imported `Node` interface.
+    // Use `instanceof globalThis.Element` to explicitly reference the DOM Element.
+    // This resolves the type ambiguity caused by the imported `Node` interface,
+    // which can confuse TypeScript's type checker for `appendChild`.
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
-    if (clonedContentGroup instanceof Element) {
+    if (clonedContentGroup instanceof globalThis.Element) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }

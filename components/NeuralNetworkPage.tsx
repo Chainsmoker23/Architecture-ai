@@ -1,10 +1,8 @@
-
-
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiagramData, IconType, Node } from '../types';
+// FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
+import type { DiagramData, Node } from '../types';
+import { IconType } from '../types';
 import { generateNeuralNetworkData } from '../services/geminiService';
 import Loader from './Loader';
 import ArchitectureIcon from './ArchitectureIcon';
@@ -41,9 +39,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // FIX: Use `instanceof Node` to check if the event target is a DOM node.
-      // This acts as a type guard and resolves ambiguity with the imported `Node` interface.
-      if (exportMenuRef.current && event.target instanceof Node && !exportMenuRef.current.contains(event.target)) {
+      if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target)) {
         setIsExportMenuOpen(false);
       }
     };
@@ -130,11 +126,11 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Use `instanceof Element` as a type guard. This correctly types the result of
-    // querySelector, resolving the 'unknown' type error on `appendChild` that occurs due
-    // to a type name collision with the imported `Node` interface.
+    // Use `instanceof globalThis.Element` to explicitly reference the DOM Element.
+    // This resolves the type ambiguity caused by the imported `Node` interface,
+    // which can confuse TypeScript's type checker for `appendChild`.
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
-    if (clonedContentGroup instanceof Element) {
+    if (clonedContentGroup instanceof globalThis.Element) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }
