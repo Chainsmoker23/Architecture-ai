@@ -4,6 +4,8 @@
 
 
 
+
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
@@ -139,8 +141,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     if (clonedContentGroup instanceof globalThis.Element) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         // FIX: The `instanceof` check is insufficient due to a type collision with a custom `Node` interface.
-        // Casting to `Element` explicitly resolves the type for `appendChild`.
-        exportRoot.appendChild(clonedContentGroup as Element);
+        // Casting to `globalThis.Element` explicitly resolves the type for `appendChild`.
+        exportRoot.appendChild(clonedContentGroup as globalThis.Element);
     }
     
     const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
