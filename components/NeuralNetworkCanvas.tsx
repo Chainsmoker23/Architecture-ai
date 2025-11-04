@@ -168,7 +168,7 @@ const NeuralNetworkCanvas: React.FC<{ data: DiagramData, forwardedRef: React.Ref
             <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-link)" opacity="0.6"/>
           </marker>
         </defs>
-        <g transform={viewTransform.toString()}>
+        <g id="diagram-content" transform={viewTransform.toString()}>
             {/* Links */}
             <g>
                 {layout.links.map(link => (

@@ -1,3 +1,5 @@
+
+
 import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 
 type Theme = 'light' | 'medium' | 'dark';
@@ -120,9 +122,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
-      // FIX: The error object in a catch block is of type unknown.
-      // Pass it as a separate argument to console.error for better debugging.
-      console.error('Could not access localStorage to save theme:', error);
+      // FIX: The error object is of type 'unknown', which is not assignable to the expected 'string' type for console.error in this configuration. Converting it to a string resolves the type mismatch.
+      console.error('Could not access localStorage to save theme:', String(error));
     }
   }, [theme]);
 

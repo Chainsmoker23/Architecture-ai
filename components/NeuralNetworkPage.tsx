@@ -8,6 +8,7 @@ import NeuralNetworkCanvas from './NeuralNetworkCanvas';
 import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
 import Logo from './Logo';
+import domtoimage from 'dom-to-image-more';
 
 interface NeuralNetworkPageProps {
   onBack: () => void;
@@ -56,7 +57,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     URL.revokeObjectURL(url);
   };
   
- const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
+  const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
     setIsExportMenuOpen(false);
     if (!diagramData) return;
     const filename = diagramData.title.replace(/[\s/]/g, '_').toLowerCase();
@@ -70,131 +71,78 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     
     const svgElement = svgRef.current;
     if (!svgElement) return;
-
-    // --- 1. Deep clone the SVG ---
-    const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
-
-    // --- 2. Fetch and embed all stylesheets ---
-    const styleEl = document.createElement('style');
-    const cssTexts: string[] = [];
-    const promises: Promise<string>[] = [];
-
-    for (const sheet of Array.from(document.styleSheets)) {
-        if (sheet.href) {
-            promises.push(
-                fetch(sheet.href)
-                    .then(response => {
-                        if (!response.ok) throw new Error(`Failed to fetch stylesheet: ${sheet.href}`);
-                        return response.text();
-                    })
-                    .catch(err => {
-                        console.warn(err);
-                        return '';
-                    })
-            );
-        } else {
-            try {
-                cssTexts.push(Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n'));
-            } catch (e) {
-                console.warn("Could not read CSS rules from inline stylesheet:", e);
-            }
-        }
-    }
-
-    const externalCssTexts = await Promise.all(promises);
-    cssTexts.push(...externalCssTexts);
     
-    let combinedCss = cssTexts.join('\n');
-    const rootStyle = getComputedStyle(document.documentElement);
-    combinedCss = combinedCss.replace(/var\((--[\w-]+?)\)/g, (match, varName) => {
-        return rootStyle.getPropertyValue(varName).trim() || match;
-    });
-
-    styleEl.textContent = combinedCss;
-    const defsEl = svgClone.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    defsEl.appendChild(styleEl);
-    if (!svgClone.contains(defsEl)) {
-      svgClone.insertBefore(defsEl, svgClone.firstChild);
+    // --- Create a clean, transformed clone of the SVG for export ---
+    const svgExport = svgElement.cloneNode(true) as SVGSVGElement;
+    
+    const contentGroup = svgExport.querySelector('#diagram-content');
+    
+    if (!contentGroup) {
+        setError("Export failed: Could not find diagram content.");
+        return;
     }
 
-    // --- 3. Calculate bounding box ---
-    document.body.appendChild(svgClone);
-    svgClone.style.position = 'absolute';
-    svgClone.style.top = '-9999px';
-    const contentGroup = svgClone.querySelector('g[transform]');
-    if (!contentGroup) { document.body.removeChild(svgClone); return; }
-    const bbox = (contentGroup as SVGGraphicsElement).getBBox();
-    document.body.removeChild(svgClone);
+    // To get the true bounding box, we must measure the untransformed content
+    const tempClone = svgElement.cloneNode(true) as SVGSVGElement;
+    const tempContent = tempClone.querySelector('#diagram-content')!;
+    tempContent.removeAttribute('transform');
+    tempClone.style.position = 'absolute';
+    tempClone.style.top = '-9999px';
+    tempClone.style.left = '-9999px';
+    document.body.appendChild(tempClone);
+    const bbox = (tempContent as SVGGraphicsElement).getBBox();
+    document.body.removeChild(tempClone);
 
     if (bbox.width === 0 || bbox.height === 0) {
-        setError("Export failed: Could not determine diagram dimensions.");
+        setError("Export failed: Diagram content has no size.");
         return;
     };
 
-    // --- 4. Configure clone for export ---
     const padding = 50;
-    const exportWidth = bbox.width + padding * 2;
-    const exportHeight = bbox.height + padding * 2;
-    const viewBox = `${bbox.x - padding} ${bbox.y - padding} ${exportWidth} ${exportHeight}`;
+    const exportWidth = Math.round(bbox.width + padding * 2);
+    const exportHeight = Math.round(bbox.height + padding * 2);
 
-    svgClone.setAttribute('width', `${exportWidth}`);
-    svgClone.setAttribute('height', `${exportHeight}`);
-    svgClone.setAttribute('viewBox', viewBox);
-    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    // Configure the clone's dimensions and viewBox
+    svgExport.setAttribute('width', String(exportWidth));
+    svgExport.setAttribute('height', String(exportHeight));
+    svgExport.setAttribute('viewBox', `0 0 ${exportWidth} ${exportHeight}`);
     
-    if (format === 'jpg') {
-        const themeBg = rootStyle.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
-        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        bgRect.setAttribute('x', `${bbox.x - padding}`);
-        bgRect.setAttribute('y', `${bbox.y - padding}`);
-        bgRect.setAttribute('width', `${exportWidth}`);
-        bgRect.setAttribute('height', `${exportHeight}`);
-        bgRect.setAttribute('fill', themeBg);
-        svgClone.insertBefore(bgRect, svgClone.firstChild);
-    }
-    
-    const serializer = new XMLSerializer();
-    const source = serializer.serializeToString(svgClone);
-    
-    if (format === 'svg') {
-        const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
-        downloadBlob(svgBlob, `${filename}.svg`);
-        return;
-    }
-    
-    if (format === 'png' || format === 'jpg') {
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        if (!context) return;
-        
-        const img = new Image();
-        const toBase64 = (str: string) => window.btoa(unescape(encodeURIComponent(str)));
-        const dataUri = 'data:image/svg+xml;base64,' + toBase64(source);
-        
-        img.onload = () => {
-            const pixelRatio = window.devicePixelRatio || 1;
-            canvas.width = exportWidth * pixelRatio;
-            canvas.height = exportHeight * pixelRatio;
-            
-            context.scale(pixelRatio, pixelRatio);
-            context.drawImage(img, 0, 0, exportWidth, exportHeight);
+    // Apply a new transform to the content to position it correctly
+    contentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
 
-            const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
-            const quality = format === 'jpg' ? 0.95 : undefined;
-            
-            canvas.toBlob((imageBlob) => {
-                if (imageBlob) {
-                    downloadBlob(imageBlob, `${filename}.${format}`);
-                } else {
-                     setError("Export failed: Could not create image blob.");
-                }
-            }, mimeType, quality);
-        };
-        img.onerror = (e) => {
-          console.error("Error loading SVG data URI for image conversion.", e);
-          setError("Failed to export image. The SVG data was invalid.");
+    // The library needs the node to be in the DOM to correctly compute styles
+    svgExport.style.position = 'absolute';
+    svgExport.style.top = '-9999px';
+    svgExport.style.left = '-9999px';
+    document.body.appendChild(svgExport);
+
+    // --- Use dom-to-image-more on the prepared clone ---
+    const rootStyle = getComputedStyle(document.documentElement);
+    const bgColor = rootStyle.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+
+    try {
+        let dataUrl: string;
+        if (format === 'svg') {
+            dataUrl = await domtoimage.toSvg(svgExport);
+        } else if (format === 'png') {
+            dataUrl = await domtoimage.toPng(svgExport);
+        } else { // jpg
+            dataUrl = await domtoimage.toJpeg(svgExport, {
+                quality: 0.95,
+                bgcolor: bgColor,
+            });
         }
-        img.src = dataUri;
+        
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        downloadBlob(blob, `${filename}.${format}`);
+
+    } catch (error) {
+        console.error('Export failed:', error);
+        setError(`Failed to export to ${format.toUpperCase()}. An error occurred during image conversion.`);
+    } finally {
+        // Clean up the cloned node from the DOM
+        document.body.removeChild(svgExport);
     }
   };
 
