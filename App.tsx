@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DiagramData, Node, Container, Link, IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
@@ -141,77 +142,83 @@ const App: React.FC = () => {
         return;
     }
 
+    // --- Create a deep clone to manipulate ---
+    const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
+    
+    // --- Recursively inline all computed styles ---
+    const stylePromises: Promise<void>[] = [];
+    const originalElements = Array.from(svgElement.querySelectorAll('*'));
+    originalElements.unshift(svgElement); // Add root SVG element
+    const clonedElements = Array.from(svgClone.querySelectorAll('*'));
+    clonedElements.unshift(svgClone); // Add root SVG element
+
+    originalElements.forEach((sourceEl, index) => {
+        const targetEl = clonedElements[index] as HTMLElement;
+        if (targetEl) {
+            const computedStyle = window.getComputedStyle(sourceEl);
+            let cssText = '';
+            for (let i = 0; i < computedStyle.length; i++) {
+                const prop = computedStyle[i];
+                cssText += `${prop}: ${computedStyle.getPropertyValue(prop)};`;
+            }
+            targetEl.style.cssText = cssText;
+        }
+    });
+    
+    // --- BBox Calculation on original content for accurate dimensions ---
     const contentGroup = svgElement.querySelector('#diagram-content');
     if (!contentGroup) {
         setError("Export failed: Diagram content not found.");
         return;
     }
+    const bbox = (contentGroup as SVGGraphicsElement).getBBox();
 
-    // --- BBox Calculation ---
-    const tempSvg = svgElement.cloneNode(true) as SVGSVGElement;
-    const tempContent = tempSvg.querySelector('#diagram-content')!;
-    tempContent.removeAttribute('transform');
-    document.body.appendChild(tempSvg);
-    tempSvg.style.visibility = 'hidden';
-    tempSvg.style.position = 'absolute';
-    const bbox = (tempContent as SVGGraphicsElement).getBBox();
-    document.body.removeChild(tempSvg);
-
-    if (bbox.width === 0 || bbox.height === 0) {
-        setError("Export failed: Diagram content has no size.");
-        return;
-    }
-
+    // --- Configure the cloned SVG for export ---
     const padding = 50;
     const exportWidth = Math.round(bbox.width + padding * 2);
     const exportHeight = Math.round(bbox.height + padding * 2);
-
-    // --- Style & Definition Extraction ---
-    let styles = '';
-    try {
-        for (const sheet of Array.from(document.styleSheets)) {
-            if (sheet.cssRules) {
-                for (const rule of Array.from(sheet.cssRules)) {
-                    styles += rule.cssText;
-                }
-            }
-        }
-    } catch (e) {
-        console.warn("Could not read cross-origin stylesheets for SVG export.", e);
-    }
-    const styleTags = document.querySelectorAll('style');
-    styleTags.forEach(tag => { styles += tag.innerHTML; });
-
-
-    const defs = svgElement.querySelector('defs')?.innerHTML || '';
     
-    // --- Sanitize Content HTML ---
-    const sanitizedContentGroup = contentGroup.cloneNode(true) as SVGGElement;
-    const removeXmlns = (el: Element) => {
-        el.removeAttribute('xmlns');
-        Array.from(el.children).forEach(removeXmlns);
-    };
-    removeXmlns(sanitizedContentGroup);
-    const contentHTML = sanitizedContentGroup.innerHTML;
+    svgClone.setAttribute('width', `${exportWidth}`);
+    svgClone.setAttribute('height', `${exportHeight}`);
+    svgClone.setAttribute('viewBox', `0 0 ${exportWidth} ${exportHeight}`);
+    
+    // --- Create a new root group with background and transform ---
+    const exportRoot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-    // --- SVG String Construction ---
+    const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     const rootStyle = getComputedStyle(document.documentElement);
     const bgColor = rootStyle.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+    bgRect.setAttribute('width', '100%');
+    bgRect.setAttribute('height', '100%');
+    bgRect.setAttribute('fill', bgColor);
+    exportRoot.appendChild(bgRect);
 
-    const svgString = `
-      <svg width="${exportWidth}" height="${exportHeight}" viewBox="0 0 ${exportWidth} ${exportHeight}" xmlns="http://www.w3.org/2000/svg">
-        <style>
-          ${styles}
-        </style>
-        <defs>
-          ${defs}
-        </defs>
-        <rect width="100%" height="100%" fill="${bgColor}"/>
-        <g transform="translate(${-bbox.x + padding}, ${-bbox.y + padding})">
-          ${contentHTML}
-        </g>
-      </svg>
-    `;
+    const clonedContentGroup = svgClone.querySelector('#diagram-content');
+    if (clonedContentGroup) {
+        clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
+        exportRoot.appendChild(clonedContentGroup);
+    }
+    
+    const clonedDefs = svgClone.querySelector('defs');
+    if (clonedDefs) {
+        exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
+    }
+    
+    // Replace clone's content with this new root
+    while (svgClone.firstChild) {
+      svgClone.removeChild(svgClone.firstChild);
+    }
+    svgClone.appendChild(exportRoot);
+
+    // --- Serialize and download ---
+    const serializer = new XMLSerializer();
+    let svgString = serializer.serializeToString(svgClone);
+    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
+
+    // Embed Google Font
+    const fontUrl = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
+    const styleElement = `<style>@import url('${fontUrl}');</style>`;
+    svgString = svgString.replace('>', `>${styleElement}`);
 
     if (format === 'html') {
       const htmlString = `
@@ -219,23 +226,16 @@ const App: React.FC = () => {
         <html lang="en">
         <head>
           <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${diagramData.title}</title>
-          <style>
-            body { margin: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-            svg { max-width: 100%; height: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-          </style>
+          <style> body { margin: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; } svg { max-width: 100%; height: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); } </style>
         </head>
-        <body>
-          ${svgString}
-        </body>
+        <body>${svgString}</body>
         </html>`;
       const blob = new Blob([htmlString], { type: 'text/html' });
       downloadBlob(blob, `${filename}.html`);
       return;
     }
 
-    // --- PNG Conversion via Canvas ---
     if (format === 'png') {
       const canvas = document.createElement('canvas');
       canvas.width = exportWidth;
@@ -251,20 +251,19 @@ const App: React.FC = () => {
       const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
   
       img.onload = () => {
-          ctx.drawImage(img, 0, 0);
-          
+          ctx.drawImage(img, 0, 0, exportWidth, exportHeight);
           canvas.toBlob((blob) => {
               if (blob) {
                   downloadBlob(blob, `${filename}.png`);
               } else {
-                   setError(`Export failed: Canvas returned empty blob for png.`);
+                   setError("Export failed: Canvas returned empty blob for png.");
               }
           }, 'image/png');
       };
   
       img.onerror = (e) => {
-          console.error("Image loading error for SVG conversion:", e);
-          setError(`Export failed: Could not load the generated SVG into an image.`);
+          console.error("Image loading error for SVG conversion:", e, svgString);
+          setError("Export failed: The generated SVG could not be loaded as an image.");
       };
   
       img.src = svgUrl;
@@ -323,7 +322,8 @@ const App: React.FC = () => {
       // Add a small delay for the canvas to render before fitting
       setTimeout(() => handleFitToScreen(), 100);
     } catch (err) {
-      console.error(err);
+      // FIX: Explicitly convert the unknown error object to a string for safe logging.
+      console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
       if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
           setLastAction({ type: 'generate', payload: prompt });
@@ -349,7 +349,8 @@ const App: React.FC = () => {
       setSummary(explanation);
       setShowSummaryModal(true);
     } catch (err) {
-       console.error(err);
+       // FIX: Explicitly convert the unknown error object to a string for safe logging.
+       console.error(String(err));
        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
        if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
             setLastAction({ type: 'explain', payload: diagramData });
