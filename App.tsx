@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DiagramData, Node, Container, Link, IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
@@ -146,15 +147,14 @@ const App: React.FC = () => {
     const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
     
     // --- Recursively inline all computed styles ---
-    const stylePromises: Promise<void>[] = [];
     const originalElements = Array.from(svgElement.querySelectorAll('*'));
     originalElements.unshift(svgElement); // Add root SVG element
     const clonedElements = Array.from(svgClone.querySelectorAll('*'));
     clonedElements.unshift(svgClone); // Add root SVG element
 
     originalElements.forEach((sourceEl, index) => {
-        const targetEl = clonedElements[index] as HTMLElement;
-        if (targetEl) {
+        const targetEl = clonedElements[index] as SVGElement;
+        if (targetEl && targetEl.style) {
             const computedStyle = window.getComputedStyle(sourceEl);
             let cssText = '';
             for (let i = 0; i < computedStyle.length; i++) {
@@ -174,7 +174,7 @@ const App: React.FC = () => {
     const bbox = (contentGroup as SVGGraphicsElement).getBBox();
 
     // --- Configure the cloned SVG for export ---
-    const padding = 50;
+    const padding = 20; // Reduced padding for a tighter crop
     const exportWidth = Math.round(bbox.width + padding * 2);
     const exportHeight = Math.round(bbox.height + padding * 2);
     
@@ -196,7 +196,8 @@ const App: React.FC = () => {
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        exportRoot.appendChild(clonedContentGroup);
+        // FIX: Cast clonedContentGroup to Element to resolve TS error.
+        exportRoot.appendChild(clonedContentGroup as Element);
     }
     
     const clonedDefs = svgClone.querySelector('defs');
@@ -213,12 +214,8 @@ const App: React.FC = () => {
     // --- Serialize and download ---
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
+    // Clean up namespace that can cause issues
     svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
-
-    // Embed Google Font
-    const fontUrl = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
-    const styleElement = `<style>@import url('${fontUrl}');</style>`;
-    svgString = svgString.replace('>', `>${styleElement}`);
 
     if (format === 'html') {
       const htmlString = `
@@ -227,7 +224,7 @@ const App: React.FC = () => {
         <head>
           <meta charset="UTF-8">
           <title>${diagramData.title}</title>
-          <style> body { margin: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; } svg { max-width: 100%; height: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); } </style>
+          <style> body { margin: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 2rem; box-sizing: border-box; } svg { max-width: 100%; height: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 1rem; } </style>
         </head>
         <body>${svgString}</body>
         </html>`;
@@ -238,20 +235,24 @@ const App: React.FC = () => {
 
     if (format === 'png') {
       const canvas = document.createElement('canvas');
-      canvas.width = exportWidth;
-      canvas.height = exportHeight;
+      // Set a higher resolution for better quality, then scale down if needed
+      const scale = 2;
+      canvas.width = exportWidth * scale;
+      canvas.height = exportHeight * scale;
       const ctx = canvas.getContext('2d');
   
       if (!ctx) {
           setError("Export failed: Could not create canvas context.");
           return;
       }
+      ctx.scale(scale, scale);
   
       const img = new Image();
+      // Use btoa for binary data encoding, and encodeURIComponent for special characters in SVG.
       const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
   
       img.onload = () => {
-          ctx.drawImage(img, 0, 0, exportWidth, exportHeight);
+          ctx.drawImage(img, 0, 0);
           canvas.toBlob((blob) => {
               if (blob) {
                   downloadBlob(blob, `${filename}.png`);
@@ -261,9 +262,8 @@ const App: React.FC = () => {
           }, 'image/png');
       };
   
-      img.onerror = (e) => {
-          console.error("Image loading error for SVG conversion:", e, svgString);
-          setError("Export failed: The generated SVG could not be loaded as an image.");
+      img.onerror = () => {
+          setError("Export failed: The generated SVG could not be loaded as an image. This can happen with complex gradients or filters.");
       };
   
       img.src = svgUrl;

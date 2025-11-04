@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiagramData, IconType } from '../types';
@@ -85,8 +86,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     clonedElements.unshift(svgClone); // Add root SVG element
     
     originalElements.forEach((sourceEl, index) => {
-        const targetEl = clonedElements[index] as HTMLElement;
-        if (targetEl) {
+        const targetEl = clonedElements[index] as SVGElement;
+        if (targetEl && targetEl.style) {
             const computedStyle = window.getComputedStyle(sourceEl);
             let cssText = '';
             for (let i = 0; i < computedStyle.length; i++) {
@@ -106,7 +107,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const bbox = (contentGroup as SVGGraphicsElement).getBBox();
 
     // --- Configure the cloned SVG for export ---
-    const padding = 50;
+    const padding = 20; // Reduced padding for a tighter crop
     const exportWidth = Math.round(bbox.width + padding * 2);
     const exportHeight = Math.round(bbox.height + padding * 2);
     
@@ -128,7 +129,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        exportRoot.appendChild(clonedContentGroup);
+        // FIX: Cast clonedContentGroup to Element to resolve TS error.
+        exportRoot.appendChild(clonedContentGroup as Element);
     }
     
     const clonedDefs = svgClone.querySelector('defs');
@@ -145,12 +147,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     // --- Serialize and download ---
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
+    // Clean up namespace that can cause issues
     svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
-    
-    // Embed Google Font
-    const fontUrl = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
-    const styleElement = `<style>@import url('${fontUrl}');</style>`;
-    svgString = svgString.replace('>', `>${styleElement}`);
 
     if (format === 'html') {
       const htmlString = `
@@ -159,7 +157,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         <head>
           <meta charset="UTF-8">
           <title>${diagramData.title}</title>
-          <style> body { margin: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; } svg { max-width: 100%; height: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); } </style>
+          <style> body { margin: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 2rem; box-sizing: border-box; } svg { max-width: 100%; height: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 1rem; } </style>
         </head>
         <body>${svgString}</body>
         </html>`;
@@ -170,32 +168,35 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
     if (format === 'png') {
         const canvas = document.createElement('canvas');
-        canvas.width = exportWidth;
-        canvas.height = exportHeight;
+        // Set a higher resolution for better quality, then scale down if needed
+        const scale = 2;
+        canvas.width = exportWidth * scale;
+        canvas.height = exportHeight * scale;
         const ctx = canvas.getContext('2d');
     
         if (!ctx) {
             setError("Export failed: Could not create canvas context.");
             return;
         }
+        ctx.scale(scale, scale);
     
         const img = new Image();
+        // Use btoa for binary data encoding, and encodeURIComponent for special characters in SVG.
         const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
     
         img.onload = () => {
-            ctx.drawImage(img, 0, 0, exportWidth, exportHeight);
+            ctx.drawImage(img, 0, 0);
             canvas.toBlob((blob) => {
                 if (blob) {
                     downloadBlob(blob, `${filename}.png`);
                 } else {
-                     setError(`Export failed: Canvas returned empty blob for png.`);
+                     setError("Export failed: Canvas returned empty blob for png.");
                 }
             }, 'image/png');
         };
     
-        img.onerror = (e) => {
-            console.error("Image loading error for SVG conversion:", e, svgString);
-            setError(`Export failed: The generated SVG could not be loaded as an image.`);
+        img.onerror = () => {
+            setError("Export failed: The generated SVG could not be loaded as an image. This can happen with complex gradients or filters.");
         };
     
         img.src = svgUrl;

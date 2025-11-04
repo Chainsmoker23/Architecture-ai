@@ -127,7 +127,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
       // FIX: The error object in a catch block is of type 'unknown' and cannot be directly passed to console.error with a strict TypeScript configuration. Casting it to a string resolves the type error.
-      console.error('Could not access localStorage to save theme:', String(error));
+      // Using a template literal ensures a single string argument is passed to console.error.
+      console.error(`Could not access localStorage to save theme: ${error}`);
     }
   }, [theme]);
 
