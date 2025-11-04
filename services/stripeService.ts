@@ -26,13 +26,19 @@ export const redirectToCheckout = async (priceId: string, userEmail: string, mod
     throw new Error("Stripe.js has not loaded yet.");
   }
   
-  // NOTE: This URL points to your deployed Firebase Cloud Function.
-  // It is derived from your Firebase project settings.
-  // Format: `https://<region>-<project-id>.cloudfunctions.net/<functionName>`
-  const checkoutFunctionUrl = `https://us-central1-cubegen-ai.cloudfunctions.net/createStripeCheckoutSession`;
+  // !!! IMPORTANT !!!
+  // Replace this placeholder with the URL of your new Leapcell backend.
+  // It will look like: https://your-project.leapcell.app
+  const leapcellBackendUrl = "https://your-project.leapcell.app"; // <-- PASTE YOUR LEAPCELL URL HERE
+
+  if (!leapcellBackendUrl || leapcellBackendUrl.includes("your-project.leapcell.app")) {
+    throw new Error("Please replace the placeholder URL in `services/stripeService.ts` with your deployed Leapcell backend URL.");
+  }
+
+  const checkoutUrl = `${leapcellBackendUrl}/api/create-stripe-checkout-session`;
 
   try {
-    const response = await fetch(checkoutFunctionUrl, {
+    const response = await fetch(checkoutUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,8 +47,8 @@ export const redirectToCheckout = async (priceId: string, userEmail: string, mod
     });
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Failed to create checkout session: ${errorBody}`);
+      const errorBody = await response.json();
+      throw new Error(`Failed to create checkout session: ${errorBody.error || response.statusText}`);
     }
 
     const session = await response.json();
