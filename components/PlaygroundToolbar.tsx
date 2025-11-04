@@ -11,7 +11,7 @@ interface PlaygroundToolbarProps {
     canRedo: boolean;
     onExplain: () => void;
     isExplaining: boolean;
-    onExport: (format: 'svg' | 'png' | 'json' | 'jpg') => void;
+    onExport: (format: 'png' | 'html' | 'json') => void;
 }
 
 const ToolButton: React.FC<{ 'aria-label': string; onClick?: () => void; isActive?: boolean; isDisabled?: boolean; children: React.ReactNode; className?: string }> =
@@ -52,7 +52,7 @@ const PlaygroundToolbar: React.FC<PlaygroundToolbarProps> = (props) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-     const handleExportClick = (format: 'svg' | 'png' | 'json' | 'jpg') => {
+     const handleExportClick = (format: 'png' | 'html' | 'json') => {
         onExport(format);
         setIsExportMenuOpen(false);
         setIsMoreMenuOpen(false);
@@ -68,8 +68,7 @@ const PlaygroundToolbar: React.FC<PlaygroundToolbarProps> = (props) => {
                     <a onClick={() => { onFitToScreen(); setIsMoreMenuOpen(false); }} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Fit to Screen</a>
                     <div className="h-px bg-[var(--color-border)] my-1" />
                     <a onClick={() => handleExportClick('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export PNG</a>
-                    <a onClick={() => handleExportClick('jpg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export JPG</a>
-                    <a onClick={() => handleExportClick('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export SVG</a>
+                    <a onClick={() => handleExportClick('html')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export HTML</a>
                     <a onClick={() => handleExportClick('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Export JSON</a>
                     <div className="h-px bg-[var(--color-border)] my-1" />
                     <a onClick={() => { onExplain(); setIsMoreMenuOpen(false); }} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">Explain</a>
@@ -114,8 +113,7 @@ const PlaygroundToolbar: React.FC<PlaygroundToolbarProps> = (props) => {
                      {isExportMenuOpen && (
                         <div className="absolute left-full ml-2 top-0 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg p-1 z-20">
                             <a onClick={() => handleExportClick('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
-                            <a onClick={() => handleExportClick('jpg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JPG</a>
-                            <a onClick={() => handleExportClick('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">SVG</a>
+                            <a onClick={() => handleExportClick('html')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">HTML</a>
                             <a onClick={() => handleExportClick('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
                         </div>
                     )}

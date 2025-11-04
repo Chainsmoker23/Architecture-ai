@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface ToolbarProps {
-  onExport: (format: 'svg' | 'png' | 'json' | 'jpg') => void;
+  onExport: (format: 'png' | 'html' | 'json') => void;
   onExplain: () => void;
   isExplaining: boolean;
   onUndo: () => void;
@@ -38,7 +38,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, on
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleExportClick = (format: 'svg' | 'png' | 'json' | 'jpg') => {
+  const handleExportClick = (format: 'png' | 'html' | 'json') => {
     onExport(format);
     setIsExportMenuOpen(false);
   };
@@ -87,8 +87,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onExport, onExplain, isExplaining, on
         {isExportMenuOpen && (
             <div className="absolute right-0 mt-2 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg z-30 p-1">
                 <a onClick={() => handleExportClick('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
-                <a onClick={() => handleExportClick('jpg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JPG</a>
-                <a onClick={() => handleExportClick('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">SVG</a>
+                <a onClick={() => handleExportClick('html')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">HTML</a>
                 <a onClick={() => handleExportClick('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
             </div>
         )}

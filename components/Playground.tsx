@@ -25,7 +25,7 @@ interface PlaygroundProps {
     canRedo: boolean;
     onExplain: () => void;
     isExplaining: boolean;
-    onExport: (format: 'svg' | 'png' | 'json' | 'jpg') => void;
+    onExport: (format: 'png' | 'html' | 'json') => void;
 }
 
 const Playground: React.FC<PlaygroundProps> = (props) => {

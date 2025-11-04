@@ -56,7 +56,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     URL.revokeObjectURL(url);
   };
   
-  const handleExport = async (format: 'svg' | 'png' | 'json' | 'jpg') => {
+  const handleExport = async (format: 'png' | 'html' | 'json') => {
     setIsExportMenuOpen(false);
     if (!diagramData) return;
     const filename = diagramData.title.replace(/[\s/]/g, '_').toLowerCase();
@@ -84,9 +84,9 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const tempSvg = svgElement.cloneNode(true) as SVGSVGElement;
     const tempContent = tempSvg.querySelector('#diagram-content')!;
     tempContent.removeAttribute('transform');
+    document.body.appendChild(tempSvg);
     tempSvg.style.visibility = 'hidden';
     tempSvg.style.position = 'absolute';
-    document.body.appendChild(tempSvg);
     const bbox = (tempContent as SVGGraphicsElement).getBBox();
     document.body.removeChild(tempSvg);
 
@@ -103,20 +103,30 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     let styles = '';
     try {
         for (const sheet of Array.from(document.styleSheets)) {
-            for (const rule of Array.from(sheet.cssRules)) {
-                styles += rule.cssText;
+            if (sheet.cssRules) {
+                for (const rule of Array.from(sheet.cssRules)) {
+                    styles += rule.cssText;
+                }
             }
         }
     } catch (e) {
         console.warn("Could not read cross-origin stylesheets for SVG export.", e);
-        const styleTags = document.querySelectorAll('style');
-        styleTags.forEach(tag => {
-            styles += tag.innerHTML;
-        });
     }
+    const styleTags = document.querySelectorAll('style');
+    styleTags.forEach(tag => { styles += tag.innerHTML; });
+
 
     const defs = svgElement.querySelector('defs')?.innerHTML || '';
-    const contentHTML = contentGroup.innerHTML;
+    
+    // --- Sanitize Content HTML ---
+    const sanitizedContentGroup = contentGroup.cloneNode(true) as SVGGElement;
+    const removeXmlns = (el: Element) => {
+        el.removeAttribute('xmlns');
+        Array.from(el.children).forEach(removeXmlns);
+    };
+    removeXmlns(sanitizedContentGroup);
+    const contentHTML = sanitizedContentGroup.innerHTML;
+
 
     // --- SVG String Construction ---
     const rootStyle = getComputedStyle(document.documentElement);
@@ -136,49 +146,62 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         </g>
       </svg>
     `;
-
-    if (format === 'svg') {
-        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        downloadBlob(blob, `${filename}.svg`);
-        return;
+    
+    if (format === 'html') {
+      const htmlString = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${diagramData.title}</title>
+          <style>
+            body { margin: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+            svg { max-width: 100%; height: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+          </style>
+        </head>
+        <body>
+          ${svgString}
+        </body>
+        </html>`;
+      const blob = new Blob([htmlString], { type: 'text/html' });
+      downloadBlob(blob, `${filename}.html`);
+      return;
     }
 
-    // --- PNG/JPG Conversion via Canvas ---
-    const canvas = document.createElement('canvas');
-    canvas.width = exportWidth;
-    canvas.height = exportHeight;
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
-        setError("Export failed: Could not create canvas context.");
-        return;
-    }
-
-    const img = new Image();
-    const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
-
-    img.onload = () => {
-        if (format === 'jpg') {
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(0, 0, exportWidth, exportHeight);
+    // --- PNG Conversion via Canvas ---
+    if (format === 'png') {
+        const canvas = document.createElement('canvas');
+        canvas.width = exportWidth;
+        canvas.height = exportHeight;
+        const ctx = canvas.getContext('2d');
+    
+        if (!ctx) {
+            setError("Export failed: Could not create canvas context.");
+            return;
         }
-        ctx.drawImage(img, 0, 0);
-        
-        const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
-        canvas.toBlob((blob) => {
-            if (blob) {
-                downloadBlob(blob, `${filename}.${format}`);
-            } else {
-                 setError(`Export failed: Canvas returned empty blob for ${format}.`);
-            }
-        }, mimeType, 0.95);
-    };
-
-    img.onerror = () => {
-        setError(`Export failed: Could not load the generated SVG into an image.`);
-    };
-
-    img.src = svgUrl;
+    
+        const img = new Image();
+        const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+    
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0);
+            
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    downloadBlob(blob, `${filename}.${format}`);
+                } else {
+                     setError(`Export failed: Canvas returned empty blob for ${format}.`);
+                }
+            }, 'image/png');
+        };
+    
+        img.onerror = () => {
+            setError(`Export failed: Could not load the generated SVG into an image.`);
+        };
+    
+        img.src = svgUrl;
+    }
   };
 
 
@@ -240,8 +263,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
               {isExportMenuOpen && (
                   <div className="absolute right-0 mt-2 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg z-30 p-1">
                       <a onClick={() => handleExport('png')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">PNG</a>
-                      <a onClick={() => handleExport('jpg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JPG</a>
-                      <a onClick={() => handleExport('svg')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">SVG</a>
+                      <a onClick={() => handleExport('html')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">HTML</a>
                       <a onClick={() => handleExport('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
                   </div>
               )}
