@@ -197,8 +197,8 @@ const App: React.FC = () => {
     const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        // FIX: The type of clonedContentGroup is already Element, so the cast is redundant and can be removed.
-        exportRoot.appendChild(clonedContentGroup);
+        // FIX: Cast to Element is necessary as TypeScript fails to infer the correct type here.
+        exportRoot.appendChild(clonedContentGroup as Element);
     }
     
     const clonedDefs = svgClone.querySelector('defs');

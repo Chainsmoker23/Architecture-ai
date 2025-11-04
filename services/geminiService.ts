@@ -188,7 +188,8 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
 
     return parsedData as DiagramData;
   } catch (error) {
-    console.error("Error generating diagram data:", error);
+    // FIX: Explicitly convert 'error' to a string for safe logging.
+    console.error("Error generating diagram data:", String(error));
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {
@@ -284,7 +285,8 @@ export const generateNeuralNetworkData = async (prompt: string, userApiKey?: str
         } as DiagramData;
 
     } catch (error) {
-        console.error("Error generating neural network data:", error);
+        // FIX: Explicitly convert 'error' to a string for safe logging.
+        console.error("Error generating neural network data:", String(error));
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {
@@ -313,7 +315,8 @@ export const explainArchitecture = async (diagramData: DiagramData, userApiKey?:
 
         return response.text;
     } catch (error) {
-        console.error("Error explaining architecture:", error);
+        // FIX: Explicitly convert 'error' to a string for safe logging.
+        console.error("Error explaining architecture:", String(error));
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {
@@ -351,7 +354,8 @@ export const chatWithAssistant = async (history: Content[], userApiKey?: string)
     });
     return response.text;
   } catch (error) {
-    console.error("Error with assistant chat:", error);
+    // FIX: Explicitly convert 'error' to a string for safe logging.
+    console.error("Error with assistant chat:", String(error));
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {

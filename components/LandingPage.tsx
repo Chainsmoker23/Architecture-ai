@@ -121,7 +121,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
     }
   ];
 
-  const trustedByIcons = [IconType.Google, IconType.Microsoft, IconType.AwsS3, IconType.Kubernetes, IconType.Docker, IconType.Postgresql];
+  const trustedByIcons = [IconType.AwsLambda, IconType.AzureAppService, IconType.Nginx, IconType.ReactJs, IconType.MongoDb, IconType.GcpCloudStorage];
 
   return (
     <div className="bg-white text-[#2B2B2B] overflow-x-hidden">
