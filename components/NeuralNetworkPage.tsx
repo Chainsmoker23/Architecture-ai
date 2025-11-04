@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiagramData, IconType, Node } from '../types';
@@ -39,7 +40,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // FIX: Corrected typo `exportMenu_ref` to `exportMenuRef`.
       // FIX: Cast event.target to globalThis.Node to avoid type collision with the imported 'Node' type.
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as globalThis.Node)) {
         setIsExportMenuOpen(false);
@@ -66,12 +66,12 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const filename = diagramData.title.replace(/[\s/]/g, '_').toLowerCase();
 
     if (format === 'json') {
-        const dataStr = JSON.stringify(diagramData, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        downloadBlob(blob, `${filename}.json`);
-        return;
+      const dataStr = JSON.stringify(diagramData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      downloadBlob(blob, `${filename}.json`);
+      return;
     }
-
+    
     const svgElement = svgRef.current;
     if (!svgElement) {
         setError("Export failed: SVG element not found.");
@@ -83,10 +83,10 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     
     // --- Recursively inline all computed styles ---
     const originalElements = Array.from(svgElement.querySelectorAll('*'));
-    originalElements.unshift(svgElement);
+    originalElements.unshift(svgElement); // Add root SVG element
     const clonedElements = Array.from(svgClone.querySelectorAll('*'));
-    clonedElements.unshift(svgClone);
-    
+    clonedElements.unshift(svgClone); // Add root SVG element
+
     originalElements.forEach((sourceEl, index) => {
         const targetEl = clonedElements[index] as SVGElement;
         if (targetEl && targetEl.style) {
@@ -99,47 +99,17 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
             targetEl.style.cssText = cssText;
         }
     });
-
-    // --- BBox Calculation by measuring rendered elements ---
-    const contentGroup = svgElement.querySelector<SVGGElement>('#diagram-content');
-    if (!contentGroup) {
-        setError("Export failed: Diagram content group not found.");
-        return;
-    }
-
-    const elements = contentGroup.querySelectorAll('circle, path, text');
-    if (elements.length === 0) {
-        setError("Export failed: No diagram elements to export.");
-        return;
-    }
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
-    elements.forEach(el => {
-        const elBBox = (el as SVGGraphicsElement).getBBox();
-        if (elBBox.width === 0 && elBBox.height === 0) return; // Skip empty/invisible elements
-
-        minX = Math.min(minX, elBBox.x);
-        minY = Math.min(minY, elBBox.y);
-        maxX = Math.max(maxX, elBBox.x + elBBox.width);
-        maxY = Math.max(maxY, elBBox.y + elBBox.height);
-    });
-
-    if (!isFinite(minX)) {
-        setError("Export failed: Could not calculate diagram bounds.");
-        return;
-    }
-
-    const bbox = {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY
-    };
-    // --- End of BBox Calculation ---
     
+    // --- BBox Calculation on original content for accurate dimensions ---
+    const contentGroup = svgElement.querySelector('#diagram-content');
+    if (!contentGroup) {
+        setError("Export failed: Diagram content not found.");
+        return;
+    }
+    const bbox = (contentGroup as SVGGraphicsElement).getBBox();
+
     // --- Configure the cloned SVG for export ---
-    const padding = 40; // More padding for NN diagrams
+    const padding = 20; // Reduced padding for a tighter crop
     const exportWidth = Math.round(bbox.width + padding * 2);
     const exportHeight = Math.round(bbox.height + padding * 2);
     
@@ -158,18 +128,21 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Use `globalThis.Element` to disambiguate from the imported `Node` type, ensuring correct type narrowing for DOM elements.
+    // FIX: Replaced `instanceof globalThis.Element` with a simple truthiness check.
+    // This correctly narrows the type after `querySelector` and avoids type conflicts
+    // with the imported `Node` interface, resolving the 'unknown' type error on `appendChild`.
     const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
-    if (clonedContentGroup instanceof globalThis.Element) {
+    if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }
     
     const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
-    if (clonedDefs instanceof globalThis.Element) {
+    if (clonedDefs) {
         exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
     }
     
+    // Replace clone's content with this new root
     while (svgClone.firstChild) {
       svgClone.removeChild(svgClone.firstChild);
     }
@@ -178,6 +151,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     // --- Serialize and download ---
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
+    // Clean up namespace that can cause issues
     svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w.org\/1999\/xlink"/g, '');
 
     if (format === 'html') {
@@ -197,37 +171,39 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     }
 
     if (format === 'png') {
-        const canvas = document.createElement('canvas');
-        const scale = 2;
-        canvas.width = exportWidth * scale;
-        canvas.height = exportHeight * scale;
-        const ctx = canvas.getContext('2d');
-    
-        if (!ctx) {
-            setError("Export failed: Could not create canvas context.");
-            return;
-        }
-        ctx.scale(scale, scale);
-    
-        const img = new Image();
-        const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
-    
-        img.onload = () => {
-            ctx.drawImage(img, 0, 0);
-            canvas.toBlob((blob) => {
-                if (blob) {
-                    downloadBlob(blob, `${filename}.png`);
-                } else {
-                     setError("Export failed: Canvas returned empty blob for png.");
-                }
-            }, 'image/png');
-        };
-    
-        img.onerror = () => {
-            setError("Export failed: The generated SVG could not be loaded as an image.");
-        };
-    
-        img.src = svgUrl;
+      const canvas = document.createElement('canvas');
+      // Set a higher resolution for better quality, then scale down if needed
+      const scale = 2;
+      canvas.width = exportWidth * scale;
+      canvas.height = exportHeight * scale;
+      const ctx = canvas.getContext('2d');
+  
+      if (!ctx) {
+          setError("Export failed: Could not create canvas context.");
+          return;
+      }
+      ctx.scale(scale, scale);
+  
+      const img = new Image();
+      // Use btoa for binary data encoding, and encodeURIComponent for special characters in SVG.
+      const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+  
+      img.onload = () => {
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob((blob) => {
+              if (blob) {
+                  downloadBlob(blob, `${filename}.png`);
+              } else {
+                   setError("Export failed: Canvas returned empty blob for png.");
+              }
+          }, 'image/png');
+      };
+  
+      img.onerror = () => {
+          setError("Export failed: The generated SVG could not be loaded as an image. This can happen with complex gradients or filters.");
+      };
+  
+      img.src = svgUrl;
     }
   };
 

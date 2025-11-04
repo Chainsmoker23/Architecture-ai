@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DiagramData, Node, Container, Link, IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
@@ -193,15 +194,17 @@ const App: React.FC = () => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Use `globalThis.Element` to disambiguate from the imported `Node` type, ensuring correct type narrowing for DOM elements.
+    // FIX: Replaced `instanceof globalThis.Element` with a simple truthiness check.
+    // This correctly narrows the type after `querySelector` and avoids type conflicts
+    // with the imported `Node` interface, resolving the 'unknown' type error on `appendChild`.
     const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
-    if (clonedContentGroup instanceof globalThis.Element) {
+    if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }
     
     const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
-    if (clonedDefs instanceof globalThis.Element) {
+    if (clonedDefs) {
         exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
     }
     
