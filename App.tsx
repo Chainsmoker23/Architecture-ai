@@ -3,6 +3,9 @@
 
 
 
+
+
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DiagramData, Node, Container, Link, IconType } from './types';
 import { generateDiagramData, explainArchitecture } from './services/geminiService';
@@ -81,23 +84,23 @@ const App: React.FC = () => {
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   const [lastAction, setLastAction] = useState<{ type: 'generate' | 'explain', payload: any } | null>(null);
 
+  const onNavigate = useCallback((targetPage: Page) => {
+    setPage(targetPage);
+  }, []);
+
   useEffect(() => {
     if (authLoading) {
       // Don't change page while checking auth state
       return;
     }
     if (currentUser && page === 'auth') {
-      setPage('app');
+      onNavigate('app');
     }
     if (!currentUser && page === 'app') {
-      setPage('landing');
+      onNavigate('landing');
     }
-  }, [currentUser, authLoading, page]);
+  }, [currentUser, authLoading, page, onNavigate]);
 
-
-  const onNavigate = useCallback((targetPage: Page) => {
-    setPage(targetPage);
-  }, []);
 
   useEffect(() => {
     try {
@@ -196,14 +199,14 @@ const App: React.FC = () => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Using a truthiness check to ensure the selected node is not null before appending.
-    const clonedContentGroup = svgClone.querySelector('#diagram-content');
+    // FIX: Explicitly type the result of querySelector to ensure it's a valid SVG element for appendChild.
+    const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }
     
-    const clonedDefs = svgClone.querySelector('defs');
+    const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
     if (clonedDefs) {
         exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
     }

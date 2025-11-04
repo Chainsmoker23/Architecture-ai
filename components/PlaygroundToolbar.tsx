@@ -18,6 +18,7 @@ const ToolButton: React.FC<{ 'aria-label': string; onClick?: () => void; isActiv
  ({ 'aria-label': ariaLabel, onClick, isActive = false, isDisabled = false, children, className }) => (
     <button
         aria-label={ariaLabel}
+        title={ariaLabel}
         onClick={onClick}
         disabled={isDisabled}
         className={`flex items-center justify-center rounded-xl transition-colors

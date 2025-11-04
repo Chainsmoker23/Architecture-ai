@@ -51,6 +51,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         if (userCredential.user) {
             await updateProfile(userCredential.user, { displayName });
+            // Manually update the current user state to reflect the new user immediately
+            // This ensures the app navigates correctly after sign-up
+            setCurrentUser(userCredential.user);
         }
     };
 

@@ -279,6 +279,8 @@ const ArchitectureAnimation: React.FC = () => {
                 initial="hidden"
                 animate="visible"
                 exit="exit"
+                strokeLinecap="round"
+                strokeLinejoin="round"
             >
                 <defs>
                     <pattern id="anim-grid" width="40" height="40" patternUnits="userSpaceOnUse">

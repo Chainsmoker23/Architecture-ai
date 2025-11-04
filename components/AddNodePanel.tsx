@@ -30,6 +30,8 @@ const AddNodePanel: React.FC<AddNodePanelProps> = ({ onSelectNodeType, onClose }
             <input
                 type="text"
                 placeholder="Search components..."
+                aria-label="Search components"
+                autoComplete="off"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full p-2 mb-4 bg-[var(--color-bg-input)] border border-[var(--color-border)] rounded-xl focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"

@@ -202,14 +202,14 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    const clonedContentGroup = svgClone.querySelector('#diagram-content');
-    // FIX: Changed 'instanceof Element' to a truthiness check, which also correctly narrows the type from 'Element | null' to 'Element'.
+    // FIX: Explicitly type the result of querySelector to ensure it's a valid SVG element for appendChild.
+    const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }
     
-    const clonedDefs = svgClone.querySelector('defs');
+    const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
     if (clonedDefs) {
         exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
     }

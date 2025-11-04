@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { IconType } from '../types';
 import { ICONS } from './constants';
 import { motion } from 'framer-motion';
@@ -14,9 +14,9 @@ const iconCache = new Map<string, React.ReactNode>();
 const ArchitectureIcon: React.FC<ArchitectureIconProps> = ({ type, className = 'w-6 h-6' }) => {
   const normalizedType = type.toLowerCase().replace(/[\s_]/g, '-') as IconType;
   
-  const getInitialIcon = () => {
+  const getInitialIcon = useCallback(() => {
     return iconCache.get(normalizedType) || ICONS[normalizedType] || ICONS[IconType.Generic];
-  };
+  }, [normalizedType]);
 
   const [displayIcon, setDisplayIcon] = useState(getInitialIcon);
   const [isFetched, setIsFetched] = useState(
