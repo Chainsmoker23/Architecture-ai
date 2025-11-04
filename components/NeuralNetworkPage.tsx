@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
@@ -127,12 +128,12 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    const clonedContentGroup = svgClone.querySelector('#diagram-content');
+    // FIX: Use a generic type argument with querySelector to specify the returned element type,
+    // which avoids type conflicts with the imported 'Node' interface.
+    const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        // FIX: The `instanceof` check is insufficient due to a type collision with a custom `Node` interface.
-        // Casting to `globalThis.Element` explicitly resolves the type for `appendChild`.
-        exportRoot.appendChild(clonedContentGroup as globalThis.Element);
+        exportRoot.appendChild(clonedContentGroup);
     }
     
     const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
@@ -150,7 +151,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
     // Clean up namespace that can cause issues
-    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w.org\/1999\/xlink"/g, '');
+    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
 
     if (format === 'html') {
       const htmlString = `

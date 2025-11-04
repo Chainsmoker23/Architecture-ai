@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
 import type { DiagramData, Node, Container, Link } from './types';
@@ -74,8 +75,16 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    if (page === 'app' && !currentUser) {
-      onNavigate('auth');
+    // If the user just logged in (we have a user but are still on the auth page),
+    // redirect them to the app.
+    if (currentUser && page === 'auth') {
+      onNavigate('app');
+    }
+
+    // If the user logs out while on the main app page,
+    // redirect them to the landing page.
+    if (!currentUser && page === 'app') {
+      onNavigate('landing');
     }
   }, [currentUser, page, onNavigate]);
 
@@ -176,13 +185,12 @@ const App: React.FC = () => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Explicitly cast to `globalThis.Element` to resolve a TypeScript type collision
-    // between the imported `Node` interface and the built-in DOM `Node` type, ensuring
-    // `appendChild` receives a correctly typed argument.
-    const clonedContentGroup = svgClone.querySelector('#diagram-content');
+    // FIX: Use a generic type argument with querySelector to specify the returned element type,
+    // which avoids type conflicts with the imported 'Node' interface.
+    const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        exportRoot.appendChild(clonedContentGroup as globalThis.Element);
+        exportRoot.appendChild(clonedContentGroup);
     }
     
     const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
@@ -200,7 +208,7 @@ const App: React.FC = () => {
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(svgClone);
     // Clean up namespace that can cause issues
-    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w.org\/1999\/xlink"/g, '');
+    svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
 
     if (format === 'html') {
       const htmlString = `
@@ -452,72 +460,69 @@ const App: React.FC = () => {
     }
 
     return (
-      <div className="h-screen w-screen text-[var(--color-text-primary)] flex flex-col transition-colors duration-300 app-bg overflow-hidden">
-        
+      <div className="h-screen w-screen text-[var(--color-text-primary)] transition-colors duration-300 app-bg overflow-hidden relative">
         <motion.header 
           initial={{ y: -80 }}
           animate={{ y: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="absolute top-0 left-0 right-0 z-20"
+          className="absolute top-4 left-4 right-4 z-20"
         >
-          <div className="p-4">
-            <div className="w-full max-w-7xl mx-auto glass-panel p-2 rounded-2xl shadow-md flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <Logo className="h-8 w-8 text-[var(--color-accent-text)]" />
-                 {isEditingTitle ? (
-                    <input
-                        ref={titleInputRef}
-                        type="text"
-                        value={editingTitle}
-                        onChange={(e) => setEditingTitle(e.target.value)}
-                        onBlur={handleTitleSave}
-                        onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
-                        className="text-lg font-semibold bg-transparent rounded-md px-1 -mx-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-                    />
-                 ) : (
-                    <div 
-                      onDoubleClick={() => { if(diagramData) { setIsEditingTitle(true); setEditingTitle(diagramData.title); }}}
-                      className="flex items-center gap-2 cursor-pointer group"
-                      title="Double-click to edit title"
-                    >
-                      <h2 className="text-lg font-semibold truncate pr-4">{diagramData?.title || 'Untitled Diagram'}</h2>
-                       {diagramData && <ArchitectureIcon type={IconType.Edit} className="w-4 h-4 text-[var(--color-text-secondary)] opacity-0 group-hover:opacity-50 transition-opacity" />}
-                    </div>
-                 )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {diagramData && (
-                  <Toolbar
-                    onExport={handleExport}
-                    onExplain={handleExplain}
-                    isExplaining={isExplaining}
-                    onUndo={handleUndo}
-                    onRedo={handleRedo}
-                    canUndo={historyIndex > 0}
-                    canRedo={historyIndex < history.length - 1}
-                    onFitToScreen={handleFitToScreen}
-                    onGoToPlayground={() => setIsPlaygroundMode(true)}
-                    canGoToPlayground={!!diagramData}
+          <div className="w-full max-w-7xl mx-auto glass-panel p-2 rounded-2xl shadow-md flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Logo className="h-8 w-8 text-[var(--color-accent-text)]" />
+               {isEditingTitle ? (
+                  <input
+                      ref={titleInputRef}
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={handleTitleSave}
+                      onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
+                      className="text-lg font-semibold bg-transparent rounded-md px-1 -mx-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                   />
-                )}
-                <div className="w-px h-6 bg-[var(--color-border)] mx-1"></div>
-                <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
-                <button
-                    onClick={() => setPage('landing')}
-                    className="p-2 bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors"
-                    aria-label="Back to Home"
-                    title="Back to Home"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                </button>
-              </div>
+               ) : (
+                  <div 
+                    onDoubleClick={() => { if(diagramData) { setIsEditingTitle(true); setEditingTitle(diagramData.title); }}}
+                    className="flex items-center gap-2 cursor-pointer group"
+                    title="Double-click to edit title"
+                  >
+                    <h2 className="text-lg font-semibold truncate pr-4">{diagramData?.title || 'Untitled Diagram'}</h2>
+                     {diagramData && <ArchitectureIcon type={IconType.Edit} className="w-4 h-4 text-[var(--color-text-secondary)] opacity-0 group-hover:opacity-50 transition-opacity" />}
+                  </div>
+               )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {diagramData && (
+                <Toolbar
+                  onExport={handleExport}
+                  onExplain={handleExplain}
+                  isExplaining={isExplaining}
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  canUndo={historyIndex > 0}
+                  canRedo={historyIndex < history.length - 1}
+                  onFitToScreen={handleFitToScreen}
+                  onGoToPlayground={() => setIsPlaygroundMode(true)}
+                  canGoToPlayground={!!diagramData}
+                />
+              )}
+              <div className="w-px h-6 bg-[var(--color-border)] mx-1"></div>
+              <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} />
+              <button
+                  onClick={() => setPage('landing')}
+                  className="p-2 bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors"
+                  aria-label="Back to Home"
+                  title="Back to Home"
+              >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+              </button>
             </div>
           </div>
         </motion.header>
 
-        <main className="flex-1 flex flex-col relative pt-24 pb-32">
-          <div className="flex-1 relative w-full h-full">
+        <main className="absolute top-0 left-0 right-0 bottom-0 pt-24 pb-28">
+          <div className="relative w-full h-full">
             <AnimatePresence>
             {isLoading && (
               <motion.div
@@ -558,42 +563,66 @@ const App: React.FC = () => {
             
             {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
           </div>
-
-          <motion.div
-            initial={{ y: 80 }}
-            animate={{ y: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.3 }}
-            className="absolute bottom-0 left-0 right-0 z-20 p-4"
-          >
-            <div className="w-full max-w-3xl mx-auto">
-                <PromptInput
-                  prompt={prompt}
-                  setPrompt={setPrompt}
-                  onGenerate={() => handleGenerate()}
-                  isLoading={isLoading}
-                  onCyclePrompt={handleCyclePrompt}
-                />
-            </div>
-          </motion.div>
         </main>
+
+        <motion.div
+          initial={{ y: 80 }}
+          animate={{ y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.3 }}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-3xl px-4"
+        >
+          <PromptInput
+            prompt={prompt}
+            setPrompt={setPrompt}
+            onGenerate={() => handleGenerate()}
+            isLoading={isLoading}
+            onCyclePrompt={handleCyclePrompt}
+          />
+        </motion.div>
         
         <AnimatePresence>
-            {selectedIds.length > 0 && diagramData && (
-                 <motion.aside 
-                    key="sidebar"
-                    initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                    className="fixed top-0 right-0 h-full w-[350px] z-30"
-                 >
-                    <div className="p-4 h-full">
-                       <PropertiesSidebar 
-                          item={selectedItem}
-                          onPropertyChange={handlePropertyChange}
-                          selectedCount={selectedIds.length}
-                      />
-                    </div>
-                </motion.aside>
-            )}
+          {selectedIds.length > 0 && diagramData && (
+            <>
+              {/* Mobile: Bottom Sheet */}
+              <motion.div
+                key="properties-backdrop"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/30 z-30 md:hidden"
+                onClick={() => setSelectedIds([])}
+              />
+              <motion.div
+                key="properties-sheet"
+                initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                className="fixed bottom-0 left-0 right-0 h-[60vh] bg-[var(--color-panel-bg)] rounded-t-2xl border-t border-[var(--color-border)] shadow-2xl p-4 z-40 md:hidden"
+              >
+                <div className="w-12 h-1.5 bg-[var(--color-border)] rounded-full mx-auto mb-4" />
+                <div className="overflow-y-auto h-[calc(60vh-40px)] px-2">
+                  <PropertiesSidebar 
+                    item={selectedItem}
+                    onPropertyChange={handlePropertyChange}
+                    selectedCount={selectedIds.length}
+                  />
+                </div>
+              </motion.div>
+              
+              {/* Desktop: Side Panel */}
+              <motion.aside 
+                  key="properties-sidebar-desktop"
+                  initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                  className="fixed top-0 right-0 h-full w-[350px] z-30 hidden md:block"
+              >
+                  <div className="p-4 h-full">
+                    <PropertiesSidebar 
+                      item={selectedItem}
+                      onPropertyChange={handlePropertyChange}
+                      selectedCount={selectedIds.length}
+                    />
+                  </div>
+              </motion.aside>
+            </>
+          )}
         </AnimatePresence>
 
         <AnimatePresence>
