@@ -18,17 +18,17 @@ const getStripe = () => {
  * Calls the backend to create a Stripe Checkout session and redirects the user.
  * @param priceId The ID of the Stripe Price object for the selected plan.
  * @param userEmail The email of the currently logged-in user.
+ * @param mode The type of checkout session: 'payment' for one-time, 'subscription' for recurring.
  */
-export const redirectToCheckout = async (priceId: string, userEmail: string): Promise<void> => {
+export const redirectToCheckout = async (priceId: string, userEmail: string, mode: 'payment' | 'subscription'): Promise<void> => {
   const stripe = getStripe();
   if (!stripe) {
     throw new Error("Stripe.js has not loaded yet.");
   }
   
-  // NOTE: In a production environment, you would replace this URL
-  // with the URL of your deployed Firebase Cloud Function.
-  // For local development with the Firebase Emulator, it might be:
-  // 'http://localhost:5001/your-project-id/us-central1/createStripeCheckoutSession'
+  // NOTE: This URL points to your deployed Firebase Cloud Function.
+  // It is derived from your Firebase project settings.
+  // Format: `https://<region>-<project-id>.cloudfunctions.net/<functionName>`
   const checkoutFunctionUrl = `https://us-central1-cubegen-ai.cloudfunctions.net/createStripeCheckoutSession`;
 
   try {
@@ -37,7 +37,7 @@ export const redirectToCheckout = async (priceId: string, userEmail: string): Pr
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ priceId, userEmail }),
+      body: JSON.stringify({ priceId, userEmail, mode }),
     });
 
     if (!response.ok) {

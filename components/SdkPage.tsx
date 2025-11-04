@@ -168,6 +168,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         { 
             name: 'Free', 
             priceId: null,
+            mode: null,
             price: '$0', 
             frequency: 'Forever', 
             description: 'For individuals getting started and exploring the platform.', 
@@ -182,6 +183,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         { 
             name: 'Hobbyist', 
             priceId: 'price_1PLaF8RsL5ht22L1bA5g4e3f', // Replace with your actual Price ID
+            mode: 'payment' as const,
             price: '$3', 
             frequency: 'One-time', 
             description: 'A top-up for when you need a few more diagrams.', 
@@ -196,6 +198,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         { 
             name: 'Pro', 
             priceId: 'price_1PLaGBRsL5ht22L1cDEf6a7b', // Replace with your actual Price ID
+            mode: 'subscription' as const,
             price: '$10', 
             frequency: '/ month', 
             description: 'For professionals who design and iterate frequently.', 
@@ -211,6 +214,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         { 
             name: 'Business', 
             priceId: 'price_1PLaGZRsL5ht22L1dEfg9h0i', // Replace with your actual Price ID
+            mode: 'subscription' as const,
             price: '$50', 
             frequency: '/ month', 
             description: 'For teams that need automation and unlimited scale.', 
@@ -227,6 +231,7 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         { 
             name: 'Enterprise', 
             priceId: null,
+            mode: null,
             price: 'Custom', 
             frequency: '', 
             description: 'For large organizations with specific security and support needs.', 
@@ -251,10 +256,10 @@ const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
         onNavigate('contact');
         return;
     }
-    if (plan.priceId) {
+    if (plan.priceId && plan.mode) {
         setIsRedirecting(plan.priceId);
         try {
-            await redirectToCheckout(plan.priceId, currentUser.email || '');
+            await redirectToCheckout(plan.priceId, currentUser.email || '', plan.mode);
             // The user will be redirected to Stripe, so no need to reset loading state here.
         } catch (err) {
             console.error(err);

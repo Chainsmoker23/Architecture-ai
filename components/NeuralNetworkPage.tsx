@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
@@ -40,7 +41,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // FIX: Corrected typo 'exportMenu_ref' to 'exportMenuRef'
       if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target)) {
         setIsExportMenuOpen(false);
       }
@@ -134,9 +134,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
     if (clonedContentGroup instanceof globalThis.Element) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        // FIX: The imported 'Node' type can conflict with the DOM's 'Node' type.
-        // The `instanceof globalThis.Element` type guard is sufficient to narrow the type
-        // for `appendChild`, making the explicit cast `as Element` redundant.
+        // FIX: The `as Element` cast is redundant and can cause type resolution conflicts due to the imported `Node` type.
+        // The `instanceof globalThis.Element` type guard is sufficient to correctly type `clonedContentGroup` for the `appendChild` method.
         exportRoot.appendChild(clonedContentGroup);
     }
     
