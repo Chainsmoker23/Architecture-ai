@@ -1,5 +1,8 @@
 
 
+
+
+
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
 import type { DiagramData, Node, Container, Link } from './types';
@@ -158,12 +161,14 @@ const App: React.FC = () => {
     });
     
     // --- BBox Calculation on original content for accurate dimensions ---
-    const contentGroup = svgElement.querySelector('#diagram-content');
+    // FIX: Use a generic type argument with querySelector to specify the returned element type,
+    // which avoids type conflicts with the imported 'Node' interface and subsequent errors.
+    const contentGroup = svgElement.querySelector<SVGGElement>('#diagram-content');
     if (!contentGroup) {
         setError("Export failed: Diagram content not found.");
         return;
     }
-    const bbox = (contentGroup as SVGGraphicsElement).getBBox();
+    const bbox = contentGroup.getBBox();
 
     // --- Configure the cloned SVG for export ---
     const padding = 20; // Reduced padding for a tighter crop
@@ -521,7 +526,7 @@ const App: React.FC = () => {
           </div>
         </motion.header>
 
-        <main className="absolute top-0 left-0 right-0 bottom-0 pt-24 pb-28">
+        <main className="absolute top-0 left-0 right-0 bottom-0">
           <div className="relative w-full h-full">
             <AnimatePresence>
             {isLoading && (
@@ -561,7 +566,7 @@ const App: React.FC = () => {
               />
             )}
             
-            {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
+            {error && <div className="absolute bottom-28 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
           </div>
         </main>
 
@@ -594,10 +599,10 @@ const App: React.FC = () => {
                 key="properties-sheet"
                 initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                 transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                className="fixed bottom-0 left-0 right-0 h-[60vh] bg-[var(--color-panel-bg)] rounded-t-2xl border-t border-[var(--color-border)] shadow-2xl p-4 z-40 md:hidden"
+                className="fixed bottom-0 left-0 right-0 h-[60vh] bg-[var(--color-panel-bg)] rounded-t-2xl border-t border-[var(--color-border)] shadow-2xl z-40 md:hidden"
               >
-                <div className="w-12 h-1.5 bg-[var(--color-border)] rounded-full mx-auto mb-4" />
-                <div className="overflow-y-auto h-[calc(60vh-40px)] px-2">
+                <div className="w-12 h-1.5 bg-[var(--color-border)] rounded-full mx-auto my-4" />
+                <div className="overflow-y-auto h-[calc(100%-40px)]">
                   <PropertiesSidebar 
                     item={selectedItem}
                     onPropertyChange={handlePropertyChange}
@@ -611,15 +616,13 @@ const App: React.FC = () => {
                   key="properties-sidebar-desktop"
                   initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                   transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                  className="fixed top-0 right-0 h-full w-[350px] z-30 hidden md:block"
+                  className="fixed top-20 right-4 bottom-20 w-[350px] z-30 hidden md:block"
               >
-                  <div className="p-4 h-full">
-                    <PropertiesSidebar 
-                      item={selectedItem}
-                      onPropertyChange={handlePropertyChange}
-                      selectedCount={selectedIds.length}
-                    />
-                  </div>
+                  <PropertiesSidebar 
+                    item={selectedItem}
+                    onPropertyChange={handlePropertyChange}
+                    selectedCount={selectedIds.length}
+                  />
               </motion.aside>
             </>
           )}

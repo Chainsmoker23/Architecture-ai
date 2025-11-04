@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
@@ -41,7 +43,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target)) {
+      // FIX: Explicitly cast `event.target` to `Node` to resolve compiler confusion caused by a name collision.
+      if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target as Node)) {
         setIsExportMenuOpen(false);
       }
     };
@@ -101,12 +104,14 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     });
     
     // --- BBox Calculation on original content for accurate dimensions ---
-    const contentGroup = svgElement.querySelector('#diagram-content');
+    // FIX: Use a generic type argument with querySelector to specify the returned element type,
+    // which avoids type conflicts with the imported 'Node' interface.
+    const contentGroup = svgElement.querySelector<SVGGElement>('#diagram-content');
     if (!contentGroup) {
         setError("Export failed: Diagram content not found.");
         return;
     }
-    const bbox = (contentGroup as SVGGraphicsElement).getBBox();
+    const bbox = contentGroup.getBBox();
 
     // --- Configure the cloned SVG for export ---
     const padding = 20; // Reduced padding for a tighter crop
