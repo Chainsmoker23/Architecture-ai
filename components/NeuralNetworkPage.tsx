@@ -39,6 +39,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // FIX: Corrected typo `exportMenu_ref` to `exportMenuRef`.
       // FIX: Cast event.target to globalThis.Node to avoid type collision with the imported 'Node' type.
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as globalThis.Node)) {
         setIsExportMenuOpen(false);
@@ -99,80 +100,35 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
         }
     });
 
-    // --- BBox Calculation from data, independent of canvas view ---
-    const { nodes } = diagramData;
-    if (!nodes) { 
-        setError("Export failed: Diagram data is missing nodes.");
-        return; 
-    }
-
-    const NEURON_RADIUS = 25;
-    const VERTICAL_SPACING = 30;
-    const HORIZONTAL_SPACING = 250;
-    const LABEL_OFFSET_Y = 60;
-    const ARROWHEAD_BUFFER = 10;
-
-    const neurons = nodes.filter(n => n.type === 'neuron');
-    const labels = nodes.filter(n => n.type === 'layer-label');
-
-    const layers = new Map<number, Node[]>();
-    neurons.forEach(neuron => {
-      const layer = neuron.layer ?? 0;
-      if (!layers.has(layer)) layers.set(layer, []);
-      layers.get(layer)!.push(neuron);
-    });
-    
-    const sortedLayerKeys = Array.from(layers.keys()).sort((a, b) => a - b);
-    
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    
-    sortedLayerKeys.forEach((layerIndex, i) => {
-        const layerNeurons = layers.get(layerIndex) || [];
-        const layerHeight = layerNeurons.length * (NEURON_RADIUS * 2 + VERTICAL_SPACING) - VERTICAL_SPACING;
-        const layerX = (i + 1) * HORIZONTAL_SPACING;
-        // Calculate Y positions centered around a y=0 axis, independent of canvas size
-        const startY = -layerHeight / 2;
-
-        layerNeurons.forEach((neuron, j) => {
-            const cx = layerX;
-            const cy = startY + j * (NEURON_RADIUS * 2 + VERTICAL_SPACING) + NEURON_RADIUS;
-            minX = Math.min(minX, cx - NEURON_RADIUS);
-            maxX = Math.max(maxX, cx + NEURON_RADIUS);
-            minY = Math.min(minY, cy - NEURON_RADIUS);
-            maxY = Math.max(maxY, cy + NEURON_RADIUS);
-        });
-    });
-
-    labels.forEach(label => {
-        const layerIndex = label.layer ?? 0;
-        const i = sortedLayerKeys.indexOf(layerIndex);
-        const layerNeurons = layers.get(layerIndex);
-        if (layerNeurons && layerNeurons.length > 0) {
-            const layerHeight = layerNeurons.length * (NEURON_RADIUS * 2 + VERTICAL_SPACING) - VERTICAL_SPACING;
-            const layerX = (i + 1) * HORIZONTAL_SPACING;
-            const startY = -layerHeight / 2;
-            const firstNeuronY = startY + NEURON_RADIUS;
-            const labelY = firstNeuronY - LABEL_OFFSET_Y;
-
-            // Estimate label bbox for bounds calculation
-            const labelWidth = (label.label?.length || 10) * 9; // Approx 9px per char for font-semibold
-            const labelHeight = 24;
-
-            minX = Math.min(minX, layerX - labelWidth / 2);
-            maxX = Math.max(maxX, layerX + labelWidth / 2);
-            minY = Math.min(minY, labelY - labelHeight / 2);
-            maxY = Math.max(maxY, labelY + labelHeight / 2);
-        }
-    });
-
-    if (!isFinite(minX)) {
-        setError("Export failed: Could not calculate diagram bounds from data.");
+    // --- BBox Calculation by measuring rendered elements ---
+    const contentGroup = svgElement.querySelector<SVGGElement>('#diagram-content');
+    if (!contentGroup) {
+        setError("Export failed: Diagram content group not found.");
         return;
     }
 
-    // Add buffer for link arrowheads which can extend beyond neuron bounds
-    minX -= ARROWHEAD_BUFFER;
-    maxX += ARROWHEAD_BUFFER;
+    const elements = contentGroup.querySelectorAll('circle, path, text');
+    if (elements.length === 0) {
+        setError("Export failed: No diagram elements to export.");
+        return;
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    elements.forEach(el => {
+        const elBBox = (el as SVGGraphicsElement).getBBox();
+        if (elBBox.width === 0 && elBBox.height === 0) return; // Skip empty/invisible elements
+
+        minX = Math.min(minX, elBBox.x);
+        minY = Math.min(minY, elBBox.y);
+        maxX = Math.max(maxX, elBBox.x + elBBox.width);
+        maxY = Math.max(maxY, elBBox.y + elBBox.height);
+    });
+
+    if (!isFinite(minX)) {
+        setError("Export failed: Could not calculate diagram bounds.");
+        return;
+    }
 
     const bbox = {
         x: minX,
@@ -202,15 +158,15 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Explicitly type the result of querySelector to ensure it's a valid SVG element for appendChild.
+    // FIX: Use `globalThis.Element` to disambiguate from the imported `Node` type, ensuring correct type narrowing for DOM elements.
     const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
-    if (clonedContentGroup) {
+    if (clonedContentGroup instanceof globalThis.Element) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         exportRoot.appendChild(clonedContentGroup);
     }
     
     const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
-    if (clonedDefs) {
+    if (clonedDefs instanceof globalThis.Element) {
         exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
     }
     
