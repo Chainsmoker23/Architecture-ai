@@ -8,7 +8,6 @@ import NeuralNetworkCanvas from './NeuralNetworkCanvas';
 import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
 import Logo from './Logo';
-import domtoimage from 'dom-to-image-more';
 
 interface NeuralNetworkPageProps {
   onBack: () => void;
@@ -63,87 +62,123 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const filename = diagramData.title.replace(/[\s/]/g, '_').toLowerCase();
 
     if (format === 'json') {
-      const dataStr = JSON.stringify(diagramData, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      downloadBlob(blob, `${filename}.json`);
-      return;
-    }
-    
-    const svgElement = svgRef.current;
-    if (!svgElement) return;
-    
-    // --- Create a clean, transformed clone of the SVG for export ---
-    const svgExport = svgElement.cloneNode(true) as SVGSVGElement;
-    
-    const contentGroup = svgExport.querySelector('#diagram-content');
-    
-    if (!contentGroup) {
-        setError("Export failed: Could not find diagram content.");
+        const dataStr = JSON.stringify(diagramData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        downloadBlob(blob, `${filename}.json`);
         return;
     }
 
-    // To get the true bounding box, we must measure the untransformed content
-    const tempClone = svgElement.cloneNode(true) as SVGSVGElement;
-    const tempContent = tempClone.querySelector('#diagram-content')!;
+    const svgElement = svgRef.current;
+    if (!svgElement) {
+        setError("Export failed: SVG element not found.");
+        return;
+    }
+
+    const contentGroup = svgElement.querySelector('#diagram-content');
+    if (!contentGroup) {
+        setError("Export failed: Diagram content not found.");
+        return;
+    }
+
+    // --- BBox Calculation ---
+    const tempSvg = svgElement.cloneNode(true) as SVGSVGElement;
+    const tempContent = tempSvg.querySelector('#diagram-content')!;
     tempContent.removeAttribute('transform');
-    tempClone.style.position = 'absolute';
-    tempClone.style.top = '-9999px';
-    tempClone.style.left = '-9999px';
-    document.body.appendChild(tempClone);
+    tempSvg.style.visibility = 'hidden';
+    tempSvg.style.position = 'absolute';
+    document.body.appendChild(tempSvg);
     const bbox = (tempContent as SVGGraphicsElement).getBBox();
-    document.body.removeChild(tempClone);
+    document.body.removeChild(tempSvg);
 
     if (bbox.width === 0 || bbox.height === 0) {
         setError("Export failed: Diagram content has no size.");
         return;
-    };
+    }
 
     const padding = 50;
     const exportWidth = Math.round(bbox.width + padding * 2);
     const exportHeight = Math.round(bbox.height + padding * 2);
 
-    // Configure the clone's dimensions and viewBox
-    svgExport.setAttribute('width', String(exportWidth));
-    svgExport.setAttribute('height', String(exportHeight));
-    svgExport.setAttribute('viewBox', `0 0 ${exportWidth} ${exportHeight}`);
-    
-    // Apply a new transform to the content to position it correctly
-    contentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
+    // --- Style & Definition Extraction ---
+    let styles = '';
+    try {
+        for (const sheet of Array.from(document.styleSheets)) {
+            for (const rule of Array.from(sheet.cssRules)) {
+                styles += rule.cssText;
+            }
+        }
+    } catch (e) {
+        console.warn("Could not read cross-origin stylesheets for SVG export.", e);
+        const styleTags = document.querySelectorAll('style');
+        styleTags.forEach(tag => {
+            styles += tag.innerHTML;
+        });
+    }
 
-    // The library needs the node to be in the DOM to correctly compute styles
-    svgExport.style.position = 'absolute';
-    svgExport.style.top = '-9999px';
-    svgExport.style.left = '-9999px';
-    document.body.appendChild(svgExport);
+    const defs = svgElement.querySelector('defs')?.innerHTML || '';
+    const contentHTML = contentGroup.innerHTML;
 
-    // --- Use dom-to-image-more on the prepared clone ---
+    // --- SVG String Construction ---
     const rootStyle = getComputedStyle(document.documentElement);
     const bgColor = rootStyle.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
 
-    try {
-        let dataUrl: string;
-        if (format === 'svg') {
-            dataUrl = await domtoimage.toSvg(svgExport);
-        } else if (format === 'png') {
-            dataUrl = await domtoimage.toPng(svgExport);
-        } else { // jpg
-            dataUrl = await domtoimage.toJpeg(svgExport, {
-                quality: 0.95,
-                bgcolor: bgColor,
-            });
-        }
-        
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        downloadBlob(blob, `${filename}.${format}`);
+    const svgString = `
+      <svg width="${exportWidth}" height="${exportHeight}" viewBox="0 0 ${exportWidth} ${exportHeight}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          ${styles}
+        </style>
+        <defs>
+          ${defs}
+        </defs>
+        <rect width="100%" height="100%" fill="${bgColor}"/>
+        <g transform="translate(${-bbox.x + padding}, ${-bbox.y + padding})">
+          ${contentHTML}
+        </g>
+      </svg>
+    `;
 
-    } catch (error) {
-        console.error('Export failed:', error);
-        setError(`Failed to export to ${format.toUpperCase()}. An error occurred during image conversion.`);
-    } finally {
-        // Clean up the cloned node from the DOM
-        document.body.removeChild(svgExport);
+    if (format === 'svg') {
+        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        downloadBlob(blob, `${filename}.svg`);
+        return;
     }
+
+    // --- PNG/JPG Conversion via Canvas ---
+    const canvas = document.createElement('canvas');
+    canvas.width = exportWidth;
+    canvas.height = exportHeight;
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+        setError("Export failed: Could not create canvas context.");
+        return;
+    }
+
+    const img = new Image();
+    const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+
+    img.onload = () => {
+        if (format === 'jpg') {
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, exportWidth, exportHeight);
+        }
+        ctx.drawImage(img, 0, 0);
+        
+        const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+        canvas.toBlob((blob) => {
+            if (blob) {
+                downloadBlob(blob, `${filename}.${format}`);
+            } else {
+                 setError(`Export failed: Canvas returned empty blob for ${format}.`);
+            }
+        }, mimeType, 0.95);
+    };
+
+    img.onerror = () => {
+        setError(`Export failed: Could not load the generated SVG into an image.`);
+    };
+
+    img.src = svgUrl;
   };
 
 
