@@ -121,7 +121,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
     }
   ];
 
-  const trustedByIcons = [IconType.Google, IconType.Microsoft, IconType.AwsEcs, IconType.Kubernetes, IconType.Docker, IconType.Python];
+  const trustedByIcons = [IconType.Google, IconType.Microsoft, IconType.AwsS3, IconType.Kubernetes, IconType.Docker, IconType.Python];
 
   return (
     <div className="bg-white text-[#2B2B2B] overflow-x-hidden">
@@ -254,16 +254,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
         </section>
 
         {/* Testimonials Section */}
-        <section className="py-24 bg-white">
+        <motion.section 
+          className="py-24 bg-white"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, amount: 0.1 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        >
           <div className="container mx-auto px-6">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={containerVariants} className="text-center">
-              <motion.h2 variants={itemVariants} className="text-4xl md:text-5xl font-bold mb-4">Loved by Architects and Developers</motion.h2>
-              <motion.p variants={itemVariants} className="text-lg text-[#555555] max-w-3xl mx-auto mb-16">
+            <div className="text-center">
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">Loved by Architects and Developers</h2>
+              <p className="text-lg text-[#555555] max-w-3xl mx-auto mb-16">
                 See how teams and individuals are accelerating their design process with CubeGen AI.
-              </motion.p>
-            </motion.div>
+              </p>
+            </div>
           </div>
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true, amount: 0.1 }} transition={{ duration: 0.5, delay: 0.3 }} className="marquee-container space-y-4">
+          <div className="marquee-container space-y-4">
               <div className="marquee-track flex gap-8 py-2">
                 {[...TESTIMONIALS.slice(0, 5), ...TESTIMONIALS.slice(0, 5)].map((testimonial, index) => (
                   <TestimonialCard key={`a-${index}`} testimonial={testimonial} />
@@ -274,8 +280,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
                   <TestimonialCard key={`b-${index}`} testimonial={testimonial} />
                 ))}
               </div>
-            </motion.div>
-        </section>
+            </div>
+        </motion.section>
 
         {/* CTA Section */}
         <motion.section className="py-24 hero-gradient-bg">
@@ -289,7 +295,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
               </button>
             </motion.div>
           </div>
-        </section>
+        </motion.section>
       </main>
 
       <SharedFooter onNavigate={onNavigate} />

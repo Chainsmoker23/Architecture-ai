@@ -129,8 +129,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     const clonedContentGroup = svgClone.querySelector('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-        // FIX: Cast clonedContentGroup to Element to resolve TS error.
-        exportRoot.appendChild(clonedContentGroup as Element);
+        // FIX: The type of clonedContentGroup is already Element, so the cast is redundant and can be removed.
+        exportRoot.appendChild(clonedContentGroup);
     }
     
     const clonedDefs = svgClone.querySelector('defs');
