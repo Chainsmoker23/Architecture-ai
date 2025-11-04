@@ -20,7 +20,8 @@
     "d3-transition": "^3.0.1",
     "nanoid": "^5.1.6",
     "@vitejs/plugin-react": "^5.1.0",
-    "vite": "^7.1.12"
+    "vite": "^7.1.12",
+    "firebase": "^12.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
