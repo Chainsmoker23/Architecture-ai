@@ -126,7 +126,8 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    const clonedContentGroup = svgClone.querySelector('#diagram-content');
+    // FIX: Explicitly type the querySelector result to avoid type inference issues.
+    const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
         // FIX: The type of clonedContentGroup is already Element, so the cast is redundant and can be removed.

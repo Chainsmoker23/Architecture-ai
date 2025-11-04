@@ -121,7 +121,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
     }
   ];
 
-  const trustedByIcons = [IconType.Google, IconType.Microsoft, IconType.AwsS3, IconType.Kubernetes, IconType.Docker, IconType.Python];
+  const trustedByIcons = [IconType.Google, IconType.Microsoft, IconType.AwsS3, IconType.Kubernetes, IconType.Docker, IconType.Postgresql];
 
   return (
     <div className="bg-white text-[#2B2B2B] overflow-x-hidden">
@@ -295,7 +295,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
               </button>
             </motion.div>
           </div>
-        </motion.section>
+        </section>
       </main>
 
       <SharedFooter onNavigate={onNavigate} />

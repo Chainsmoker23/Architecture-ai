@@ -116,7 +116,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const themeProperties = themes[theme];
     
     Object.entries(themeProperties).forEach(([key, value]) => {
-      root.style.setProperty(key, value);
+      // FIX: Explicitly cast value to string to satisfy setProperty's type requirement.
+      root.style.setProperty(key, value as string);
     });
 
     try {
