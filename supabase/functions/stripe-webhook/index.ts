@@ -1,11 +1,16 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import Stripe from 'npm:stripe@16.1.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.44.2'
-import { corsHeaders } from '../_shared/cors.ts'
 
 // This is a type-only declaration to satisfy the linter.
 // Deno is a global object in Supabase Edge Functions.
 declare const Deno: any;
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SIGNING_SECRET = Deno.env.get('STRIPE_WEBHOOK_SIGNING_SECRET');
