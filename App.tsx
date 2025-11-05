@@ -87,11 +87,11 @@ const App: React.FC = () => {
       return;
     }
 
-    // If the user is logged in, they shouldn't be on a public-only page. Redirect to the app.
-    if (currentUser && (page === 'landing' || page === 'auth')) {
+    // If the user is logged in, redirect them away from the auth page.
+    if (currentUser && page === 'auth') {
       onNavigate('app');
     } 
-    // If the user is not logged in, they shouldn't be on a private, app-only page.
+    // If the user is not logged in, they can't access the app page. Redirect to landing.
     else if (!currentUser && page === 'app') {
       onNavigate('landing');
     }
