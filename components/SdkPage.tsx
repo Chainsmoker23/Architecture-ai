@@ -16,7 +16,12 @@ interface SdkPageProps {
 }
 
 // Ensure your Stripe publishable key is in your environment variables
-const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePublishableKey = (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+
+if (!stripePromise) {
+  console.error('CRITICAL: VITE_STRIPE_PUBLISHABLE_KEY is not set in your environment file. Stripe payments will not function.');
+}
 
 const useTypewriter = (text: string, enabled: boolean, speed = 10) => {
     const [displayedText, setDisplayedText] = useState('');
@@ -92,6 +97,11 @@ async function generate() {
             return;
         }
 
+        if (!stripePromise) {
+            setToast({ message: 'Payment system is not configured.', type: 'error' });
+            return;
+        }
+
         setLoadingPriceId(priceId);
         setToast(null);
 
@@ -101,7 +111,7 @@ async function generate() {
             });
 
             if (error) throw new Error(error.message);
-            if (!data.sessionId) throw new Error("Could not retrieve a checkout session.");
+            if (!data.sessionId) throw new Error(data.error || "Could not retrieve a checkout session.");
 
             const stripe = await stripePromise;
             if (!stripe) throw new Error("Stripe.js has not loaded yet.");
