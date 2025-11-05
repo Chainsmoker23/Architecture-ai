@@ -39,7 +39,6 @@ const useTypewriter = (text: string, enabled: boolean, speed = 10) => {
 };
 
 
-// FIX: Complete the function definition for `highlightSyntax`
 const highlightSyntax = (code: string) => {
   const highlighted = code
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -97,7 +96,7 @@ async function generate() {
             price: '$5',
             freq: 'one-time',
             features: ['50 high-priority generations', 'Standard icon set', 'Community support'],
-            cta: currentUser ? 'Coming Soon' : 'Get Started',
+            cta: 'Get Started',
             isFeatured: false,
         },
         {
@@ -105,7 +104,7 @@ async function generate() {
             price: '$10',
             freq: 'per month',
             features: ['Unlimited generations', 'Bring your own API key', 'Access to SDK & API', 'Priority support'],
-            cta: currentUser ? 'Coming Soon' : 'Go Pro',
+            cta: 'Go Pro',
             isFeatured: true,
         },
         {
@@ -199,10 +198,9 @@ async function generate() {
                                     </ul>
                                     <button
                                         onClick={plan.name === 'Business' ? () => onNavigate('contact') : handlePlanClick}
-                                        disabled={currentUser && plan.name !== 'Business'}
-                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg'}`}
+                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 ${plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg'}`}
                                     >
-                                        {plan.cta}
+                                        {currentUser ? plan.cta : "Sign In to Upgrade"}
                                     </button>
                                 </motion.div>
                            ))}
