@@ -4,8 +4,9 @@ declare const Deno: any;
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.44.2'
-import Stripe from 'https://esm.sh/stripe@16.1.0'
+// FIX: Use modern `npm:` specifiers for Deno imports for better reliability.
+import { createClient } from 'npm:@supabase/supabase-js@2.44.2'
+import Stripe from 'npm:stripe@16.1.0'
 
 // Load environment variables
 const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
