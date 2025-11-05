@@ -116,9 +116,9 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                             {userPlan} Member
                         </div>
                     )}
-                    <img src={currentUser.photoURL || undefined} alt="User" className="w-10 h-10 rounded-full" />
+                    <img src={currentUser.user_metadata?.avatar_url || undefined} alt="User" className="w-10 h-10 rounded-full" />
                     <div>
-                        <p className="font-semibold text-sm">{currentUser.displayName}</p>
+                        <p className="font-semibold text-sm">{currentUser.user_metadata?.full_name || currentUser.email}</p>
                         <p className="text-xs text-[var(--color-text-secondary)]">{currentUser.email}</p>
                     </div>
                 </div>

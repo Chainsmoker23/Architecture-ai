@@ -1,56 +1,54 @@
-// FIX: Add a triple-slash directive to include Node.js type definitions,
-// which resolves errors related to 'Buffer' and 'process'.
-/// <reference types="node" />
-
+// FIX: Resolve Node.js type definition errors by removing the conflicting triple-slash reference
+// and explicitly importing the `process` module. This ensures `process.exit` is correctly typed.
 import 'dotenv/config';
+import process from 'node:process';
 import express from 'express';
 import cors from 'cors';
 import Stripe from 'stripe';
-import admin from 'firebase-admin';
+import { createClient } from '@supabase/supabase-js';
 
 // --- INITIALIZATION ---
 
 const app = express();
 const port = process.env.PORT || 4242;
 
-// --- Firebase Admin Initialization ---
-try {
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-    throw new Error("FIREBASE_SERVICE_ACCOUNT_BASE64 is not set in .env file.");
-  }
-  const serviceAccountJson = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('ascii');
-  const serviceAccount = JSON.parse(serviceAccountJson);
+// --- Supabase Admin Initialization ---
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-  console.log("🔥 Firebase Admin SDK initialized successfully.");
-} catch (error) {
-  console.error("🔴 Firebase Admin SDK initialization failed:", error);
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error("🔴 Supabase URL or Service Role Key is missing. Check your .env file.");
   process.exit(1);
 }
 
-const db = admin.firestore();
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+console.log("🔥 Supabase Admin Client initialized successfully.");
 
 
 // --- Stripe and Middleware Initialization ---
 
-// Validate essential environment variables
-if (!process.env.STRIPE_SECRET_KEY || !process.env.FRONTEND_URL) {
-  console.error("🔴 Missing Stripe or Frontend URL environment variables. Check your .env file.");
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error("🔴 Missing Stripe secret key. Check your .env file.");
   process.exit(1);
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-const corsOptions = {
-  origin: process.env.FRONTEND_URL,
-};
-app.use(cors(corsOptions));
+const allowedOrigins = [
+  'http://localhost:3000', // Common CRA port
+  'http://localhost:5173', // Common Vite port
+];
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
+app.use(cors({ origin: allowedOrigins }));
+
 
 // --- STRIPE WEBHOOK HANDLER ---
-// It must be registered *before* express.json().
 app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -67,21 +65,19 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
     console.error(`❌ Webhook signature verification failed:`, err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-
+  
   // --- Handle the event ---
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const stripeCustomerId = session.customer as string;
 
-    // Retrieve the line items to determine what was purchased
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
     const priceId = lineItems.data[0]?.price?.id;
     
-    // Map Price ID to Plan Name
     const PLAN_MAP: { [key: string]: string } = {
         'price_1PLaGBRsL5ht22L1cDEf6a7b': 'Pro',
         'price_1PLaGZRsL5ht22L1dEfg9h0i': 'Business',
-        'price_1PLaF8RsL5ht22L1bA5g4e3f': 'Hobbyist', // This is a one-time payment
+        'price_1PLaF8RsL5ht22L1bA5g4e3f': 'Hobbyist',
     };
     const planName = PLAN_MAP[priceId || ''];
 
@@ -91,28 +87,33 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
     }
     
     try {
-        const usersRef = db.collection('users');
-        const snapshot = await usersRef.where('stripeCustomerId', '==', stripeCustomerId).get();
-
-        if (snapshot.empty) {
-            console.error(`🔴 No user found with Stripe Customer ID: ${stripeCustomerId}`);
+        // Find user in 'profiles' table by stripe_customer_id
+        const { data: profile, error: findError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('stripe_customer_id', stripeCustomerId)
+            .single();
+            
+        if (findError || !profile) {
+            console.error(`🔴 No user found with Stripe Customer ID: ${stripeCustomerId}`, findError);
             return res.status(404).send('User not found.');
         }
 
-        snapshot.forEach(async (doc) => {
-            console.log(`Found user ${doc.id}, updating plan to ${planName}...`);
-            // Here you can update subscription status, add credits, etc.
-            // For a one-time purchase like Hobbyist, you might increment a `generations` count.
-            // For a subscription, you'd save the subscription ID and status.
-            await doc.ref.update({
+        // Update the user's plan
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
                 plan: planName,
-                subscriptionStatus: 'active', // or 'credits_added' for one-time payments
-            });
-        });
-        console.log(`✅ Payment successful and user plan updated for session: ${session.id}`);
+                subscription_status: 'active', // or handle credits for one-time
+            })
+            .eq('id', profile.id);
+
+        if (updateError) throw updateError;
+
+        console.log(`✅ Payment successful and user plan updated for user ID: ${profile.id}`);
 
     } catch (dbError) {
-        console.error('🔥 Firebase database error during webhook processing:', dbError);
+        console.error('🔥 Supabase database error during webhook processing:', dbError);
         return res.status(500).send('Database error.');
     }
   }
@@ -120,7 +121,6 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
   res.json({ received: true });
 });
 
-// JSON middleware for all other routes
 app.use(express.json());
 
 
@@ -137,18 +137,35 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.status(400).json({ error: 'Missing required parameters: priceId, userEmail, uid, and mode.' });
   }
 
+  if (!process.env.FRONTEND_URL) {
+    const errorMsg = "Critical backend configuration missing: FRONTEND_URL is not set in the .env file.";
+    console.error(`🔴 ${errorMsg}`);
+    return res.status(500).json({ error: errorMsg });
+  }
+
   try {
-    const userDocRef = db.collection('users').doc(uid);
-    const userDoc = await userDocRef.get();
+    // Check if user profile exists in Supabase
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('stripe_customer_id')
+        .eq('id', uid)
+        .single();
+
+    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = no rows found
+        throw profileError;
+    }
     
-    let stripeCustomerId: string | undefined = userDoc.data()?.stripeCustomerId;
+    let stripeCustomerId = profile?.stripe_customer_id;
 
     // Create a Stripe customer if one doesn't exist
     if (!stripeCustomerId) {
-        const customer = await stripe.customers.create({ email: userEmail, metadata: { firebaseUID: uid } });
+        const customer = await stripe.customers.create({ email: userEmail, metadata: { supabaseUID: uid } });
         stripeCustomerId = customer.id;
-        // Save the new customer ID to the user's Firestore document
-        await userDocRef.set({ stripeCustomerId }, { merge: true });
+        // Upsert profile with new Stripe customer ID
+        const { error: upsertError } = await supabase
+            .from('profiles')
+            .upsert({ id: uid, stripe_customer_id: stripeCustomerId });
+        if (upsertError) throw upsertError;
         console.log(`Created Stripe customer ${stripeCustomerId} for user ${uid}`);
     }
 

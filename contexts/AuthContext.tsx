@@ -1,17 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { 
-    getAuth, 
-    onAuthStateChanged, 
-    User, 
-    GoogleAuthProvider, 
-    GithubAuthProvider,
-    signInWithPopup, 
-    signOut as firebaseSignOut,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    updateProfile
-} from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '../supabaseClient';
 
 interface AuthContextType {
     currentUser: User | null;
@@ -30,39 +19,58 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setCurrentUser(user);
+        const getSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setCurrentUser(session?.user ?? null);
             setLoading(false);
+        };
+
+        getSession();
+
+        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+            setCurrentUser(session?.user ?? null);
         });
-        return unsubscribe;
+
+        return () => {
+            authListener?.subscription.unsubscribe();
+        };
     }, []);
     
     const signInWithGoogle = async () => {
-        const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
+        const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+        if (error) throw error;
     };
 
     const signInWithGitHub = async () => {
-        const provider = new GithubAuthProvider();
-        await signInWithPopup(auth, provider);
+        const { error } = await supabase.auth.signInWithOAuth({ provider: 'github' });
+        if (error) throw error;
     };
     
     const signUpWithEmail = async (email: string, password: string, displayName: string) => {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        if (userCredential.user) {
-            await updateProfile(userCredential.user, { displayName });
-            // Manually update the current user state to reflect the new user immediately
-            // This ensures the app navigates correctly after sign-up
-            setCurrentUser(userCredential.user);
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: displayName,
+                },
+            },
+        });
+        if (error) throw error;
+        // The onAuthStateChange listener will handle updating the user state.
+        if (data.user) {
+            setCurrentUser(data.user);
         }
     };
 
     const signInWithEmail = async (email: string, password: string) => {
-        await signInWithEmailAndPassword(auth, email, password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
     };
 
     const signOut = async () => {
-        await firebaseSignOut(auth);
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
     };
 
     const value = {
@@ -78,7 +86,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <AuthContext.Provider value={value}>
             {!loading && children}
-        {/* FIX: Corrected typo in component closing tag. */}
         </AuthContext.Provider>
     );
 };
