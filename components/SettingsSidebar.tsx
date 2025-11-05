@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 
+
+
 interface SettingsSidebarProps {
   userApiKey: string | null;
   setUserApiKey: (key: string | null) => void;
@@ -14,16 +16,19 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { currentUser, signOut } = useAuth();
-  
+ 
   // State for managing the API key form
   const [isEditing, setIsEditing] = useState(!userApiKey);
   const [editingKey, setEditingKey] = useState(userApiKey || '');
   const [showSaved, setShowSaved] = useState(false);
-  
+
   const userPlan = currentUser?.user_metadata?.plan;
-  const isPremiumUser = userPlan && ['Hobbyist', 'Pro', 'Business'].includes(userPlan);
+
+  // FIX: Make the premium user check case-insensitive to correctly identify plans.
+  const isPremiumUser = userPlan && ['hobbyist', 'pro', 'business'].includes(String(userPlan).toLowerCase());
 
 
+ 
   useEffect(() => {
     // Sync local state if the userApiKey prop changes from outside
     setIsEditing(!userApiKey);
@@ -34,7 +39,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
     closed: { x: '-100%', transition: { type: 'spring', stiffness: 400, damping: 40 } },
     open: { x: 0, transition: { type: 'spring', stiffness: 400, damping: 40 } },
   };
-  
+ 
   const themeOptions = [
     { value: 'light', label: 'Light' },
     { value: 'medium', label: 'Medium' },
@@ -55,10 +60,16 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
       setUserApiKey(null);
       // The useEffect will handle setting isEditing and editingKey
   };
-  
+ 
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditingKey(userApiKey || ''); // Reset any changes
+  };
+
+  // IMPROVEMENT: Close the sidebar on sign out for a better UX.
+  const handleSignOut = () => {
+    signOut();
+    setIsOpen(false);
   };
 
   const formVariants: Variants = {
@@ -71,11 +82,13 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="p-2 bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors"
+        className="fixed top-6 left-6 z-40 p-2 rounded-full bg-[var(--color-panel-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)] shadow-sm hover:text-[var(--color-text-primary)] transition-colors"
         aria-label="Open settings"
         title="Settings"
       >
-        <ArchitectureIcon type={IconType.Gear} className="w-5 h-5" />
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+        </svg>
       </button>
 
       <AnimatePresence>
@@ -93,7 +106,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
               initial="closed"
               animate="open"
               exit="closed"
-              className="fixed top-0 left-0 bottom-0 w-80 glass-panel shadow-xl z-50 p-6 flex flex-col"
+              className="fixed top-0 left-0 bottom-0 w-80 bg-[var(--color-panel-bg)] border-r border-[var(--color-border)] shadow-xl z-50 p-6 flex flex-col"
             >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Settings</h2>
@@ -109,22 +122,26 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
               </div>
 
               {currentUser && (
-                <div className="mb-4">
+                 <div className="mb-4">
                     <div className={`relative p-3 bg-[var(--color-bg-input)] rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'border-[var(--color-accent)] shadow-md shadow-[var(--color-accent-soft)]' : 'border-[var(--color-border)]'}`}>
-                        {isPremiumUser && (
-                            <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg capitalize">
-                                {userPlan} Member
+                        {isPremiumUser && userPlan && (
+                            <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+                                {/* FIX: Capitalize plan name for display */}
+                                {String(userPlan).charAt(0).toUpperCase() + String(userPlan).slice(1)} Member
                             </div>
                         )}
                         <div className="flex-shrink-0">
                             <img src={currentUser.user_metadata?.avatar_url || undefined} alt="User avatar" className="w-12 h-12 rounded-full object-cover" />
+                           
                         </div>
 
                         <div>
                             <p className="font-semibold text-sm">{currentUser.user_metadata?.full_name || currentUser.email}</p>
                             <p className="text-xs text-[var(--color-text-secondary)]">{currentUser.email}</p>
                         </div>
+                       
                     </div>
+                   
                 </div>
               )}
 
@@ -211,12 +228,13 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                  </div>
               </div>
               <div className="mt-auto">
-                {currentUser ? (
-                    <button onClick={signOut} className="w-full flex items-center justify-center gap-2 bg-[var(--color-button-bg)] text-sm font-semibold text-[var(--color-text-secondary)] py-2.5 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>
-                        Sign Out
-                    </button>
-                ) : null}
+                {/* FIX: Only show sign out button if user is logged in */}
+                {currentUser && (
+                  <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 bg-[var(--color-button-bg)] text-sm font-semibold text-[var(--color-text-secondary)] py-2.5 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>
+                      Sign Out
+                  </button>
+                )}
               </div>
             </motion.div>
           </>
