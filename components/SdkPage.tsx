@@ -4,7 +4,6 @@ import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
 import { useAuth } from '../contexts/AuthContext';
-import { redirectToCheckout } from '../services/stripeService';
 import Toast from './Toast';
 
 type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth';
@@ -60,8 +59,7 @@ const CodeBlock: React.FC<{ code: string }> = ({ code }) => (
 );
 
 const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
-    const { currentUser, loading } = useAuth();
-    const [isProcessing, setIsProcessing] = useState(false);
+    const { currentUser } = useAuth();
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     const codeExample = `import { CubeGenAI } from '@cubegen/sdk';
@@ -80,33 +78,16 @@ async function generate() {
     const typedCode = useTypewriter(codeExample, true, 10);
     
     useEffect(() => {
-        const query = new URLSearchParams(window.location.search);
-        if (query.get("payment_success")) {
-            setToast({ message: "Payment successful! Your plan has been upgraded.", type: 'success' });
-            // Clean up URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-        if (query.get("payment_cancelled")) {
-            setToast({ message: "Payment was cancelled. Your plan has not changed.", type: 'error' });
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
+        // This effect is kept in case we add other query params later.
+        // Payment-related toast messages are removed for now.
     }, []);
 
-    const handlePurchase = async (priceId: string, mode: 'payment' | 'subscription') => {
+    const handlePlanClick = () => {
         if (!currentUser) {
             onNavigate('auth');
-            return;
-        }
-        setIsProcessing(true);
-        try {
-            // FIX: The redirectToCheckout function expects 2 arguments, but 4 were provided.
-            // The user context is handled automatically by Supabase auth, so email and UID are not needed here.
-            await redirectToCheckout(priceId, mode);
-        } catch (error) {
-            console.error(error);
-            setToast({ message: error instanceof Error ? error.message : "An unknown error occurred.", type: 'error' });
-        } finally {
-            setIsProcessing(false);
+        } else {
+            // Placeholder for future upgrade logic
+            setToast({ message: "Upgrade functionality coming soon!", type: 'success' });
         }
     };
 
@@ -114,29 +95,23 @@ async function generate() {
         {
             name: 'Hobbyist',
             price: '$5',
-            priceId: 'price_1PLaF8RsL5ht22L1bA5g4e3f',
             freq: 'one-time',
-            mode: 'payment' as const,
             features: ['50 high-priority generations', 'Standard icon set', 'Community support'],
-            cta: 'Get Started',
+            cta: currentUser ? 'Coming Soon' : 'Get Started',
             isFeatured: false,
         },
         {
             name: 'Pro',
             price: '$10',
-            priceId: 'price_1PLaGBRsL5ht22L1cDEf6a7b',
             freq: 'per month',
-            mode: 'subscription' as const,
             features: ['Unlimited generations', 'Bring your own API key', 'Access to SDK & API', 'Priority support'],
-            cta: 'Go Pro',
+            cta: currentUser ? 'Coming Soon' : 'Go Pro',
             isFeatured: true,
         },
         {
             name: 'Business',
             price: '$50',
-            priceId: 'price_1PLaGZRsL5ht22L1dEfg9h0i',
             freq: 'per month',
-            mode: 'subscription' as const,
             features: ['All Pro features', 'Team collaboration tools', 'Centralized billing', 'Dedicated support'],
             cta: 'Contact Sales',
             isFeatured: false,
@@ -223,11 +198,11 @@ async function generate() {
                                         {plan.features.map(f => <li key={f} className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>{f}</li>)}
                                     </ul>
                                     <button
-                                        onClick={() => plan.name === 'Business' ? onNavigate('contact') : handlePurchase(plan.priceId, plan.mode)}
-                                        disabled={isProcessing}
-                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 disabled:opacity-50 ${plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg'}`}
+                                        onClick={plan.name === 'Business' ? () => onNavigate('contact') : handlePlanClick}
+                                        disabled={currentUser && plan.name !== 'Business'}
+                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg'}`}
                                     >
-                                        {isProcessing ? 'Processing...' : plan.cta}
+                                        {plan.cta}
                                     </button>
                                 </motion.div>
                            ))}

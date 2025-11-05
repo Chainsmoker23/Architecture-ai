@@ -48,6 +48,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onBack }) => {
             if (isSignUp) {
                 if (!name.trim()) {
                     setError("Please enter your name.");
+                    setIsLoading(false);
                     return;
                 }
                 await signUpWithEmail(email, password, name);
@@ -55,14 +56,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onBack }) => {
                 await signInWithEmail(email, password);
             }
         } catch (err: any) {
-            if (err.code === 'auth/email-already-in-use') {
-                setError('An account with this email already exists.');
-            } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+            const message = err.message || "An unexpected error occurred. Please try again.";
+            if (message.includes('User already registered')) {
+                setError('An account with this email already exists. Please sign in.');
+            } else if (message.includes('Invalid login credentials')) {
                 setError('Invalid email or password.');
-            } else if (err.code === 'auth/weak-password') {
+            } else if (message.includes('Password should be at least')) {
                 setError('Password should be at least 6 characters.');
             } else {
-                setError('An unexpected error occurred. Please try again.');
+                setError(message);
             }
             console.error(err);
         } finally {

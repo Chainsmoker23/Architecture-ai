@@ -1,5 +1,5 @@
-// FIX: Add a triple-slash directive to include Deno types and resolve the "Cannot find name 'Deno'" error.
-/// <reference types="https://deno.land/x/deno/cli/types/deno.d.ts" />
+// FIX: Use the Supabase Edge Functions runtime types to resolve Deno-related type errors.
+/// <reference types="https://esm.sh/v135/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
