@@ -28,6 +28,7 @@ import NeuralNetworkPage from './components/NeuralNetworkPage';
 import CareersPage from './components/CareersPage';
 import ResearchPage from './components/ResearchPage';
 import { useAuth } from './contexts/AuthContext';
+import { User } from '@supabase/supabase-js';
 
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
@@ -49,7 +50,7 @@ const App: React.FC = () => {
   const { currentUser, loading: authLoading } = useAuth();
   const [page, setPage] = useState<Page>('landing');
   
-  const prevUserRef = useRef(currentUser);
+  const prevUserRef = useRef<User | null>();
 
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [promptIndex, setPromptIndex] = useState(0);
@@ -85,31 +86,28 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Check if the user state has changed from logged-out to logged-in
-    const justLoggedIn = !prevUserRef.current && currentUser;
-    
-    // Update the ref for the next render
-    prevUserRef.current = currentUser;
-
     if (authLoading) {
       return;
     }
 
-    // If the user just logged in (e.g., after OAuth redirect) and is on the landing page,
-    // automatically navigate them to the main app.
-    if (justLoggedIn && page === 'landing') {
-      onNavigate('app');
-      return; // Early return to prevent other checks
-    }
+    const justLoggedIn = !prevUserRef.current && currentUser;
 
-    // If a logged-in user somehow lands on the auth page, redirect them.
-    if (currentUser && page === 'auth') {
+    // If a user just logged in and is on the landing or auth page, redirect them to the app.
+    // This handles both OAuth and email/password login flows.
+    if (justLoggedIn && (page === 'landing' || page === 'auth')) {
       onNavigate('app');
-    } 
-    // If a non-logged-in user tries to access the app, send them to the landing page.
+    }
+    // If a logged-in user manually navigates to the auth page, redirect them.
+    else if (currentUser && page === 'auth') {
+      onNavigate('app');
+    }
+    // If a non-logged-in user tries to access a protected page, send them to the landing page.
     else if (!currentUser && page === 'app') {
       onNavigate('landing');
     }
+
+    // Update the ref for the next render at the end of the effect.
+    prevUserRef.current = currentUser;
   }, [currentUser, authLoading, page, onNavigate]);
 
 

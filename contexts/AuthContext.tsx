@@ -41,9 +41,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const createdAt = new Date(user.created_at).getTime();
                 const lastSignInAt = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : createdAt;
                 const isNewUser = Math.abs(createdAt - lastSignInAt) < 1000 * 5; // 5 second tolerance for new user
-                const hasDefaultAvatar = user.user_metadata.avatar_url && !user.user_metadata.avatar_url.startsWith('data:image/svg+xml');
 
-                if (isNewUser && hasDefaultAvatar) {
+                // A new user needs a custom avatar if they don't already have one (e.g. from email signup)
+                const needsCustomAvatar = isNewUser && !user.user_metadata.avatar_url?.startsWith('data:image/svg+xml');
+
+                if (needsCustomAvatar) {
                     const { data: updatedUserData, error } = await supabase.auth.updateUser({
                         data: {
                             avatar_url: getRandomAvatarUrl(),
