@@ -99,7 +99,9 @@ async function generate() {
         }
         setIsProcessing(true);
         try {
-            await redirectToCheckout(priceId, currentUser.email!, currentUser.uid, mode);
+            // FIX: The redirectToCheckout function expects 2 arguments, but 4 were provided.
+            // The user context is handled automatically by Supabase auth, so email and UID are not needed here.
+            await redirectToCheckout(priceId, mode);
         } catch (error) {
             console.error(error);
             setToast({ message: error instanceof Error ? error.message : "An unknown error occurred.", type: 'error' });

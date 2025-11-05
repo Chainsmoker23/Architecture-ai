@@ -1,3 +1,4 @@
+import { supabase } from '../supabaseClient';
 // This service assumes Stripe.js is loaded globally from a script tag in index.html
 
 let stripe: any = null;
@@ -19,48 +20,50 @@ const getStripe = () => {
 };
 
 /**
- * Creates a Stripe Checkout session by calling the custom backend and redirects the user to the payment page.
+ * Creates a Stripe Checkout session by calling a Supabase Function and redirects the user to the payment page.
  * @param priceId The ID of the Stripe Price object.
- * @param userEmail The email of the user.
- * @param uid The Firebase User ID.
  * @param mode The checkout mode ('payment' or 'subscription').
  */
-export const redirectToCheckout = async (priceId: string, userEmail: string, uid: string, mode: 'payment' | 'subscription'): Promise<void> => {
+export const redirectToCheckout = async (priceId: string, mode: 'payment' | 'subscription'): Promise<void> => {
   try {
     const stripeInstance = getStripe();
-    const backendUrl = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:4242';
-
-    // 1. Call the backend to create a checkout session
-    const response = await fetch(`${backendUrl}/api/create-checkout-session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ priceId, userEmail, uid, mode }),
+    
+    // 1. Call the Supabase Edge Function to create a checkout session
+    // The user's JWT is automatically passed in the Authorization header.
+    const { data, error: functionError } = await supabase.functions.invoke('create-checkout-session', {
+      body: { priceId, mode },
     });
 
-    if (!response.ok) {
-      const { error } = await response.json();
-      throw new Error(error || 'Failed to create checkout session.');
+    if (functionError) {
+      throw functionError;
     }
 
-    const { sessionId } = await response.json();
+    const { sessionId, error: apiError } = data;
+    
+    if (apiError) {
+        throw new Error(apiError);
+    }
+    
     if (!sessionId) {
-      throw new Error('Could not retrieve a session ID from the backend.');
+      throw new Error('Could not retrieve a session ID from the function.');
     }
 
     // 2. Redirect to Stripe Checkout using the session ID
-    const { error } = await stripeInstance.redirectToCheckout({
+    const { error: stripeError } = await stripeInstance.redirectToCheckout({
       sessionId,
     });
 
     // This point is only reached if there's an immediate error during redirection
-    if (error) {
-      console.error('Stripe redirection error:', error);
-      throw error;
+    if (stripeError) {
+      console.error('Stripe redirection error:', stripeError);
+      throw stripeError;
     }
   } catch (error) {
     console.error("Stripe service error:", error);
-    throw new Error("Could not connect to the payment gateway. Please try again later.");
+    if (error instanceof Error) {
+        throw new Error(`Could not connect to the payment gateway: ${error.message}`);
+    } else {
+        throw new Error("Could not connect to the payment gateway. Please try again later.");
+    }
   }
 };
