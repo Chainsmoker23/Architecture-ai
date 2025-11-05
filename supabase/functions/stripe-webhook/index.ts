@@ -2,13 +2,13 @@
 // Supabase Edge Functions run in a Deno environment where `Deno` is a global variable.
 declare const Deno: any;
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import Stripe from 'https://esm.sh/stripe@12.12.0'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8'
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
+import Stripe from 'https://esm.sh/stripe@16.1.0'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.44.2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'), {
-  apiVersion: '2022-11-15',
+  apiVersion: '2024-06-20',
   httpClient: Stripe.createFetchHttpClient(),
 })
 
