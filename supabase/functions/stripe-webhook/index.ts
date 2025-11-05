@@ -31,6 +31,11 @@ const getPlanFromPriceId = (priceId: string): string => {
 }
 
 serve(async (req) => {
+  // Handle preflight OPTIONS request for CORS
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     if (!STRIPE_WEBHOOK_SIGNING_SECRET || !STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error('Missing required environment variables for webhook.');
