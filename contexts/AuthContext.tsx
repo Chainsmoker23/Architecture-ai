@@ -26,8 +26,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         setLoading(true);
+        
+        const authTimeout = setTimeout(() => {
+            console.warn("Supabase auth timed out. Assuming no user is logged in. Please check your Supabase configuration in your .env file.");
+            setLoading(false);
+        }, 5000); // 5-second timeout
 
         const fetchUserWithProfile = async (user: User | null) => {
+            clearTimeout(authTimeout); // We received a response, clear the timeout
             if (!user) {
                 setCurrentUser(null);
                 setLoading(false);
@@ -59,6 +65,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         supabase.auth.getSession().then(({ data: { session } }) => {
             fetchUserWithProfile(session?.user ?? null);
+        }).catch(err => {
+            console.error("Error getting initial Supabase session:", err);
+            fetchUserWithProfile(null); // Proceed in logged-out state on error
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -79,6 +88,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
 
         return () => {
+            clearTimeout(authTimeout);
             subscription.unsubscribe();
         };
     }, []);

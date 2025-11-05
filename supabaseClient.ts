@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-// IMPORTANT: Replace with your Supabase project's URL and Anon Key
-// You can find these in your Supabase project's API settings
-const supabaseUrl = 'YOUR_SUPABASE_URL';
-const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+// These variables are loaded from the .env file by Vite
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'YOUR_SUPABASE_URL') {
-  console.error("CRITICAL: Supabase credentials are not configured. Authentication and all backend features (including payments) WILL NOT WORK. Please add your project's URL and anon key to `supabaseClient.ts` to enable the application.");
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("CRITICAL: Supabase credentials are not configured. Authentication and all backend features (including payments) WILL NOT WORK. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file to enable the application.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Pass an empty string if the env var is missing to avoid an error, the check above will warn the developer.
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
