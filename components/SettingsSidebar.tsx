@@ -20,8 +20,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   const [editingKey, setEditingKey] = useState(userApiKey || '');
   const [showSaved, setShowSaved] = useState(false);
   
-  // MOCK: Assume logged-in user is on a Pro plan for demonstration
-  const userPlan = currentUser ? 'Pro' : null; 
+  const userPlan = currentUser?.user_metadata?.plan;
   const isPremiumUser = userPlan && ['Hobbyist', 'Pro', 'Business'].includes(userPlan);
 
 
@@ -113,7 +112,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                 <div className="mb-4">
                     <div className={`relative p-3 bg-[var(--color-bg-input)] rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'border-[var(--color-accent)] shadow-md shadow-[var(--color-accent-soft)]' : 'border-[var(--color-border)]'}`}>
                         {isPremiumUser && (
-                            <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+                            <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg capitalize">
                                 {userPlan} Member
                             </div>
                         )}

@@ -20,6 +20,16 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+const getPlanFromPriceId = (priceId: string): string => {
+    // This should match the price IDs you created in Stripe and used on the frontend
+    const priceIdToPlan: { [key: string]: string } = {
+        'price_1Pef8dRxpYpajPMv6NCLcMhT': 'hobbyist',
+        'price_1Pef9WRxpYpajPMvg0xOM0kK': 'pro',
+        'price_1PefAlRxpYpajPMv0fJdpewU': 'business'
+    };
+    return priceIdToPlan[priceId] || 'unknown';
+}
+
 serve(async (req) => {
   try {
     if (!STRIPE_WEBHOOK_SIGNING_SECRET || !STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -36,24 +46,76 @@ serve(async (req) => {
     );
 
     switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        console.log(`Checkout session completed for customer: ${session.customer}`);
-        // TODO: This is where you would update the user's profile in Supabase.
-        // 1. Get the `supabase_id` from the customer's metadata.
-        // 2. Look up the subscription details (`session.subscription`).
-        // 3. Update the `profiles` table to set the user's `plan` (e.g., 'pro'), 
-        //    `subscription_status` ('active'), and `generations_remaining`.
-        break;
-      }
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
-        console.log(`Subscription ${subscription.status}: ${subscription.id}`);
-        // TODO: Handle subscription changes, like cancellations or plan changes.
-        // Update the user's `plan` and `subscription_status` in your `profiles` table.
-        break;
-      }
+        case 'checkout.session.completed': {
+            const session = event.data.object;
+            const subscriptionId = session.subscription;
+            if (typeof subscriptionId !== 'string') {
+                throw new Error('Subscription ID not found in checkout session.');
+            }
+
+            // Retrieve the full subscription object to get details
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const customerId = subscription.customer;
+
+            const { data: profile, error } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('stripe_customer_id', customerId)
+                .single();
+
+            if (error || !profile) {
+                throw new Error(error?.message || `User profile not found for customer ${customerId}`);
+            }
+
+            const priceId = subscription.items.data[0]?.price.id;
+            const plan = getPlanFromPriceId(priceId);
+
+            const { error: updateError } = await supabaseAdmin
+                .from('profiles')
+                .update({
+                    plan: plan,
+                    subscription_status: subscription.status,
+                    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+                })
+                .eq('id', profile.id);
+
+            if (updateError) throw updateError;
+            console.log(`User ${profile.id} successfully subscribed to ${plan} plan.`);
+            break;
+        }
+
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted': {
+            const subscription = event.data.object;
+            const customerId = subscription.customer;
+
+            const { data: profile, error } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('stripe_customer_id', customerId)
+                .single();
+
+            if (error || !profile) {
+                 throw new Error(error?.message || `User profile not found for customer ${customerId} on subscription update.`);
+            }
+
+            const priceId = subscription.items.data[0]?.price.id;
+            const plan = getPlanFromPriceId(priceId);
+            
+            const { error: updateError } = await supabaseAdmin
+                .from('profiles')
+                .update({
+                    plan: subscription.status === 'active' ? plan : 'free',
+                    subscription_status: subscription.status,
+                    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+                })
+                .eq('id', profile.id);
+
+            if (updateError) throw updateError;
+            console.log(`Subscription for user ${profile.id} updated to status: ${subscription.status}`);
+            break;
+        }
+        
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }

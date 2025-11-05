@@ -88,7 +88,16 @@ async function generate() {
     const typedCode = useTypewriter(codeExample, true, 10);
     
     useEffect(() => {
-        // This effect is kept in case we add other query params later.
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'success') {
+            setToast({ message: 'Payment successful! Your plan is now active.', type: 'success' });
+            // Clean the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        if (urlParams.get('payment') === 'cancelled') {
+            setToast({ message: 'Payment was cancelled.', type: 'error' });
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     }, []);
 
     const handlePlanClick = async (priceId: string) => {
@@ -106,6 +115,9 @@ async function generate() {
         setToast(null);
 
         try {
+             if (!stripePublishableKey) {
+                throw new Error("Stripe is not configured. Please add VITE_STRIPE_PUBLISHABLE_KEY to your environment variables.");
+            }
             const { data, error } = await supabase.functions.invoke('create-checkout-session', {
                 body: { priceId },
             });

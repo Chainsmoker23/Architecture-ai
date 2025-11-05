@@ -27,37 +27,55 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         setLoading(true);
 
-        // Immediately check for an active session when the provider mounts.
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setCurrentUser(session?.user ?? null);
+        const fetchUserWithProfile = async (user: User | null) => {
+            if (!user) {
+                setCurrentUser(null);
+                setLoading(false);
+                return;
+            }
+
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error) {
+                console.error("Error fetching user profile:", error.message);
+                setCurrentUser(user); // Set user without profile on error
+            } else {
+                // Merge profile data into user_metadata
+                const enhancedUser = {
+                    ...user,
+                    user_metadata: {
+                        ...user.user_metadata,
+                        ...profile,
+                    },
+                };
+                setCurrentUser(enhancedUser);
+            }
             setLoading(false);
+        };
+        
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            fetchUserWithProfile(session?.user ?? null);
         });
 
-        // Listen for authentication state changes (sign in, sign out, etc.).
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const user = session?.user ?? null;
-            let userToSet = user;
-
-            // If a user just signed in (especially via OAuth) and doesn't have our custom avatar flag,
-            // update their profile with a new random avatar.
+            
             if (_event === 'SIGNED_IN' && user && !user.user_metadata.has_custom_avatar) {
-                const { data: updatedData, error } = await supabase.auth.updateUser({
+                 await supabase.auth.updateUser({
                     data: {
                         avatar_url: getRandomAvatarUrl(),
                         has_custom_avatar: true,
                     }
                 });
-
-                if (error) {
-                    console.error("Error setting custom avatar:", error.message);
-                } else if (updatedData.user) {
-                    // Use the updated user object which contains the new avatar URL.
-                    userToSet = updatedData.user;
-                }
             }
             
-            setCurrentUser(userToSet);
-            setLoading(false);
+            // Refetch session to get the updated user object after any changes
+            const { data: { session: updatedSession } } = await supabase.auth.getSession();
+            fetchUserWithProfile(updatedSession?.user ?? null);
         });
 
         return () => {
@@ -76,19 +94,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     const signUpWithEmail = async (email: string, password: string, displayName: string) => {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
                     full_name: displayName,
                     avatar_url: getRandomAvatarUrl(),
-                    has_custom_avatar: true, // Flag to prevent overwrite by onAuthStateChange logic
+                    has_custom_avatar: true, 
                 },
             },
         });
         if (error) throw error;
-        // The onAuthStateChange listener will automatically handle setting the user state.
+        
+        // Also create a profile entry
+        if (data.user) {
+            const { error: profileError } = await supabase.from('profiles').insert({
+                id: data.user.id,
+                full_name: displayName,
+                avatar_url: data.user.user_metadata.avatar_url,
+            });
+            if (profileError) {
+                console.error("Error creating profile on signup:", profileError.message);
+            }
+        }
     };
 
     const signInWithEmail = async (email: string, password: string) => {
