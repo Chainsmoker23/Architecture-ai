@@ -25,42 +25,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const getSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setCurrentUser(session?.user ?? null);
-            setLoading(false);
-        };
-
-        getSession();
-
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        setLoading(true);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const user = session?.user ?? null;
-            let finalUser = user;
+            let userToSet = user;
 
-            if (user) {
-                const createdAt = new Date(user.created_at).getTime();
-                const lastSignInAt = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : createdAt;
-                const isNewUser = Math.abs(createdAt - lastSignInAt) < 1000 * 5; // 5 second tolerance for new user
-
-                // A new user needs a custom avatar if they don't already have one (e.g. from email signup)
-                const needsCustomAvatar = isNewUser && !user.user_metadata.avatar_url?.startsWith('data:image/svg+xml');
-
-                if (needsCustomAvatar) {
-                    const { data: updatedUserData, error } = await supabase.auth.updateUser({
-                        data: {
-                            avatar_url: getRandomAvatarUrl(),
-                        }
-                    });
-                    if (!error && updatedUserData.user) {
-                        finalUser = updatedUserData.user;
+            // If a user exists and they haven't been assigned a custom avatar (and the associated flag),
+            // assign one. This handles new OAuth sign-ups and migrates old users.
+            if (user && !user.user_metadata.has_custom_avatar) {
+                const { data: updatedUserData, error } = await supabase.auth.updateUser({
+                    data: {
+                        avatar_url: getRandomAvatarUrl(),
+                        has_custom_avatar: true,
                     }
+                });
+                if (!error && updatedUserData.user) {
+                    userToSet = updatedUserData.user;
                 }
             }
-            setCurrentUser(finalUser);
+            
+            setCurrentUser(userToSet);
+            setLoading(false);
         });
 
         return () => {
-            authListener?.subscription.unsubscribe();
+            subscription.unsubscribe();
         };
     }, []);
     
@@ -82,11 +71,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 data: {
                     full_name: displayName,
                     avatar_url: getRandomAvatarUrl(),
+                    has_custom_avatar: true, // Set flag at sign-up to prevent overwrite
                 },
             },
         });
         if (error) throw error;
-        // The onAuthStateChange listener will handle updating the user state.
+        // The onAuthStateChange listener will handle setting the user state.
         if (data.user) {
             setCurrentUser(data.user);
         }
