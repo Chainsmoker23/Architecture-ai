@@ -48,7 +48,9 @@ const pageItemVariants: Variants = {
 const App: React.FC = () => {
   const { currentUser, loading: authLoading } = useAuth();
   const [page, setPage] = useState<Page>('landing');
- 
+  
+  const prevUserRef = useRef(currentUser);
+
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [promptIndex, setPromptIndex] = useState(0);
 
@@ -83,15 +85,28 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Check if the user state has changed from logged-out to logged-in
+    const justLoggedIn = !prevUserRef.current && currentUser;
+    
+    // Update the ref for the next render
+    prevUserRef.current = currentUser;
+
     if (authLoading) {
       return;
     }
 
-    // If the user is logged in, redirect them away from the auth page.
+    // If the user just logged in (e.g., after OAuth redirect) and is on the landing page,
+    // automatically navigate them to the main app.
+    if (justLoggedIn && page === 'landing') {
+      onNavigate('app');
+      return; // Early return to prevent other checks
+    }
+
+    // If a logged-in user somehow lands on the auth page, redirect them.
     if (currentUser && page === 'auth') {
       onNavigate('app');
     } 
-    // If the user is not logged in, they can't access the app page. Redirect to landing.
+    // If a non-logged-in user tries to access the app, send them to the landing page.
     else if (!currentUser && page === 'app') {
       onNavigate('landing');
     }
