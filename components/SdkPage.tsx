@@ -5,6 +5,8 @@ import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
+import { supabase } from '../supabaseClient';
+import { loadStripe } from '@stripe/stripe-js';
 
 type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth';
 
@@ -12,6 +14,9 @@ interface SdkPageProps {
   onBack: () => void;
   onNavigate: (page: Page) => void;
 }
+
+// Ensure your Stripe publishable key is in your environment variables
+const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const useTypewriter = (text: string, enabled: boolean, speed = 10) => {
     const [displayedText, setDisplayedText] = useState('');
@@ -60,11 +65,12 @@ const CodeBlock: React.FC<{ code: string }> = ({ code }) => (
 const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     const { currentUser } = useAuth();
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
 
     const codeExample = `import { CubeGenAI } from '@cubegen/sdk';
 
-// Initialize with your API Key (available on Pro/Business plans)
-const cubeGen = new CubeGenAI('YOUR_API_KEY');
+// Initialize with your CubeGen API Key from your dashboard
+const cubeGen = new CubeGenAI('cg_sk_YOUR_API_KEY');
 
 async function generate() {
   const prompt = 'A 3-tier web app on AWS with a load balancer and RDS database.';
@@ -78,15 +84,35 @@ async function generate() {
     
     useEffect(() => {
         // This effect is kept in case we add other query params later.
-        // Payment-related toast messages are removed for now.
     }, []);
 
-    const handlePlanClick = () => {
+    const handlePlanClick = async (priceId: string) => {
         if (!currentUser) {
             onNavigate('auth');
-        } else {
-            // Placeholder for future upgrade logic
-            setToast({ message: "Upgrade functionality coming soon!", type: 'success' });
+            return;
+        }
+
+        setLoadingPriceId(priceId);
+        setToast(null);
+
+        try {
+            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                body: { priceId },
+            });
+
+            if (error) throw new Error(error.message);
+            if (!data.sessionId) throw new Error("Could not retrieve a checkout session.");
+
+            const stripe = await stripePromise;
+            if (!stripe) throw new Error("Stripe.js has not loaded yet.");
+
+            const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+            if (stripeError) throw new Error(stripeError.message);
+
+        } catch (error: any) {
+            console.error('Error creating checkout session:', error.message);
+            setToast({ message: `Error: ${error.message}`, type: 'error' });
+            setLoadingPriceId(null);
         }
     };
 
@@ -95,7 +121,13 @@ async function generate() {
             name: 'Hobbyist',
             price: '$5',
             freq: 'one-time',
-            features: ['50 high-priority generations', 'Standard icon set', 'Community support'],
+            priceId: 'price_1Pef8dRxpYpajPMv6NCLcMhT', // Replace with your actual Stripe Price ID
+            features: [
+              '50 diagram generations',
+              'Standard icon set',
+              'Perfect for small projects',
+              'Community support',
+            ],
             cta: 'Get Started',
             isFeatured: false,
         },
@@ -103,7 +135,13 @@ async function generate() {
             name: 'Pro',
             price: '$10',
             freq: 'per month',
-            features: ['Unlimited generations', 'Bring your own API key', 'Access to SDK & API', 'Priority support'],
+            priceId: 'price_1Pef9WRxpYpajPMvg0xOM0kK', // Replace with your actual Stripe Price ID
+            features: [
+              '200 generations per month',
+              'Access to SDK & API',
+              'Emergency "Bring Your Own Key"',
+              'Priority support',
+            ],
             cta: 'Go Pro',
             isFeatured: true,
         },
@@ -111,7 +149,13 @@ async function generate() {
             name: 'Business',
             price: '$50',
             freq: 'per month',
-            features: ['All Pro features', 'Team collaboration tools', 'Centralized billing', 'Dedicated support'],
+            priceId: 'price_1PefAlRxpYpajPMv0fJdpewU', // Replace with your actual Stripe Price ID
+            features: [
+              '1000 generations per month',
+              'All Pro features, plus:',
+              'Team collaboration tools',
+              'Dedicated account manager',
+            ],
             cta: 'Contact Sales',
             isFeatured: false,
         },
@@ -197,10 +241,16 @@ async function generate() {
                                         {plan.features.map(f => <li key={f} className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>{f}</li>)}
                                     </ul>
                                     <button
-                                        onClick={plan.name === 'Business' ? () => onNavigate('contact') : handlePlanClick}
-                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 ${plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg'}`}
+                                        onClick={() => plan.name === 'Business' ? onNavigate('contact') : handlePlanClick(plan.priceId)}
+                                        disabled={loadingPriceId === plan.priceId}
+                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed ${plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg'}`}
                                     >
-                                        {currentUser ? plan.cta : "Sign In to Upgrade"}
+                                        {loadingPriceId === plan.priceId ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                                Redirecting...
+                                            </>
+                                        ) : (currentUser ? plan.cta : "Sign In to Upgrade")}
                                     </button>
                                 </motion.div>
                            ))}
