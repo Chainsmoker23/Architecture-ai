@@ -12,35 +12,35 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-const SITE_URL = Deno.env.get('SITE_URL');
-
-// Initialize Stripe client
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20',
-  httpClient: Stripe.createFetchHttpClient(),
-});
-
 serve(async (req) => {
-  // Handle preflight OPTIONS request
+  // Handle preflight OPTIONS request immediately. This is crucial for CORS.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // Get environment variables inside the handler
+    const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const SITE_URL = Deno.env.get('SITE_URL');
+
     // Check for required environment variables
     if (!STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SITE_URL) {
       throw new Error('Missing one or more required environment variables in Supabase project settings.');
     }
 
+    // Lazily initialize clients only after the OPTIONS check has passed
+    const stripe = new Stripe(STRIPE_SECRET_KEY, {
+      apiVersion: '2024-06-20',
+      httpClient: Stripe.createFetchHttpClient(),
+    });
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
     const { priceId } = await req.json();
     if (!priceId) {
       throw new Error('Missing parameter: priceId');
     }
-
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
