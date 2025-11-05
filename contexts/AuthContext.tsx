@@ -26,21 +26,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         setLoading(true);
+
+        // Immediately check for an active session when the provider mounts.
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setCurrentUser(session?.user ?? null);
+            setLoading(false);
+        });
+
+        // Listen for authentication state changes (sign in, sign out, etc.).
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             const user = session?.user ?? null;
             let userToSet = user;
 
-            // If a user exists and they haven't been assigned a custom avatar (and the associated flag),
-            // assign one. This handles new OAuth sign-ups and migrates old users.
-            if (user && !user.user_metadata.has_custom_avatar) {
-                const { data: updatedUserData, error } = await supabase.auth.updateUser({
+            // If a user just signed in (especially via OAuth) and doesn't have our custom avatar flag,
+            // update their profile with a new random avatar.
+            if (_event === 'SIGNED_IN' && user && !user.user_metadata.has_custom_avatar) {
+                const { data: updatedData, error } = await supabase.auth.updateUser({
                     data: {
                         avatar_url: getRandomAvatarUrl(),
                         has_custom_avatar: true,
                     }
                 });
-                if (!error && updatedUserData.user) {
-                    userToSet = updatedUserData.user;
+
+                if (error) {
+                    console.error("Error setting custom avatar:", error.message);
+                } else if (updatedData.user) {
+                    // Use the updated user object which contains the new avatar URL.
+                    userToSet = updatedData.user;
                 }
             }
             
@@ -64,22 +76,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     const signUpWithEmail = async (email: string, password: string, displayName: string) => {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
                     full_name: displayName,
                     avatar_url: getRandomAvatarUrl(),
-                    has_custom_avatar: true, // Set flag at sign-up to prevent overwrite
+                    has_custom_avatar: true, // Flag to prevent overwrite by onAuthStateChange logic
                 },
             },
         });
         if (error) throw error;
-        // The onAuthStateChange listener will handle setting the user state.
-        if (data.user) {
-            setCurrentUser(data.user);
-        }
+        // The onAuthStateChange listener will automatically handle setting the user state.
     };
 
     const signInWithEmail = async (email: string, password: string) => {
