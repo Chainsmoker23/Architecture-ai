@@ -4,8 +4,6 @@ import { useTheme } from '../contexts/ThemeProvider';
 import { useAuth } from '../contexts/AuthContext';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
-import { AVATARS, svgToDataURL } from './constants';
-import { supabase } from '../supabaseClient';
 
 interface SettingsSidebarProps {
   userApiKey: string | null;
@@ -22,9 +20,6 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   const [editingKey, setEditingKey] = useState(userApiKey || '');
   const [showSaved, setShowSaved] = useState(false);
   
-  const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
-  const [isAvatarUpdating, setIsAvatarUpdating] = useState(false);
-
   // MOCK: Assume logged-in user is on a Pro plan for demonstration
   const userPlan = currentUser ? 'Pro' : null; 
   const isPremiumUser = userPlan && ['Hobbyist', 'Pro', 'Business'].includes(userPlan);
@@ -67,19 +62,6 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
     setEditingKey(userApiKey || ''); // Reset any changes
   };
 
-  const handleAvatarUpdate = async (avatarSvg: string) => {
-    setIsAvatarUpdating(true);
-    const avatarUrl = svgToDataURL(avatarSvg);
-    const { error } = await supabase.auth.updateUser({
-        data: { avatar_url: avatarUrl }
-    });
-    if (error) {
-        console.error("Failed to update avatar:", error);
-    }
-    setIsAvatarSelectorOpen(false);
-    setIsAvatarUpdating(false);
-  };
-  
   const formVariants: Variants = {
     hidden: { opacity: 0, y: -10, transition: { duration: 0.2 } },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3, delay: 0.1 } },
@@ -135,14 +117,8 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                                 {userPlan} Member
                             </div>
                         )}
-                        <div className="relative group flex-shrink-0">
+                        <div className="flex-shrink-0">
                             <img src={currentUser.user_metadata?.avatar_url || undefined} alt="User avatar" className="w-12 h-12 rounded-full object-cover" />
-                            <button 
-                              onClick={() => setIsAvatarSelectorOpen(prev => !prev)}
-                              className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                                <ArchitectureIcon type={IconType.Edit} className="w-5 h-5 text-white" />
-                            </button>
                         </div>
 
                         <div>
@@ -150,32 +126,6 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                             <p className="text-xs text-[var(--color-text-secondary)]">{currentUser.email}</p>
                         </div>
                     </div>
-                    
-                    <AnimatePresence>
-                    {isAvatarSelectorOpen && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="mt-2 bg-[var(--color-bg-input)] p-3 rounded-xl border border-[var(--color-border)] overflow-hidden"
-                        >
-                            <p className="text-xs font-semibold text-center text-[var(--color-text-secondary)] mb-2">Choose your Avatar</p>
-                            <div className="grid grid-cols-4 gap-2">
-                                {AVATARS.map(avatar => (
-                                    <button 
-                                      key={avatar.name} 
-                                      onClick={() => handleAvatarUpdate(avatar.svg)}
-                                      disabled={isAvatarUpdating}
-                                      className="aspect-square rounded-full bg-[var(--color-bg)] hover:bg-[var(--color-button-bg)] border border-transparent hover:border-[var(--color-accent)] p-1 transition-all"
-                                      title={avatar.name}
-                                    >
-                                        <img src={svgToDataURL(avatar.svg)} alt={avatar.name} className="w-full h-full object-cover rounded-full" />
-                                    </button>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-                    </AnimatePresence>
                 </div>
               )}
 
