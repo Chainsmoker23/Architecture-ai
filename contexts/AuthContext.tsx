@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
+import { AVATARS, svgToDataURL } from '../components/constants';
 
 interface AuthContextType {
     currentUser: User | null;
@@ -13,6 +14,11 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const getRandomAvatarUrl = () => {
+    const randomAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+    return svgToDataURL(randomAvatar.svg);
+};
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -27,8 +33,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         getSession();
 
-        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setCurrentUser(session?.user ?? null);
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            const user = session?.user ?? null;
+            let finalUser = user;
+
+            if (user) {
+                const createdAt = new Date(user.created_at).getTime();
+                const lastSignInAt = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : createdAt;
+                const isNewUser = Math.abs(createdAt - lastSignInAt) < 1000 * 5; // 5 second tolerance for new user
+                const hasDefaultAvatar = user.user_metadata.avatar_url && !user.user_metadata.avatar_url.startsWith('data:image/svg+xml');
+
+                if (isNewUser && hasDefaultAvatar) {
+                    const { data: updatedUserData, error } = await supabase.auth.updateUser({
+                        data: {
+                            avatar_url: getRandomAvatarUrl(),
+                        }
+                    });
+                    if (!error && updatedUserData.user) {
+                        finalUser = updatedUserData.user;
+                    }
+                }
+            }
+            setCurrentUser(finalUser);
         });
 
         return () => {
@@ -53,7 +79,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             options: {
                 data: {
                     full_name: displayName,
-                    avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`,
+                    avatar_url: getRandomAvatarUrl(),
                 },
             },
         });

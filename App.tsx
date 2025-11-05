@@ -76,7 +76,6 @@ const App: React.FC = () => {
   });
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   const [lastAction, setLastAction] = useState<{ type: 'generate' | 'explain', payload: any } | null>(null);
-  const prevUserRef = useRef(currentUser);
 
   const onNavigate = useCallback((targetPage: Page) => {
     window.scrollTo(0, 0);
@@ -88,22 +87,14 @@ const App: React.FC = () => {
       return;
     }
 
-    // Case 1: User just logged in (was null, now has value) and is on landing.
-    // This handles the OAuth redirect scenario.
-    if (!prevUserRef.current && currentUser && page === 'landing') {
+    // If the user is logged in, they shouldn't be on a public-only page. Redirect to the app.
+    if (currentUser && (page === 'landing' || page === 'auth')) {
       onNavigate('app');
-    }
-    // Case 2: User is logged in but on the auth page. Redirect to app.
-    else if (currentUser && page === 'auth') {
-      onNavigate('app');
-    }
-    // Case 3: User is not logged in but on the app page. Redirect to landing.
+    } 
+    // If the user is not logged in, they shouldn't be on a private, app-only page.
     else if (!currentUser && page === 'app') {
       onNavigate('landing');
     }
-
-    // Update the ref for the next render cycle.
-    prevUserRef.current = currentUser;
   }, [currentUser, authLoading, page, onNavigate]);
 
 
