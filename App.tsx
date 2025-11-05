@@ -76,6 +76,7 @@ const App: React.FC = () => {
   });
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   const [lastAction, setLastAction] = useState<{ type: 'generate' | 'explain', payload: any } | null>(null);
+  const prevUserRef = useRef(currentUser);
 
   const onNavigate = useCallback((targetPage: Page) => {
     window.scrollTo(0, 0);
@@ -83,13 +84,26 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (currentUser && page === 'auth') {
+    if (authLoading) {
+      return;
+    }
+
+    // Case 1: User just logged in (was null, now has value) and is on landing.
+    // This handles the OAuth redirect scenario.
+    if (!prevUserRef.current && currentUser && page === 'landing') {
       onNavigate('app');
     }
-    if (!currentUser && page === 'app') {
+    // Case 2: User is logged in but on the auth page. Redirect to app.
+    else if (currentUser && page === 'auth') {
+      onNavigate('app');
+    }
+    // Case 3: User is not logged in but on the app page. Redirect to landing.
+    else if (!currentUser && page === 'app') {
       onNavigate('landing');
     }
+
+    // Update the ref for the next render cycle.
+    prevUserRef.current = currentUser;
   }, [currentUser, authLoading, page, onNavigate]);
 
 
@@ -393,7 +407,7 @@ const App: React.FC = () => {
   };
  
   if (page === 'landing') {
-    return <LandingPage onLaunch={() => onNavigate('auth')} onNavigate={onNavigate} />;
+    return <LandingPage onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
   if (page === 'auth') {
     return <AuthPage onBack={() => onNavigate('landing')} />;
@@ -402,13 +416,13 @@ const App: React.FC = () => {
     return <ContactPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'about') {
-    return <AboutPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate('auth')} onNavigate={onNavigate} />;
+    return <AboutPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
   if (page === 'sdk') {
     return <SdkPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'apiKey') {
-    return <ApiKeyPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate('auth')} onNavigate={onNavigate} />;
+    return <ApiKeyPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
   if (page === 'privacy') {
     return <PrivacyPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
@@ -417,7 +431,7 @@ const App: React.FC = () => {
     return <TermsPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
   if (page === 'docs') {
-    return <DocsPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate('auth')} onNavigateToSdk={() => onNavigate('sdk')} onNavigate={onNavigate} />;
+    return <DocsPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigateToSdk={() => onNavigate('sdk')} onNavigate={onNavigate} />;
   }
   if (page === 'neuralNetwork') {
     return <NeuralNetworkPage onBack={() => onNavigate('app')} />;
