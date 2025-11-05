@@ -119,7 +119,7 @@ async function generate() {
     const plans = [
         {
             name: 'Hobbyist',
-            price: '$5',
+            price: '$3',
             freq: 'one-time',
             priceId: 'price_1Pef8dRxpYpajPMv6NCLcMhT', // Replace with your actual Stripe Price ID
             features: [
@@ -137,7 +137,7 @@ async function generate() {
             freq: 'per month',
             priceId: 'price_1Pef9WRxpYpajPMvg0xOM0kK', // Replace with your actual Stripe Price ID
             features: [
-              '200 generations per month',
+              'Ultimate generations',
               'Access to SDK & API',
               'Emergency "Bring Your Own Key"',
               'Priority support',
@@ -151,7 +151,7 @@ async function generate() {
             freq: 'per month',
             priceId: 'price_1PefAlRxpYpajPMv0fJdpewU', // Replace with your actual Stripe Price ID
             features: [
-              '1000 generations per month',
+              'Ultimate generations',
               'All Pro features, plus:',
               'Team collaboration tools',
               'Dedicated account manager',
