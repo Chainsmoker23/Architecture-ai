@@ -192,22 +192,31 @@
       }
       .aurora-sidebar-bg {
         position: relative;
-        overflow: hidden; /* To contain the pseudo-element */
-        background-color: var(--color-panel-bg);
+        overflow: hidden;
       }
       .aurora-sidebar-bg::before {
         content: '';
         position: absolute;
         top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 0; /* Behind the content */
+        z-index: 0; /* Aurora layer */
         background-image:
           radial-gradient(circle at 10% 20%, var(--color-aurora-1), transparent 50%),
           radial-gradient(circle at 80% 90%, var(--color-aurora-2), transparent 50%),
           radial-gradient(circle at 50% 50%, var(--color-aurora-3), transparent 50%);
         background-size: 300% 300%;
         animation: aurora-flow 30s ease-in-out infinite;
-        filter: blur(80px); /* Increased blur for softer look */
+        filter: blur(80px);
         opacity: 0.9;
+        transform: translate3d(0, 0, 0); /* Performance boost */
+      }
+      .aurora-sidebar-bg::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 1; /* Translucent panel layer */
+        background-color: var(--color-panel-bg-translucent);
+        backdrop-filter: saturate(180%) blur(20px);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
       }
     </style>
   <script type="importmap">

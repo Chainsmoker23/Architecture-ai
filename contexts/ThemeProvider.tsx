@@ -104,9 +104,9 @@ const themes = {
     '--color-tier-5': 'rgba(167, 139, 250, 0.05)',
     '--color-tier-6': 'rgba(107, 114, 128, 0.08)',
     '--color-tier-default': 'rgba(107, 114, 128, 0.08)',
-    '--color-aurora-1': 'rgba(244, 114, 182, 0.15)',
-    '--color-aurora-2': 'rgba(96, 165, 250, 0.15)',
-    '--color-aurora-3': 'rgba(167, 139, 250, 0.15)',
+    '--color-aurora-1': 'rgba(244, 114, 182, 0.3)',
+    '--color-aurora-2': 'rgba(96, 165, 250, 0.25)',
+    '--color-aurora-3': 'rgba(167, 139, 250, 0.25)',
   }
 };
 
