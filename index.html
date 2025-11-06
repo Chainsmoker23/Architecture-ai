@@ -8,7 +8,7 @@
     <!-- Primary Meta Tags -->
     <meta name="description" content="Generate professional software architecture diagrams instantly from a single prompt with CubeGen AI. AI-powered design for AWS, GCP, Azure, microservices, and more." />
     <meta name="keywords" content="AI, architecture generator, cube design, cloud design, microservices, AWS, GCP, Azure, blockchain, software architecture, diagram tool" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 184'%3E%3Cpath fill='%23D6336C' d='M79.998 21.6L1.898 67.5v93l78.1 45.9 78.1-45.9v-93L79.998 21.6zm0 11.603l68.7 40.502v82.79l-68.7 40.503-68.7-40.502v-82.79L79.998 33.203z M79.998 44.805L21.298 78.607v65.603l58.7 34.402 58.7-34.402V78.607L79.998 44.805zm0 11.603l49.3 28.902v54.002l-49.3 28.902-49.3-28.902V85.31l49.3-28.902z M79.998 68.01l-39.9 23.4v42.4l39.9 23.4 39.9-23.4v-42.4l-39.9-23.4z'/%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w.org/2000/svg' viewBox='0 0 160 184'%3E%3Cpath fill='%23D6336C' d='M79.998 21.6L1.898 67.5v93l78.1 45.9 78.1-45.9v-93L79.998 21.6zm0 11.603l68.7 40.502v82.79l-68.7 40.503-68.7-40.502v-82.79L79.998 33.203z M79.998 44.805L21.298 78.607v65.603l58.7 34.402 58.7-34.402V78.607L79.998 44.805zm0 11.603l49.3 28.902v54.002l-49.3 28.902-49.3-28.902V85.31l49.3-28.902z M79.998 68.01l-39.9 23.4v42.4l39.9 23.4 39.9-23.4v-42.4l-39.9-23.4z'/%3E%3C/svg%3E">
     <link rel="canonical" href="https://cubegen.ai/" />
 
     <!-- Open Graph / Facebook -->
@@ -178,27 +178,17 @@
         box-shadow: 0 0 0 2px var(--color-accent-soft);
       }
 
-      /* New: Animated Aurora background for the sidebar */
+      /* Reworked: Animated Aurora background for the sidebar */
       @keyframes aurora-flow {
-        0% {
-          background-position: 0% 50%, 50% 100%, 100% 0%;
-        }
-        50% {
-          background-position: 100% 50%, 0% 0%, 50% 100%;
-        }
-        100% {
-          background-position: 0% 50%, 50% 100%, 100% 0%;
-        }
+        0% { background-position: 0% 50%, 50% 100%, 100% 0%; }
+        50% { background-position: 100% 50%, 0% 0%, 50% 100%; }
+        100% { background-position: 0% 50%, 50% 100%, 100% 0%; }
       }
-      .aurora-sidebar-bg {
-        position: relative;
-        overflow: hidden;
-      }
-      .aurora-sidebar-bg::before {
-        content: '';
+      
+      .aurora-layer {
         position: absolute;
         top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 0; /* Aurora layer */
+        z-index: 1; /* Sits at the back */
         background-image:
           radial-gradient(circle at 10% 20%, var(--color-aurora-1), transparent 50%),
           radial-gradient(circle at 80% 90%, var(--color-aurora-2), transparent 50%),
@@ -206,14 +196,13 @@
         background-size: 300% 300%;
         animation: aurora-flow 30s ease-in-out infinite;
         filter: blur(80px);
-        opacity: 0.9;
         transform: translate3d(0, 0, 0); /* Performance boost */
       }
-      .aurora-sidebar-bg::after {
-        content: '';
+      
+      .glass-layer {
         position: absolute;
         top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 1; /* Translucent panel layer */
+        z-index: 2; /* Sits on top of aurora */
         background-color: var(--color-panel-bg-translucent);
         backdrop-filter: saturate(180%) blur(20px);
         -webkit-backdrop-filter: saturate(180%) blur(20px);
