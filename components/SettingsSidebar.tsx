@@ -106,7 +106,8 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
               initial="closed"
               animate="open"
               exit="closed"
-              className="fixed top-0 left-0 bottom-0 w-80 bg-[var(--color-panel-bg)] border-r border-[var(--color-border)] shadow-xl z-50 p-6 flex flex-col"
+              className="fixed top-0 left-0 bottom-0 w-80 border-r border-[var(--color-border)] shadow-xl z-50 p-6 flex flex-col"
+              style={{ backgroundImage: 'linear-gradient(to bottom, var(--color-settings-bg-start), var(--color-settings-bg-end))' }}
             >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Settings</h2>

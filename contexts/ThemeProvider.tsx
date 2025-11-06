@@ -40,6 +40,8 @@ const themes = {
     '--color-tier-5': 'rgba(233, 213, 255, 0.4)',
     '--color-tier-6': 'rgba(241, 243, 245, 0.5)',
     '--color-tier-default': 'rgba(241, 243, 245, 0.5)',
+    '--color-settings-bg-start': '#FFFFFF',
+    '--color-settings-bg-end': '#FFF5F7',
   },
   medium: {
     '--color-bg': '#DFD8D7',
@@ -69,6 +71,8 @@ const themes = {
     '--color-tier-5': 'rgba(243, 229, 245, 0.3)',
     '--color-tier-6': 'rgba(236, 239, 241, 0.4)',
     '--color-tier-default': 'rgba(236, 239, 241, 0.4)',
+    '--color-settings-bg-start': '#EDE9E8',
+    '--color-settings-bg-end': '#EFE6E5',
   },
   dark: {
     '--color-bg': '#111827',
@@ -98,6 +102,8 @@ const themes = {
     '--color-tier-5': 'rgba(167, 139, 250, 0.05)',
     '--color-tier-6': 'rgba(107, 114, 128, 0.08)',
     '--color-tier-default': 'rgba(107, 114, 128, 0.08)',
+    '--color-settings-bg-start': '#1F2937',
+    '--color-settings-bg-end': '#2A3546',
   }
 };
 
