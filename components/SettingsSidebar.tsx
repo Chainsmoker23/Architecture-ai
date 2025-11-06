@@ -126,7 +126,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
 
                 {currentUser && (
                   <div className="mb-4">
-                      <div className={`relative p-3 bg-[var(--color-bg-input)] rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'border-[var(--color-accent)] shadow-md shadow-[var(--color-accent-soft)]' : 'border-[var(--color-border)]'}`}>
+                      <div className={`relative p-3 rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'border-[var(--color-accent)] shadow-md shadow-[var(--color-accent-soft)]' : 'border-[var(--color-border)]'}`}>
                           {isPremiumUser && userPlan && (
                               <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
                                   {/* FIX: Capitalize plan name for display */}
@@ -169,7 +169,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
 
                   <div>
                       <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">API Key</h3>
-                      <div className="bg-[var(--color-bg-input)] p-4 rounded-xl border border-[var(--color-border)]">
+                      <div className="p-4 rounded-xl border border-[var(--color-border)]">
                         <AnimatePresence mode="wait">
                           {userApiKey && !isEditing ? (
                             <motion.div

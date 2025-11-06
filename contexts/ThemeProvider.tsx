@@ -40,9 +40,29 @@ const themes = {
     '--color-tier-5': 'rgba(233, 213, 255, 0.4)',
     '--color-tier-6': 'rgba(241, 243, 245, 0.5)',
     '--color-tier-default': 'rgba(241, 243, 245, 0.5)',
-    '--color-aurora-1': 'rgba(252, 228, 236, 1)',
-    '--color-aurora-2': 'rgba(224, 236, 255, 1)',
-    '--color-aurora-3': 'rgba(233, 213, 255, 0.9)',
+    
+    // --- SETTINGS SIDEBAR AURORA COLORS ---
+    // Customize the animated background colors for the settings sidebar here.
+    // To use a different palette, comment out the "ACTIVE PALETTE" and uncomment one of the alternatives below.
+    
+    // --- ACTIVE PALETTE: Default Pastel ---
+    '--color-aurora-1': 'rgba(252, 228, 236, 1)',     // Soft Pink
+    '--color-aurora-2': 'rgba(224, 236, 255, 1)',     // Soft Blue
+    '--color-aurora-3': 'rgba(233, 213, 255, 0.9)',  // Soft Lavender
+
+    /*
+    // --- PALETTE: Ocean Breeze ---
+    '--color-aurora-1': 'rgba(204, 251, 241, 0.9)', // Pale Aqua
+    '--color-aurora-2': 'rgba(179, 229, 252, 1)',   // Light Sky Blue
+    '--color-aurora-3': 'rgba(225, 245, 254, 1)',   // Pale Cyan
+    */
+
+    /*
+    // --- PALETTE: Sunset Glow ---
+    '--color-aurora-1': 'rgba(255, 224, 178, 1)',   // Light Orange
+    '--color-aurora-2': 'rgba(255, 205, 210, 0.9)', // Light Pink
+    '--color-aurora-3': 'rgba(251, 197, 154, 1)',   // Peach
+    */
   },
   medium: {
     '--color-bg': '#DFD8D7',
@@ -72,9 +92,19 @@ const themes = {
     '--color-tier-5': 'rgba(243, 229, 245, 0.3)',
     '--color-tier-6': 'rgba(236, 239, 241, 0.4)',
     '--color-tier-default': 'rgba(236, 239, 241, 0.4)',
-    '--color-aurora-1': 'rgba(255, 235, 238, 0.9)',
-    '--color-aurora-2': 'rgba(255, 224, 178, 0.8)',
-    '--color-aurora-3': 'rgba(229, 206, 202, 0.9)',
+
+    // --- SETTINGS SIDEBAR AURORA COLORS ---
+    // --- ACTIVE PALETTE: Warm Neutral ---
+    '--color-aurora-1': 'rgba(255, 235, 238, 0.9)', // Muted Red
+    '--color-aurora-2': 'rgba(255, 224, 178, 0.8)', // Muted Orange
+    '--color-aurora-3': 'rgba(229, 206, 202, 0.9)', // Muted Brown
+
+    /*
+    // --- PALETTE: Forest Floor ---
+    '--color-aurora-1': 'rgba(209, 231, 221, 0.9)', // Pale Green
+    '--color-aurora-2': 'rgba(221, 214, 206, 0.8)', // Beige
+    '--color-aurora-3': 'rgba(202, 214, 229, 0.9)', // Slate Blue
+    */
   },
   dark: {
     '--color-bg': '#111827',
@@ -104,9 +134,26 @@ const themes = {
     '--color-tier-5': 'rgba(167, 139, 250, 0.05)',
     '--color-tier-6': 'rgba(107, 114, 128, 0.08)',
     '--color-tier-default': 'rgba(107, 114, 128, 0.08)',
-    '--color-aurora-1': 'rgba(244, 114, 182, 0.45)',
-    '--color-aurora-2': 'rgba(96, 165, 250, 0.35)',
-    '--color-aurora-3': 'rgba(167, 139, 250, 0.35)',
+    
+    // --- SETTINGS SIDEBAR AURORA COLORS ---
+    // --- ACTIVE PALETTE: Cyber Glow ---
+    '--color-aurora-1': 'rgba(244, 114, 182, 0.45)', // Neon Pink
+    '--color-aurora-2': 'rgba(96, 165, 250, 0.35)',  // Neon Blue
+    '--color-aurora-3': 'rgba(167, 139, 250, 0.35)', // Neon Purple
+    
+    /*
+    // --- PALETTE: Synthwave ---
+    '--color-aurora-1': 'rgba(255, 0, 110, 0.4)',   // Hot Pink
+    '--color-aurora-2': 'rgba(128, 0, 255, 0.35)',  // Electric Purple
+    '--color-aurora-3': 'rgba(0, 238, 255, 0.35)',  // Cyan
+    */
+
+    /*
+    // --- PALETTE: Emerald Nebula ---
+    '--color-aurora-1': 'rgba(5, 150, 105, 0.45)',  // Emerald Green
+    '--color-aurora-2': 'rgba(2, 132, 199, 0.35)',  // Sky Blue
+    '--color-aurora-3': 'rgba(14, 165, 233, 0.35)', // Bright Cyan
+    */
   }
 };
 
