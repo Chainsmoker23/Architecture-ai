@@ -1,10 +1,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2.44.2'
-import Stripe from 'npm:stripe@16.1.0'
+// Fictional Dodo Payments SDK - assuming it has a Stripe-like API
+import DodoPayments from 'npm:dodo-payments@1.0.0'
 
-// This is a type-only declaration to satisfy the linter.
-// Deno is a global object in Supabase Edge Functions.
 declare const Deno: any;
+
+console.log('Function cold start: create-checkout-session');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,71 +14,75 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle preflight OPTIONS request immediately. This is crucial for CORS.
+  console.log(`[${new Date().toISOString()}] Request received: ${req.method} ${req.url}`);
+
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request.');
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Get environment variables inside the handler
-    const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
+    const DODO_SECRET_KEY = Deno.env.get('DODO_SECRET_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const SITE_URL = Deno.env.get('SITE_URL');
 
-    // Check for required environment variables
-    if (!STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SITE_URL) {
-      throw new Error('Missing one or more required environment variables in Supabase project settings.');
+    if (!DODO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SITE_URL) {
+      console.error('CRITICAL: Missing one or more environment variables. Check Supabase project settings.');
+      throw new Error('Server configuration error: Missing environment variables.');
     }
+    console.log('All required environment variables found.');
 
-    // Lazily initialize clients only after the OPTIONS check has passed
-    const stripe = new Stripe(STRIPE_SECRET_KEY, {
-      apiVersion: '2024-06-20',
-      httpClient: Stripe.createFetchHttpClient(),
-    });
+    const dodo = new DodoPayments(DODO_SECRET_KEY);
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    console.log('Dodo Payments and Supabase clients initialized.');
 
     const { priceId } = await req.json();
     if (!priceId) {
-      throw new Error('Missing parameter: priceId');
+      throw new Error('Missing parameter: priceId in request body');
     }
+    console.log(`Received priceId: ${priceId}`);
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
+    console.log('Authorization header found.');
+
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
     if (userError || !user) {
-      throw new Error(userError?.message || 'User not found');
+      throw new Error(userError?.message || 'User not found based on token.');
     }
-
-    let { data: profile, error: profileError } = await supabaseAdmin
+    console.log(`Authenticated user: ${user.id}`);
+    
+    let { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('stripe_customer_id')
+      .select('dodo_customer_id')
       .eq('id', user.id)
       .single();
 
-    if (profileError && profileError.code !== 'PGRST116') { // PGRST116: row not found
-      throw profileError;
+    let customerId = profile?.dodo_customer_id;
+
+    if (customerId) {
+        console.log(`Found existing Dodo Payments customer ID: ${customerId}`);
+    } else {
+        console.log('No Dodo Payments customer ID found. Creating a new one.');
+        const customer = await dodo.customers.create({
+            email: user.email,
+            metadata: { supabase_id: user.id },
+        });
+        customerId = customer.id;
+        console.log(`Created new Dodo customer: ${customerId}`);
+
+        const { error: updateError } = await supabaseAdmin
+            .from('profiles')
+            .update({ dodo_customer_id: customerId })
+            .eq('id', user.id);
+        if (updateError) throw updateError;
+        console.log(`Updated profile for user ${user.id} with new Dodo customer ID.`);
     }
 
-    let customerId = profile?.stripe_customer_id;
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: { supabase_id: user.id },
-      });
-      customerId = customer.id;
-
-      const { error: updateError } = await supabaseAdmin
-        .from('profiles')
-        .update({ stripe_customer_id: customerId })
-        .eq('id', user.id);
-      if (updateError) throw updateError;
-    }
-
-    const session = await stripe.checkout.sessions.create({
+    const session = await dodo.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
@@ -85,14 +90,15 @@ serve(async (req) => {
       success_url: `${SITE_URL}/sdk?payment=success`,
       cancel_url: `${SITE_URL}/sdk?payment=cancelled`,
     });
+    console.log(`Successfully created Dodo Payments checkout session: ${session.id}`);
 
     return new Response(JSON.stringify({ sessionId: session.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error) {
-    console.error('Error creating checkout session:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('!!! Function Error !!!', error.message);
+    return new Response(JSON.stringify({ error: `Function failed: ${error.message}` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });

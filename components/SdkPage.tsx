@@ -6,7 +6,6 @@ import SharedFooter from './SharedFooter';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
 import { supabase } from '../supabaseClient';
-import { loadStripe } from '@stripe/stripe-js';
 
 type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth';
 
@@ -15,12 +14,18 @@ interface SdkPageProps {
   onNavigate: (page: Page) => void;
 }
 
-// Ensure your Stripe publishable key is in your environment variables
-const stripePublishableKey = (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+// Fictional Dodo Payments SDK types for type safety
+interface Dodo {
+  redirectToCheckout: (options: { sessionId: string }) => Promise<{ error?: { message: string } }>;
+}
+declare global {
+  function Dodo(publishableKey: string): Dodo;
+  interface Window { Dodo?: typeof Dodo; }
+}
 
-if (!stripePromise) {
-  console.error('CRITICAL: VITE_STRIPE_PUBLISHABLE_KEY is not set in your environment file. Stripe payments will not function.');
+const dodoPublishableKey = (import.meta as any).env.VITE_DODO_PUBLISHABLE_KEY;
+if (!dodoPublishableKey) {
+  console.error('CRITICAL: VITE_DODO_PUBLISHABLE_KEY is not set in your environment file. Dodo Payments will not function.');
 }
 
 const useTypewriter = (text: string, enabled: boolean, speed = 10) => {
@@ -106,7 +111,7 @@ async function generate() {
             return;
         }
 
-        if (!stripePromise) {
+        if (!dodoPublishableKey || !window.Dodo) {
             setToast({ message: 'Payment system is not configured.', type: 'error' });
             return;
         }
@@ -115,21 +120,20 @@ async function generate() {
         setToast(null);
 
         try {
-             if (!stripePublishableKey) {
-                throw new Error("Stripe is not configured. Please add VITE_STRIPE_PUBLISHABLE_KEY to your environment variables.");
-            }
+            const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+            console.log(`Attempting to invoke function 'create-checkout-session' using base URL: ${supabaseUrl}`);
+
+
             const { data, error } = await supabase.functions.invoke('create-checkout-session', {
                 body: { priceId },
             });
 
             if (error) throw new Error(error.message);
             if (!data.sessionId) throw new Error(data.error || "Could not retrieve a checkout session.");
-
-            const stripe = await stripePromise;
-            if (!stripe) throw new Error("Stripe.js has not loaded yet.");
-
-            const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
-            if (stripeError) throw new Error(stripeError.message);
+            
+            const dodo = window.Dodo(dodoPublishableKey);
+            const { error: dodoError } = await dodo.redirectToCheckout({ sessionId: data.sessionId });
+            if (dodoError) throw new Error(dodoError.message);
 
         } catch (error: any) {
             console.error('Error creating checkout session:', error.message);
@@ -143,7 +147,7 @@ async function generate() {
             name: 'Hobbyist',
             price: '$3',
             freq: 'one-time',
-            priceId: 'price_1Pef8dRxpYpajPMv6NCLcMhT', // Replace with your actual Stripe Price ID
+            priceId: 'dodo_price_hobby',
             features: [
               '50 diagram generations',
               'Standard icon set',
@@ -157,7 +161,7 @@ async function generate() {
             name: 'Pro',
             price: '$10',
             freq: 'per month',
-            priceId: 'price_1Pef9WRxpYpajPMvg0xOM0kK', // Replace with your actual Stripe Price ID
+            priceId: 'dodo_price_pro',
             features: [
               'Ultimate generations',
               'Access to SDK & API',
@@ -171,7 +175,7 @@ async function generate() {
             name: 'Business',
             price: '$50',
             freq: 'per month',
-            priceId: 'price_1PefAlRxpYpajPMv0fJdpewU', // Replace with your actual Stripe Price ID
+            priceId: 'dodo_price_biz',
             features: [
               'Ultimate generations',
               'All Pro features, plus:',

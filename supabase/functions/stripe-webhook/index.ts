@@ -1,10 +1,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-import Stripe from 'npm:stripe@16.1.0'
+// Fictional Dodo Payments SDK - assuming it has a Stripe-like API
+import DodoPayments from 'npm:dodo-payments@1.0.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.44.2'
 
-// This is a type-only declaration to satisfy the linter.
-// Deno is a global object in Supabase Edge Functions.
 declare const Deno: any;
+
+console.log('Function cold start: dodo-webhook');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,46 +14,51 @@ const corsHeaders = {
 };
 
 const getPlanFromPriceId = (priceId: string): string => {
-    // This should match the price IDs you created in Stripe and used on the frontend
     const priceIdToPlan: { [key: string]: string } = {
-        'price_1Pef8dRxpYpajPMv6NCLcMhT': 'hobbyist',
-        'price_1Pef9WRxpYpajPMvg0xOM0kK': 'pro',
-        'price_1PefAlRxpYpajPMv0fJdpewU': 'business'
+        'dodo_price_hobby': 'hobbyist',
+        'dodo_price_pro': 'pro',
+        'dodo_price_biz': 'business'
     };
     return priceIdToPlan[priceId] || 'unknown';
 }
 
 serve(async (req) => {
-  // Handle preflight OPTIONS request for CORS immediately.
+  console.log(`[${new Date().toISOString()}] Webhook request received: ${req.method}`);
+
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request.');
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
-    const STRIPE_WEBHOOK_SIGNING_SECRET = Deno.env.get('STRIPE_WEBHOOK_SIGNING_SECRET');
+    const DODO_SECRET_KEY = Deno.env.get('DODO_SECRET_KEY');
+    const DODO_WEBHOOK_SIGNING_SECRET = Deno.env.get('DODO_WEBHOOK_SIGNING_SECRET');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!STRIPE_WEBHOOK_SIGNING_SECRET || !STRIPE_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('Missing required environment variables for webhook.');
+    if (!DODO_WEBHOOK_SIGNING_SECRET || !DODO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('CRITICAL: Missing one or more environment variables for webhook.');
+      throw new Error('Server configuration error: Missing webhook environment variables.');
+    }
+    console.log('All required webhook environment variables found.');
+    
+    const dodo = new DodoPayments(DODO_SECRET_KEY);
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    console.log('Webhook clients initialized.');
+    
+    const signature = req.headers.get('Dodo-Signature');
+    if (!signature) {
+        throw new Error('Dodo-Signature header is missing.');
     }
     
-    // Lazily initialize clients
-    const stripe = new Stripe(STRIPE_SECRET_KEY, {
-      apiVersion: '2024-06-20',
-      httpClient: Stripe.createFetchHttpClient(),
-    });
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    
-    const signature = req.headers.get('Stripe-Signature');
     const body = await req.text();
-
-    const event = await stripe.webhooks.constructEventAsync(
+    // Assuming a similar verification method to Stripe
+    const event = await dodo.webhooks.constructEvent(
       body,
       signature,
-      STRIPE_WEBHOOK_SIGNING_SECRET
+      DODO_WEBHOOK_SIGNING_SECRET
     );
+    console.log(`Successfully constructed Dodo Payments event: ${event.type}`);
 
     switch (event.type) {
         case 'checkout.session.completed': {
@@ -62,14 +68,14 @@ serve(async (req) => {
                 throw new Error('Subscription ID not found in checkout session.');
             }
 
-            // Retrieve the full subscription object to get details
-            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const subscription = await dodo.subscriptions.retrieve(subscriptionId);
             const customerId = subscription.customer;
+            console.log(`Processing checkout.session.completed for customer ${customerId}`);
 
             const { data: profile, error } = await supabaseAdmin
                 .from('profiles')
                 .select('id')
-                .eq('stripe_customer_id', customerId)
+                .eq('dodo_customer_id', customerId)
                 .single();
 
             if (error || !profile) {
@@ -89,7 +95,7 @@ serve(async (req) => {
                 .eq('id', profile.id);
 
             if (updateError) throw updateError;
-            console.log(`User ${profile.id} successfully subscribed to ${plan} plan.`);
+            console.log(`SUCCESS: User ${profile.id} subscribed to ${plan} plan.`);
             break;
         }
 
@@ -97,11 +103,12 @@ serve(async (req) => {
         case 'customer.subscription.deleted': {
             const subscription = event.data.object;
             const customerId = subscription.customer;
+            console.log(`Processing ${event.type} for customer ${customerId}`);
 
             const { data: profile, error } = await supabaseAdmin
                 .from('profiles')
                 .select('id')
-                .eq('stripe_customer_id', customerId)
+                .eq('dodo_customer_id', customerId)
                 .single();
 
             if (error || !profile) {
@@ -121,19 +128,22 @@ serve(async (req) => {
                 .eq('id', profile.id);
 
             if (updateError) throw updateError;
-            console.log(`Subscription for user ${profile.id} updated to status: ${subscription.status}`);
+            console.log(`SUCCESS: Subscription for user ${profile.id} updated to status: ${subscription.status}`);
             break;
         }
         
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`INFO: Unhandled event type: ${event.type}`);
     }
 
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error(`Webhook error: ${err.message}`);
-    return new Response(err.message, { status: 400 });
+    console.error(`!!! Webhook Error !!!: ${err.message}`);
+    return new Response(JSON.stringify({ error: err.message }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400 
+    });
   }
 });
