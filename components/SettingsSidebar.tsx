@@ -109,9 +109,8 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
               className="fixed top-0 left-0 bottom-0 w-80 border-r border-[var(--color-border)] shadow-xl z-50 overflow-hidden"
             >
               <div className="aurora-layer"></div>
-              <div className="glass-layer"></div>
               
-              <div className="relative z-10 flex flex-col h-full p-6">
+              <div className="glass-layer-content relative z-10 flex flex-col h-full p-6 overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold">Settings</h2>
                   <button

@@ -178,34 +178,43 @@
         box-shadow: 0 0 0 2px var(--color-accent-soft);
       }
 
-      /* Reworked: Animated Aurora background for the sidebar */
+      /* --- SETTINGS SIDEBAR CREATIVE BACKGROUND --- */
+      /* This is the CSS for the animated, glowing "aurora" background in the settings sidebar. */
+      /* You can edit the visual style here if you like. */
+      
+      /* KEYFRAME ANIMATION: This controls how the background colors move around. */
       @keyframes aurora-flow {
         0% { background-position: 0% 50%, 50% 100%, 100% 0%; }
         50% { background-position: 100% 50%, 0% 0%, 50% 100%; }
         100% { background-position: 0% 50%, 50% 100%, 100% 0%; }
       }
       
+      /* LAYER 1: The animated aurora glow itself. */
+      /* It sits at the very back of the sidebar. */
+      /* You can change the colors used in this animation by editing the --color-aurora-* variables inside the contexts/ThemeProvider.tsx file. */
       .aurora-layer {
         position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 1; /* Sits at the back */
+        inset: 0; /* A modern shorthand for top: 0; left: 0; right: 0; bottom: 0; */
+        z-index: 1; /* This ensures it's behind the content. */
         background-image:
           radial-gradient(circle at 10% 20%, var(--color-aurora-1), transparent 50%),
           radial-gradient(circle at 80% 90%, var(--color-aurora-2), transparent 50%),
           radial-gradient(circle at 50% 50%, var(--color-aurora-3), transparent 50%);
         background-size: 300% 300%;
         animation: aurora-flow 30s ease-in-out infinite;
-        filter: blur(80px);
-        transform: translate3d(0, 0, 0); /* Performance boost */
+        filter: blur(80px); /* This makes the colors soft and blended. */
+        transform: translate3d(0, 0, 0); /* Performance boost for animations. */
       }
       
-      .glass-layer {
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 2; /* Sits on top of aurora */
+      /* LAYER 2: The "frosted glass" content panel. */
+      /* This sits on top of the aurora and holds the sidebar's content. */
+      .glass-layer-content {
+        /* This sets the background to a semi-transparent color. You can edit this color in contexts/ThemeProvider.tsx (--color-panel-bg-translucent). */
         background-color: var(--color-panel-bg-translucent);
+        
+        /* This is the magic property that blurs whatever is behind it (the aurora). */
         backdrop-filter: saturate(180%) blur(20px);
-        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        -webkit-backdrop-filter: saturate(180%) blur(20px); /* For Safari compatibility. */
       }
     </style>
   <script type="importmap">
