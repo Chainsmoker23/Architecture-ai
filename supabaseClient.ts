@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-// These variables are loaded from the .env file by Vite
+// These variables are loaded from the .env file in the root of your project.
+// This file is used for PUBLIC keys that are safe to expose to a web browser.
+//
+// IMPORTANT SECURITY NOTICE:
+// NEVER put secret keys (like VITE_SUPABASE_SERVICE_ROLE_KEY or VITE_DODO_SECRET_KEY)
+// in this file or any frontend code. They will be exposed to anyone visiting your site.
+// Secret keys should ONLY be used in backend environments, like Supabase Edge Functions.
 const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
 const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 

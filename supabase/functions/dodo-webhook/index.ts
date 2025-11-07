@@ -33,8 +33,9 @@ serve(async (req) => {
   try {
     const DODO_SECRET_KEY = Deno.env.get('DODO_SECRET_KEY');
     const DODO_WEBHOOK_SIGNING_SECRET = Deno.env.get('DODO_WEBHOOK_SIGNING_SECRET');
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    // IMPROVEMENT: Added fallbacks for common alternative env var names.
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || Deno.env.get('BASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
 
     if (!DODO_WEBHOOK_SIGNING_SECRET || !DODO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.error('CRITICAL: Missing one or more environment variables for webhook.');

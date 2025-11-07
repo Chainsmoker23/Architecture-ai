@@ -22,10 +22,11 @@ serve(async (req) => {
   }
 
   try {
+    // IMPROVEMENT: Added fallbacks for common alternative env var names.
     const DODO_SECRET_KEY = Deno.env.get('DODO_SECRET_KEY');
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const SITE_URL = Deno.env.get('SITE_URL');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || Deno.env.get('BASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
+    const SITE_URL = Deno.env.get('SITE_URL') || Deno.env.get('URL');
 
     if (!DODO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SITE_URL) {
       console.error('CRITICAL: Missing one or more environment variables. Check Supabase project settings.');
