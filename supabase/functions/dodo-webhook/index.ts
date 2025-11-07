@@ -60,66 +60,100 @@ serve(async (req) => {
     console.log(`Successfully constructed Dodo Payments event: ${event.type}`);
 
     switch (event.type) {
-        case 'subscription.created':
-        case 'subscription.updated': {
-            const subscription = event.data.object;
-            const customerId = subscription.customer;
-            console.log(`Processing ${event.type} for customer ${customerId}`);
+      // Events that signify an active, paid subscription.
+      case 'subscription.plan_changed':
+      case 'subscription.renewed': {
+        const subscription = event.data.object;
+        const customerId = subscription.customer;
+        console.log(`Processing active subscription event: ${event.type} for customer ${customerId}`);
 
-            const { data: profile, error } = await supabaseAdmin
-                .from('profiles')
-                .select('id')
-                .eq('dodo_customer_id', customerId)
-                .single();
-            
-            if (error || !profile) {
-                throw new Error(error?.message || `User profile not found for customer ${customerId}`);
-            }
+        const { data: profile, error } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('dodo_customer_id', customerId)
+            .single();
+        
+        if (error || !profile) {
+            throw new Error(error?.message || `User profile not found for customer ${customerId}`);
+        }
 
-            const priceId = subscription.items.data[0]?.price.id;
-            const plan = getPlanFromPriceId(priceId);
+        const priceId = subscription.items.data[0]?.price.id;
+        const plan = getPlanFromPriceId(priceId);
 
-            const { error: updateError } = await supabaseAdmin
-                .from('profiles')
-                .update({
-                    plan: plan,
-                    subscription_status: subscription.status,
-                    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-                })
-                .eq('id', profile.id);
+        const { error: updateError } = await supabaseAdmin
+            .from('profiles')
+            .update({
+                plan: plan,
+                subscription_status: subscription.status,
+                current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            })
+            .eq('id', profile.id);
 
-            if (updateError) throw updateError;
-            console.log(`SUCCESS: User ${profile.id} subscription is now '${subscription.status}' with plan '${plan}'.`);
+        if (updateError) throw updateError;
+        console.log(`SUCCESS: User ${profile.id} subscription is now '${subscription.status}' with plan '${plan}'.`);
+        break;
+      }
+
+      // Events that signify the end of a subscription and access.
+      case 'subscription.expired':
+      case 'subscription.failed': {
+        const subscription = event.data.object;
+        const customerId = subscription.customer;
+        console.log(`Processing ended subscription event: ${event.type} for customer ${customerId}`);
+
+        const { data: profile, error } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('dodo_customer_id', customerId)
+            .single();
+        
+        if (error || !profile) {
+            console.warn(`Webhook received ${event.type} for customer ${customerId}, but no matching profile was found.`);
             break;
         }
 
-        case 'subscription.deleted': {
-            const subscription = event.data.object;
-            const customerId = subscription.customer;
-            console.log(`Processing subscription.deleted for customer ${customerId}`);
+        const { error: updateError } = await supabaseAdmin
+            .from('profiles')
+            .update({
+                plan: 'free', // Downgrade to free plan
+                subscription_status: subscription.status, // e.g., 'expired' or 'past_due'
+            })
+            .eq('id', profile.id);
 
-            const { data: profile, error } = await supabaseAdmin
-                .from('profiles')
-                .select('id')
-                .eq('dodo_customer_id', customerId)
-                .single();
-            
-            if (error || !profile) {
-                throw new Error(error?.message || `User profile not found for customer ${customerId} on subscription deletion.`);
-            }
+        if (updateError) throw updateError;
+        console.log(`SUCCESS: Subscription for user ${profile.id} has ended. Plan set to free.`);
+        break;
+      }
+      
+      // Events for tracking status without changing the plan immediately.
+      case 'subscription.cancelled':
+      case 'subscription.on_hold': {
+        const subscription = event.data.object;
+        const customerId = subscription.customer;
+        console.log(`Processing status-change event: ${event.type} for customer ${customerId}`);
 
-            const { error: updateError } = await supabaseAdmin
-                .from('profiles')
-                .update({
-                    plan: 'free', // Downgrade to free plan on deletion
-                    subscription_status: subscription.status, // e.g., 'canceled'
-                })
-                .eq('id', profile.id);
-
-            if (updateError) throw updateError;
-            console.log(`SUCCESS: Subscription for user ${profile.id} was deleted. Plan set to free.`);
+        const { data: profile, error } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('dodo_customer_id', customerId)
+            .single();
+        
+        if (error || !profile) {
+            console.warn(`Webhook received ${event.type} for customer ${customerId}, but no matching profile was found.`);
             break;
         }
+        
+        const { error: updateError } = await supabaseAdmin
+            .from('profiles')
+            .update({
+                subscription_status: subscription.status,
+            })
+            .eq('id', profile.id);
+
+        if (updateError) throw updateError;
+        console.log(`INFO: Subscription for user ${profile.id} status updated to '${subscription.status}'. Plan remains active until period end.`);
+        break;
+      }
         
       default:
         console.log(`INFO: Unhandled event type: ${event.type}`);
