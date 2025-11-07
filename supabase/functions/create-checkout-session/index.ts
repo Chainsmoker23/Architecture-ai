@@ -55,11 +55,28 @@ serve(async (req) => {
     }
     console.log(`Authenticated user: ${user.id}`);
     
-    let { data: profile } = await supabaseAdmin
+    // Check if the user already has a profile entry. If not, create one.
+    let { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('dodo_customer_id')
       .eq('id', user.id)
       .single();
+      
+    if (profileError && profileError.code === 'PGRST116') {
+        console.log(`No profile found for user ${user.id}. Creating one.`);
+        const { data: newProfile, error: insertError } = await supabaseAdmin
+            .from('profiles')
+            .insert({ id: user.id })
+            .select('dodo_customer_id')
+            .single();
+
+        if (insertError) throw insertError;
+        profile = newProfile;
+        console.log(`Profile created for user ${user.id}.`);
+    } else if (profileError) {
+        throw profileError;
+    }
+
 
     let customerId = profile?.dodo_customer_id;
 

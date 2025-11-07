@@ -120,10 +120,6 @@ async function generate() {
         setToast(null);
 
         try {
-            const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-            console.log(`Attempting to invoke function 'create-checkout-session' using base URL: ${supabaseUrl}`);
-
-
             const { data, error } = await supabase.functions.invoke('create-checkout-session', {
                 body: { priceId },
             });

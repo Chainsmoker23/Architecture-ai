@@ -52,7 +52,6 @@ serve(async (req) => {
     }
     
     const body = await req.text();
-    // Assuming a similar verification method to Stripe
     const event = await dodo.webhooks.constructEvent(
       body,
       signature,
@@ -61,23 +60,18 @@ serve(async (req) => {
     console.log(`Successfully constructed Dodo Payments event: ${event.type}`);
 
     switch (event.type) {
-        case 'checkout.session.completed': {
-            const session = event.data.object;
-            const subscriptionId = session.subscription;
-            if (typeof subscriptionId !== 'string') {
-                throw new Error('Subscription ID not found in checkout session.');
-            }
-
-            const subscription = await dodo.subscriptions.retrieve(subscriptionId);
+        case 'subscription.created':
+        case 'subscription.updated': {
+            const subscription = event.data.object;
             const customerId = subscription.customer;
-            console.log(`Processing checkout.session.completed for customer ${customerId}`);
+            console.log(`Processing ${event.type} for customer ${customerId}`);
 
             const { data: profile, error } = await supabaseAdmin
                 .from('profiles')
                 .select('id')
                 .eq('dodo_customer_id', customerId)
                 .single();
-
+            
             if (error || !profile) {
                 throw new Error(error?.message || `User profile not found for customer ${customerId}`);
             }
@@ -95,40 +89,35 @@ serve(async (req) => {
                 .eq('id', profile.id);
 
             if (updateError) throw updateError;
-            console.log(`SUCCESS: User ${profile.id} subscribed to ${plan} plan.`);
+            console.log(`SUCCESS: User ${profile.id} subscription is now '${subscription.status}' with plan '${plan}'.`);
             break;
         }
 
-        case 'customer.subscription.updated':
-        case 'customer.subscription.deleted': {
+        case 'subscription.deleted': {
             const subscription = event.data.object;
             const customerId = subscription.customer;
-            console.log(`Processing ${event.type} for customer ${customerId}`);
+            console.log(`Processing subscription.deleted for customer ${customerId}`);
 
             const { data: profile, error } = await supabaseAdmin
                 .from('profiles')
                 .select('id')
                 .eq('dodo_customer_id', customerId)
                 .single();
-
+            
             if (error || !profile) {
-                 throw new Error(error?.message || `User profile not found for customer ${customerId} on subscription update.`);
+                throw new Error(error?.message || `User profile not found for customer ${customerId} on subscription deletion.`);
             }
 
-            const priceId = subscription.items.data[0]?.price.id;
-            const plan = getPlanFromPriceId(priceId);
-            
             const { error: updateError } = await supabaseAdmin
                 .from('profiles')
                 .update({
-                    plan: subscription.status === 'active' ? plan : 'free',
-                    subscription_status: subscription.status,
-                    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+                    plan: 'free', // Downgrade to free plan on deletion
+                    subscription_status: subscription.status, // e.g., 'canceled'
                 })
                 .eq('id', profile.id);
 
             if (updateError) throw updateError;
-            console.log(`SUCCESS: Subscription for user ${profile.id} updated to status: ${subscription.status}`);
+            console.log(`SUCCESS: Subscription for user ${profile.id} was deleted. Plan set to free.`);
             break;
         }
         
