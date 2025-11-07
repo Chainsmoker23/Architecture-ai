@@ -1,7 +1,7 @@
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-import { createClient } from 'npm:@supabase/supabase-js@2.44.2'
-// Fictional Dodo Payments SDK - assuming it has a Stripe-like API
-import DodoPayments from 'npm:dodo-payments@1.0.0'
+// Imports now use bare specifiers resolved by deno.json
+import { serve } from 'std/http/server.ts'
+import { createClient } from '@supabase/supabase-js'
+import DodoPayments from 'dodo-payments'
 
 declare const Deno: any;
 
@@ -22,14 +22,15 @@ serve(async (req) => {
   }
 
   try {
-    // IMPROVEMENT: Added fallbacks for common alternative env var names.
     const DODO_SECRET_KEY = Deno.env.get('DODO_SECRET_KEY');
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || Deno.env.get('BASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
-    const SITE_URL = Deno.env.get('SITE_URL') || Deno.env.get('URL');
+    // Rely ONLY on the standard runtime-injected variables for Supabase connection.
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    // This variable should contain the frontend URL for redirects.
+    const SITE_URL = Deno.env.get('URL');
 
     if (!DODO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SITE_URL) {
-      console.error('CRITICAL: Missing one or more environment variables. Check Supabase project settings.');
+      console.error('CRITICAL: Missing one or more environment variables. Check Supabase project settings and your .env file.');
       throw new Error('Server configuration error: Missing environment variables.');
     }
     console.log('All required environment variables found.');
@@ -105,8 +106,8 @@ serve(async (req) => {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
-      success_url: `${SITE_URL}/sdk?payment=success`,
-      cancel_url: `${SITE_URL}/sdk?payment=cancelled`,
+      success_url: `${SITE_URL}#sdk?payment=success`,
+      cancel_url: `${SITE_URL}#sdk?payment=cancelled`,
     });
     console.log(`Successfully created Dodo Payments checkout session: ${session.id}`);
 

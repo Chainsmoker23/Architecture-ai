@@ -1,7 +1,7 @@
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-// Fictional Dodo Payments SDK - assuming it has a Stripe-like API
-import DodoPayments from 'npm:dodo-payments@1.0.0'
-import { createClient } from 'npm:@supabase/supabase-js@2.44.2'
+// Imports now use bare specifiers resolved by deno.json
+import { serve } from 'std/http/server.ts'
+import { createClient } from '@supabase/supabase-js'
+import DodoPayments from 'dodo-payments'
 
 declare const Deno: any;
 
@@ -33,9 +33,9 @@ serve(async (req) => {
   try {
     const DODO_SECRET_KEY = Deno.env.get('DODO_SECRET_KEY');
     const DODO_WEBHOOK_SIGNING_SECRET = Deno.env.get('DODO_WEBHOOK_SIGNING_SECRET');
-    // IMPROVEMENT: Added fallbacks for common alternative env var names.
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || Deno.env.get('BASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
+    // Rely ONLY on the standard runtime-injected variables for Supabase connection.
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!DODO_WEBHOOK_SIGNING_SECRET || !DODO_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.error('CRITICAL: Missing one or more environment variables for webhook.');

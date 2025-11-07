@@ -93,15 +93,16 @@ async function generate() {
     const typedCode = useTypewriter(codeExample, true, 10);
     
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('payment') === 'success') {
+        // Parse params from the hash, not the search query, because we use hash-based routing.
+        const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
+        if (hashParams.get('payment') === 'success') {
             setToast({ message: 'Payment successful! Your plan is now active.', type: 'success' });
-            // Clean the URL
-            window.history.replaceState({}, document.title, window.location.pathname);
+            // Clean the URL to just #sdk to prevent the message from re-appearing on refresh.
+            window.history.replaceState({}, document.title, window.location.pathname + '#sdk');
         }
-        if (urlParams.get('payment') === 'cancelled') {
+        if (hashParams.get('payment') === 'cancelled') {
             setToast({ message: 'Payment was cancelled.', type: 'error' });
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState({}, document.title, window.location.pathname + '#sdk');
         }
     }, []);
 
