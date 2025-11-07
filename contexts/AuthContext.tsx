@@ -25,16 +25,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setLoading(true);
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            const user = session?.user ?? null;
-            setCurrentUser(user);
+        const initializeSession = async () => {
+            // Get the initial session from Supabase.
+            const { data: { session } } = await supabase.auth.getSession();
+            setCurrentUser(session?.user ?? null);
             setLoading(false);
+        };
+
+        initializeSession();
+
+        // Set up a listener for any future authentication changes.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setCurrentUser(session?.user ?? null);
 
             // On first sign-in, assign a random avatar if one isn't set.
-            // This is a fire-and-forget operation; the UI will update on the next USER_UPDATED event.
-            if (_event === 'SIGNED_IN' && user && !user.user_metadata.has_custom_avatar) {
+            if (_event === 'SIGNED_IN' && session?.user && !session.user.user_metadata.has_custom_avatar) {
                 supabase.auth.updateUser({
                     data: {
                         avatar_url: getRandomAvatarUrl(),
@@ -46,6 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         });
 
+        // Cleanup the subscription when the component unmounts.
         return () => {
             subscription.unsubscribe();
         };
@@ -82,8 +88,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const signOut = () => {
-        // Let the onAuthStateChange listener handle the user state update.
-        // This ensures the state is always in sync with Supabase.
         supabase.auth.signOut().catch(error => {
             console.error("Error signing out from Supabase:", error.message);
         });
@@ -99,9 +103,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signOut,
     };
 
+    // Render children immediately. The App component itself will handle the loading state.
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };
