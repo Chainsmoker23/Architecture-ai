@@ -5,14 +5,16 @@ import { useAuth } from '../contexts/AuthContext';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
 
 interface SettingsSidebarProps {
   userApiKey: string | null;
   setUserApiKey: (key: string | null) => void;
+  onNavigate: (page: Page) => void;
 }
 
-const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserApiKey }) => {
+const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserApiKey, onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { currentUser, signOut } = useAuth();
@@ -228,6 +230,16 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                           )}
                         </AnimatePresence>
                       </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Modelers</h3>
+                     <button
+                        onClick={() => { onNavigate('neuralNetwork'); setIsOpen(false); }}
+                        className="w-full flex items-center justify-start gap-3 p-3 bg-[var(--color-bg-input)] rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-button-bg)] transition-colors"
+                      >
+                        <ArchitectureIcon type={IconType.Brain} className="w-6 h-6 text-[var(--color-accent-text)] flex-shrink-0" />
+                        <span className="font-semibold text-sm">Neural Network Modeler</span>
+                      </button>
                   </div>
                 </div>
                 <div className="mt-auto">
