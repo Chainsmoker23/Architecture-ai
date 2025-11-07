@@ -82,23 +82,7 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
     setPage(targetPage);
   }, []);
-
-  useEffect(() => {
-    if (authLoading) {
-      return;
-    }
-
-    // If the user is logged in, they shouldn't be on the landing or auth page.
-    if (currentUser && (page === 'landing' || page === 'auth')) {
-        onNavigate('app');
-    } 
-    // If the user is not logged in, they shouldn't be on a protected page like 'app'.
-    else if (!currentUser && page === 'app') {
-        onNavigate('landing');
-    }
-  }, [currentUser, authLoading, page, onNavigate]);
-
-
+  
   useEffect(() => {
     try {
         if (userApiKey) {
@@ -398,44 +382,61 @@ const App: React.FC = () => {
     setPrompt(EXAMPLE_PROMPTS_LIST[nextIndex]);
   };
  
-  if (page === 'landing') {
+  // --- NEW ROUTING LOGIC ---
+  if (authLoading) {
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <Loader />
+      </div>
+    );
+  }
+
+  // Determine which page to render without side effects
+  let effectivePage = page;
+  if (currentUser && (page === 'landing' || page === 'auth')) {
+    effectivePage = 'app';
+  } else if (!currentUser && page === 'app') {
+    effectivePage = 'landing';
+  }
+
+  if (effectivePage === 'landing') {
     return <LandingPage onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
-  if (page === 'auth') {
+  if (effectivePage === 'auth') {
     return <AuthPage onBack={() => onNavigate('landing')} />;
   }
-  if (page === 'contact') {
+  if (effectivePage === 'contact') {
     return <ContactPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'about') {
+  if (effectivePage === 'about') {
     return <AboutPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
-  if (page === 'sdk') {
+  if (effectivePage === 'sdk') {
     return <SdkPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'apiKey') {
+  if (effectivePage === 'apiKey') {
     return <ApiKeyPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
-  if (page === 'privacy') {
+  if (effectivePage === 'privacy') {
     return <PrivacyPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'terms') {
+  if (effectivePage === 'terms') {
     return <TermsPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'docs') {
+  if (effectivePage === 'docs') {
     return <DocsPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigateToSdk={() => onNavigate('sdk')} onNavigate={onNavigate} />;
   }
-  if (page === 'neuralNetwork') {
+  if (effectivePage === 'neuralNetwork') {
     return <NeuralNetworkPage onBack={() => onNavigate('app')} />;
   }
-  if (page === 'careers') {
+  if (effectivePage === 'careers') {
     return <CareersPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'research') {
+  if (effectivePage === 'research') {
     return <ResearchPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
  
-  if (page === 'app') {
+  if (effectivePage === 'app') {
     if (isPlaygroundMode && diagramData) {
       return (
         <Playground
