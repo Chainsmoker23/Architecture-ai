@@ -10,7 +10,7 @@ interface AuthContextType {
     signInWithGitHub: () => Promise<void>;
     signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
     signInWithEmail: (email: string, password: string) => Promise<void>;
-    signOut: () => void; // Changed to be synchronous for immediate UI update
+    signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,24 +27,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         setLoading(true);
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             const user = session?.user ?? null;
             setCurrentUser(user);
             setLoading(false);
 
             // On first sign-in, assign a random avatar if one isn't set.
+            // This is a fire-and-forget operation; the UI will update on the next USER_UPDATED event.
             if (_event === 'SIGNED_IN' && user && !user.user_metadata.has_custom_avatar) {
-                try {
-                    // This update will trigger onAuthStateChange again, which is expected.
-                    await supabase.auth.updateUser({
-                        data: {
-                            avatar_url: getRandomAvatarUrl(),
-                            has_custom_avatar: true,
-                        }
-                    });
-                } catch (e) {
+                supabase.auth.updateUser({
+                    data: {
+                        avatar_url: getRandomAvatarUrl(),
+                        has_custom_avatar: true,
+                    }
+                }).catch(e => {
                     console.error("Error setting default avatar:", e);
-                }
+                });
             }
         });
 
@@ -84,10 +82,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const signOut = () => {
-        // Optimistically update the UI to be instant.
-        setCurrentUser(null);
-        // The onAuthStateChange listener will eventually receive the SIGNED_OUT event,
-        // but we don't wait for it.
+        // Let the onAuthStateChange listener handle the user state update.
+        // This ensures the state is always in sync with Supabase.
         supabase.auth.signOut().catch(error => {
             console.error("Error signing out from Supabase:", error.message);
         });
