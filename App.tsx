@@ -10,7 +10,7 @@ import SummaryModal from './components/SummaryModal';
 import Loader from './components/Loader';
 import PropertiesSidebar from './components/PropertiesSidebar';
 import SettingsSidebar from './components/SettingsSidebar';
-import { EXAMPLE_PROMPT, EXAMPLE_PROMPTS_LIST } from './components/constants';
+import { EXAMPLE_PROMPT, EXAMPLE_PROMPTS_LIST } from './constants';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import LandingPage from './components/LandingPage';
 import ContactPage from './components/ContactPage';
@@ -548,13 +548,14 @@ const App: React.FC = () => {
       );
     }
 
+    const isPropertiesPanelOpen = selectedIds.length > 0;
 
     return (
-      <div className="min-h-screen text-[var(--color-text-primary)] flex transition-colors duration-300 app-bg">
+      <div className="h-screen text-[var(--color-text-primary)] flex flex-col transition-colors duration-300 app-bg">
         <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} onNavigate={onNavigate} />
         <button
             onClick={() => onNavigate('landing')}
-            className="fixed top-6 right-6 z-40 p-2 rounded-full bg-[var(--color-panel-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)] shadow-sm hover:text-[var(--color-text-primary)] transition-colors"
+            className="fixed top-4 right-4 z-40 p-2 rounded-full bg-[var(--color-panel-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)] shadow-sm hover:text-[var(--color-text-primary)] transition-colors"
             aria-label="Back to Home"
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -565,67 +566,33 @@ const App: React.FC = () => {
           variants={pageContainerVariants}
           initial="hidden"
           animate="visible"
-          className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 gap-6"
+          className="flex-1 flex flex-col"
         >
-          <motion.header variants={pageItemVariants} className="w-full max-w-7xl mx-auto text-center relative py-4">
-              <div className="absolute inset-0 flex items-center justify-center -z-10 pointer-events-none">
-                  <div className="header-glow-effect" />
-              </div>
-              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight flex items-center justify-center gap-x-2 sm:gap-x-4">
+          <header className="w-full text-center relative py-4 px-20">
+              <h1 className="text-2xl font-bold tracking-tight flex items-center justify-center gap-x-2">
                   <span>CubeGen</span>
                   <div className="pulse-subtle">
-                      <Logo className="h-8 w-8 sm:h-10 sm:h-10 text-[var(--color-accent-text)]" />
+                      <Logo className="h-6 w-6 text-[var(--color-accent-text)]" />
                   </div>
                   <span>AI</span>
               </h1>
-              <p className="mt-2 text-lg text-[var(--color-text-secondary)]">
-                  Generate and edit software architecture diagrams from natural language.
-              </p>
-          </motion.header>
+          </header>
           
-          <main className="w-full max-w-7xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <motion.aside variants={pageItemVariants} className="lg:col-span-3 p-6 rounded-2xl shadow-sm h-full flex flex-col glass-panel">
-               <h2 className="text-xl font-semibold mb-4">Choose a Diagram Type</h2>
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                    <div className="border-2 border-[var(--color-accent)] bg-[var(--color-accent-soft)] p-4 rounded-xl cursor-pointer">
-                        <ArchitectureIcon type={IconType.Cloud} className="w-7 h-7 text-[var(--color-accent-text)] mb-2" />
-                        <h3 className="font-semibold text-[var(--color-text-primary)]">General</h3>
-                        <p className="text-xs text-[var(--color-text-secondary)]">Cloud, services, etc.</p>
-                    </div>
-                    <motion.button 
-                        onClick={() => onNavigate('neuralNetwork')}
-                        className="p-4 rounded-xl text-left bg-transparent md:bg-[var(--color-button-bg)] transition-colors"
-                        whileHover={{ backgroundColor: 'var(--color-button-bg-hover)' }}
-                    >
-                        <ArchitectureIcon type={IconType.Brain} className="w-7 h-7 text-[var(--color-text-secondary)] mb-2" />
-                        <h3 className="font-semibold text-[var(--color-text-primary)]">Neural Network</h3>
-                        <p className="text-xs text-[var(--color-text-secondary)]">Layers & neurons.</p>
-                    </motion.button>
-                </div>
-                
-                <div className="flex flex-col flex-grow">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-semibold text-[var(--color-text-primary)]">Describe Your Architecture</h3>
-                        <motion.button 
-                        title="Get a prompt idea"
-                        onClick={handleCyclePrompt}
-                        className="p-2 rounded-full text-[var(--color-accent-text)] hover:bg-[var(--color-accent-soft)] transition-colors"
-                        animate={{ scale: [1, 1.1, 1], transition: { duration: 1.5, repeat: Infinity } }}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h.01a1 1 0 100-2H11zM10 14a1 1 0 01.832.445l.5 1.5a.5.5 0 01-.866.5L10 15.586l-.466.909a.5.5 0 01-.866-.5l.5-1.5A1 1 0 0110 14zm-3 0a1 1 0 01.832.445l.5 1.5a.5.5 0 01-.866.5L7 15.586l-.466.909a.5.5 0 01-.866-.5l.5-1.5A1 1 0 017 14z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.032 10.968a5.976 5.976 0 011.66-3.235 5.97 5.97 0 014.242-1.732 5.97 5.97 0 014.243 1.732 5.976 5.976 0 011.66 3.235A6.03 6.03 0 0116 11.732V13a1 1 0 11-2 0v-1.268a4.018 4.018 0 00-1.032-2.734 4.01 4.01 0 00-2.828-1.032 4.01 4.01 0 00-2.828 1.032A4.018 4.018 0 006 11.732V13a1 1 0 11-2 0v-1.268a6.03 6.03 0 01.032-.764z" clipRule="evenodd" /></svg>
-                        </motion.button>
-                    </div>
-                    <PromptInput
-                        prompt={prompt}
-                        setPrompt={setPrompt}
-                        onGenerate={() => handleGenerate()}
-                        isLoading={isLoading}
-                        onCyclePrompt={handleCyclePrompt}
-                    />
-                </div>
+          <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 px-4 pb-4">
+            <motion.aside variants={pageItemVariants} className="lg:col-span-3 rounded-2xl shadow-sm flex flex-col glass-panel">
+               <PromptInput
+                  prompt={prompt}
+                  setPrompt={setPrompt}
+                  onGenerate={() => handleGenerate()}
+                  isLoading={isLoading}
+                  onCyclePrompt={handleCyclePrompt}
+              />
             </motion.aside>
-
-            <motion.section variants={pageItemVariants} className="lg:col-span-6 rounded-2xl shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0 glass-panel">
+            
+            <motion.section 
+                variants={pageItemVariants} 
+                className={`rounded-2xl shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0 glass-panel transition-all duration-300 ${isPropertiesPanelOpen ? 'lg:col-span-6' : 'lg:col-span-9'}`}
+            >
               <AnimatePresence>
                 {isLoading && (
                   <motion.div
@@ -648,7 +615,7 @@ const App: React.FC = () => {
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 text-[var(--color-text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     <h3 className="mt-4 text-xl font-semibold text-[var(--color-text-primary)]">Your diagram will appear here</h3>
-                    <p className="mt-1 text-[var(--color-text-secondary)]">Enter a prompt and click "Generate Diagram" to start.</p>
+                    <p className="mt-1 text-[var(--color-text-secondary)]">Describe your architecture and click "Generate".</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -712,16 +679,58 @@ const App: React.FC = () => {
               {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
             </motion.section>
 
-            <motion.aside variants={pageItemVariants} className="lg:col-span-3 p-6 rounded-2xl shadow-sm h-full flex flex-col glass-panel">
-              <PropertiesSidebar 
-                item={selectedItem}
-                onPropertyChange={handlePropertyChange}
-                selectedCount={selectedIds.length}
-              />
-            </motion.aside>
+            <AnimatePresence>
+                {isPropertiesPanelOpen && (
+                    <motion.aside 
+                        key="properties-sidebar-desktop"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        className="lg:col-span-3 h-full flex-col hidden lg:flex"
+                    >
+                      <PropertiesSidebar 
+                        item={selectedItem}
+                        onPropertyChange={handlePropertyChange}
+                        selectedCount={selectedIds.length}
+                      />
+                    </motion.aside>
+                )}
+            </AnimatePresence>
 
           </main>
         </motion.div>
+
+        {/* Properties Bottom Sheet (Mobile only) */}
+        <AnimatePresence>
+            {isPropertiesPanelOpen && (
+                <motion.div
+                    key="properties-backdrop"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+                    onClick={() => setSelectedIds([])}
+                />
+            )}
+        </AnimatePresence>
+        <AnimatePresence>
+            {isPropertiesPanelOpen && (
+                <motion.div
+                    key="properties-sheet"
+                    initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                    className="fixed bottom-0 left-0 right-0 h-[60vh] bg-[var(--color-panel-bg)] rounded-t-2xl border-t border-[var(--color-border)] shadow-2xl p-4 z-40 lg:hidden"
+                >
+                    <div className="w-12 h-1.5 bg-[var(--color-border)] rounded-full mx-auto mb-4" />
+                    <div className="overflow-y-auto h-[calc(60vh-40px)] px-2">
+                        <PropertiesSidebar
+                            item={selectedItem}
+                            onPropertyChange={handlePropertyChange}
+                            selectedCount={selectedIds.length}
+                        />
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {showSummaryModal && summary && (

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import { AVATARS, svgToDataURL } from '../components/constants';
 
@@ -24,47 +24,59 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const initializeSession = async () => {
-            try {
-                // Get the initial session from Supabase. This might fail if the
-                // service is down or if the credentials in .env are incorrect.
-                const { data: { session }, error } = await supabase.auth.getSession();
-                if (error) {
-                    throw error;
+    // This robust, sequential flow fixes the avatar race condition.
+    const syncUserSession = async (session: Session | null) => {
+        const user = session?.user;
+
+        if (user && !user.user_metadata?.has_custom_avatar) {
+            // This is a new user. We must assign an avatar and wait for the update to complete
+            // before setting the user in the state to prevent showing the social media picture.
+            const { data: { user: updatedUser }, error: updateError } = await supabase.auth.updateUser({
+                data: {
+                    avatar_url: getRandomAvatarUrl(),
+                    has_custom_avatar: true,
                 }
-                setCurrentUser(session?.user ?? null);
-            } catch (error) {
-                // If getting the session fails, log the error and ensure the user is logged out.
-                console.error("AuthContext: Error fetching initial session:", error);
-                setCurrentUser(null);
-            } finally {
-                // CRITICAL: Always set loading to false, so the app doesn't get stuck
-                // on the loader even if the auth service is unreachable.
-                setLoading(false);
+            });
+
+            if (updateError) {
+                console.error("Error setting custom avatar:", updateError);
+                setCurrentUser(user); // Fallback to original user on error
+            } else {
+                // Use the fully updated user object returned from the API.
+                // This is the guaranteed source of truth.
+                setCurrentUser(updatedUser);
             }
-        };
+        } else {
+            // User is either null or already has a custom avatar.
+            setCurrentUser(user ?? null);
+        }
+        setLoading(false);
+    };
 
-        initializeSession();
 
-        // Set up a listener for any future authentication changes.
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setCurrentUser(session?.user ?? null);
-
-            // On first sign-in, assign a random avatar if one isn't set.
-            if (_event === 'SIGNED_IN' && session?.user && !session.user.user_metadata.has_custom_avatar) {
-                supabase.auth.updateUser({
-                    data: {
-                        avatar_url: getRandomAvatarUrl(),
-                        has_custom_avatar: true,
-                    }
-                }).catch(e => {
-                    console.error("Error setting default avatar:", e);
-                });
+    useEffect(() => {
+        // On initial load, get the session and synchronize the user.
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            syncUserSession(session);
+        });
+        
+        // Then, listen for any subsequent auth events.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            // A user's plan is updated via a webhook, and the frontend calls refreshSession(),
+            // which triggers this event. We sync the session to get the new plan details.
+            if (event === 'USER_UPDATED') {
+                setCurrentUser(session?.user ?? null);
+            } 
+            // This handles logins. We run the full sync process.
+            else if (event === 'SIGNED_IN') {
+                await syncUserSession(session);
+            } 
+            // This handles logouts.
+            else if (event === 'SIGNED_OUT') {
+                setCurrentUser(null);
             }
         });
 
-        // Cleanup the subscription when the component unmounts.
         return () => {
             subscription.unsubscribe();
         };
@@ -81,14 +93,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     const signUpWithEmail = async (email: string, password: string, displayName: string) => {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
                     full_name: displayName,
-                    avatar_url: getRandomAvatarUrl(),
-                    has_custom_avatar: true, 
                 },
             },
         });
@@ -116,7 +126,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signOut,
     };
 
-    // Render children immediately. The App component itself will handle the loading state.
     return (
         <AuthContext.Provider value={value}>
             {children}

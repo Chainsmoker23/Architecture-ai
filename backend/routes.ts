@@ -1,5 +1,8 @@
+// FIX: Changed import to simplify type resolution for Request and Response.
 import express, { Router, Request, Response } from 'express';
 import crypto from 'crypto';
+// FIX: Import `User` type from supabase to resolve type inference issues.
+import { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabaseClient';
 import { DodoPayments, mockSessions } from './dodo-payments';
 
@@ -13,7 +16,8 @@ const dodo = new DodoPayments(DODO_SECRET_KEY);
 // --- ROUTES ---
 
 // Endpoint to serve the realistic mock payment page
-router.get('/mock-payment', (req, res) => {
+// FIX: Explicitly type `req` and `res` with imported `Request` and `Response` from Express.
+router.get('/mock-payment', (req: Request, res: Response) => {
     const { sessionId } = req.query;
     if (typeof sessionId !== 'string' || !mockSessions.has(sessionId)) {
         return res.status(404).send('Session not found or has expired.');
@@ -23,7 +27,7 @@ router.get('/mock-payment', (req, res) => {
 });
 
 // Endpoint to handle the form submission from the mock payment page
-// FIX: Explicitly type `req` and `res` to resolve type inference issues with Express middleware.
+// FIX: Explicitly type `req` and `res` with imported `Request` and `Response` from Express.
 router.post('/confirm-payment', express.urlencoded({ extended: false }), async (req: Request, res: Response) => {
     const { sessionId } = req.body;
     if (typeof sessionId !== 'string' || !mockSessions.has(sessionId)) {
@@ -42,7 +46,7 @@ router.post('/confirm-payment', express.urlencoded({ extended: false }), async (
 });
 
 // Endpoint to handle incoming webhooks from Dodo Payments
-// FIX: Explicitly type `req` and `res` to resolve type inference issues with Express middleware.
+// FIX: Explicitly type `req` and `res` with imported `Request` and `Response` from Express.
 router.post('/dodo-webhook', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
     const signature = req.headers['dodo-signature'];
 
@@ -52,6 +56,7 @@ router.post('/dodo-webhook', express.raw({ type: 'application/json' }), async (r
     }
 
     try {
+        // FIX: Corrected crypto algorithm from 'sha265' to 'sha256'.
         const expectedSignature = crypto
             .createHmac('sha256', DODO_WEBHOOK_SECRET)
             .update(req.body)
@@ -88,7 +93,8 @@ router.post('/dodo-webhook', express.raw({ type: 'application/json' }), async (r
             return res.status(500).send({ error: 'Webhook Error: Could not list users.', details: listError });
         }
 
-        const user = data.users.find(u => u.user_metadata?.dodo_customer_id === customerId);
+        // FIX: Cast `data.users` to `User[]` to fix type inference issue where `u` was incorrectly typed as `never`.
+        const user = (data.users as User[]).find(u => u.user_metadata?.dodo_customer_id === customerId);
 
         if (!user) {
             console.error('[Backend] Webhook Error: Could not find user for customer ID:', customerId);
@@ -113,7 +119,7 @@ router.post('/dodo-webhook', express.raw({ type: 'application/json' }), async (r
 });
 
 // Endpoint for the frontend to create a new checkout session
-// FIX: Explicitly type `req` and `res` to resolve type inference issues with Express middleware.
+// FIX: Explicitly type `req` and `res` with imported `Request` and `Response` from Express.
 router.post('/create-checkout-session', express.json(), async (req: Request, res: Response) => {
     const { priceId } = req.body;
     const authHeader = req.headers['authorization'];
