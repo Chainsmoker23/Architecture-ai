@@ -29,10 +29,11 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
   });
 
   const { theme, setTheme } = useTheme();
+  // FIX: Update theme options to use valid Theme types from the global context.
   const themeOptions = [
     { value: 'light', label: 'Light' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'dark', label: 'Dark' },
+    { value: 'slate', label: 'Slate' },
+    { value: 'midnight', label: 'Midnight' },
   ] as const;
 
   const svgRef = useRef<SVGSVGElement>(null);

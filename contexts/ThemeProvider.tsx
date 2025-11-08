@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 
-type Theme = 'light' | 'medium' | 'dark';
+type Theme = 'light' | 'slate' | 'midnight';
 
 interface ThemeContextType {
   theme: Theme;
@@ -40,78 +40,17 @@ const themes = {
     '--color-tier-5': 'rgba(233, 213, 255, 0.4)',
     '--color-tier-6': 'rgba(241, 243, 245, 0.5)',
     '--color-tier-default': 'rgba(241, 243, 245, 0.5)',
-    
-    // --- SETTINGS SIDEBAR AURORA COLORS ---
-    // Customize the animated background colors for the settings sidebar here.
-    // To use a different palette, comment out the "ACTIVE PALETTE" and uncomment one of the alternatives below.
-    
-    // --- ACTIVE PALETTE: Default Pastel ---
-    '--color-aurora-1': 'rgba(252, 228, 236, 1)',     // Soft Pink
-    '--color-aurora-2': 'rgba(224, 236, 255, 1)',     // Soft Blue
-    '--color-aurora-3': 'rgba(233, 213, 255, 0.9)',  // Soft Lavender
-
-    /*
-    // --- PALETTE: Ocean Breeze ---
-    '--color-aurora-1': 'rgba(204, 251, 241, 0.9)', // Pale Aqua
-    '--color-aurora-2': 'rgba(179, 229, 252, 1)',   // Light Sky Blue
-    '--color-aurora-3': 'rgba(225, 245, 254, 1)',   // Pale Cyan
-    */
-
-    /*
-    // --- PALETTE: Sunset Glow ---
-    '--color-aurora-1': 'rgba(255, 224, 178, 1)',   // Light Orange
-    '--color-aurora-2': 'rgba(255, 205, 210, 0.9)', // Light Pink
-    '--color-aurora-3': 'rgba(251, 197, 154, 1)',   // Peach
-    */
+    '--color-glow-highlight': 'rgba(255, 255, 255, 0.2)',
+    '--color-aurora-1': 'rgba(252, 228, 236, 1)',
+    '--color-aurora-2': 'rgba(224, 236, 255, 1)',
+    '--color-aurora-3': 'rgba(233, 213, 255, 0.9)',
   },
-  medium: {
-    '--color-bg': '#DFD8D7',
-    '--color-panel-bg': '#EDE9E8',
-    '--color-panel-bg-translucent': 'rgba(237, 233, 232, 0.8)',
-    '--color-canvas-bg': '#DFD8D7',
-    '--color-node-bg': '#EDE9E8',
-    '--color-button-bg': '#D2C9C7',
-    '--color-button-bg-hover': '#C5B9B7',
-    '--color-bg-input': '#DFD8D7',
-    '--color-text-primary': '#3D3534',
-    '--color-text-secondary': '#6E605E',
-    '--color-text-tertiary': '#A99DA1',
-    '--color-border': '#D2C9C7',
-    '--color-border-translucent': 'rgba(210, 201, 199, 0.5)',
-    '--color-link': '#6E605E',
-    '--color-grid-dot': 'rgba(180, 168, 166, 0.7)',
-    '--color-accent': '#E57373',
-    '--color-accent-soft': '#FFEBEE',
-    '--color-accent-text': '#D32F2F',
-    '--color-accent-text-strong': '#FFFFFF',
-    '--color-shadow': '#3D3534',
-    '--color-tier-1': 'rgba(255, 235, 238, 0.3)',
-    '--color-tier-2': 'rgba(227, 242, 253, 0.3)',
-    '--color-tier-3': 'rgba(232, 245, 233, 0.3)',
-    '--color-tier-4': 'rgba(255, 248, 225, 0.3)',
-    '--color-tier-5': 'rgba(243, 229, 245, 0.3)',
-    '--color-tier-6': 'rgba(236, 239, 241, 0.4)',
-    '--color-tier-default': 'rgba(236, 239, 241, 0.4)',
-
-    // --- SETTINGS SIDEBAR AURORA COLORS ---
-    // --- ACTIVE PALETTE: Warm Neutral ---
-    '--color-aurora-1': 'rgba(255, 235, 238, 0.9)', // Muted Red
-    '--color-aurora-2': 'rgba(255, 224, 178, 0.8)', // Muted Orange
-    '--color-aurora-3': 'rgba(229, 206, 202, 0.9)', // Muted Brown
-
-    /*
-    // --- PALETTE: Forest Floor ---
-    '--color-aurora-1': 'rgba(209, 231, 221, 0.9)', // Pale Green
-    '--color-aurora-2': 'rgba(221, 214, 206, 0.8)', // Beige
-    '--color-aurora-3': 'rgba(202, 214, 229, 0.9)', // Slate Blue
-    */
-  },
-  dark: {
-    '--color-bg': '#111827',
-    '--color-panel-bg': '#1F2937',
-    '--color-panel-bg-translucent': 'rgba(31, 41, 55, 0.7)',
-    '--color-canvas-bg': '#111827',
-    '--color-node-bg': '#1F2937',
+  slate: {
+    '--color-bg': '#1F2937',
+    '--color-panel-bg': '#273444',
+    '--color-panel-bg-translucent': 'rgba(39, 52, 68, 0.7)',
+    '--color-canvas-bg': '#1F2937',
+    '--color-node-bg': '#273444',
     '--color-button-bg': '#374151',
     '--color-button-bg-hover': '#4B5563',
     '--color-bg-input': '#374151',
@@ -122,6 +61,39 @@ const themes = {
     '--color-border-translucent': 'rgba(55, 65, 81, 0.7)',
     '--color-link': '#9CA3AF',
     '--color-grid-dot': 'rgba(75, 85, 99, 0.5)',
+    '--color-accent': '#22D3EE',
+    '--color-accent-soft': 'rgba(34, 211, 238, 0.1)',
+    '--color-accent-text': '#22D3EE',
+    '--color-accent-text-strong': '#111827',
+    '--color-shadow': '#000000',
+    '--color-tier-1': 'rgba(34, 211, 238, 0.05)',
+    '--color-tier-2': 'rgba(96, 165, 250, 0.05)',
+    '--color-tier-3': 'rgba(52, 211, 153, 0.05)',
+    '--color-tier-4': 'rgba(251, 191, 36, 0.05)',
+    '--color-tier-5': 'rgba(167, 139, 250, 0.05)',
+    '--color-tier-6': 'rgba(107, 114, 128, 0.08)',
+    '--color-tier-default': 'rgba(107, 114, 128, 0.08)',
+    '--color-glow-highlight': 'rgba(255, 255, 255, 0.05)',
+    '--color-aurora-1': 'rgba(34, 211, 238, 0.45)',
+    '--color-aurora-2': 'rgba(96, 165, 250, 0.35)',
+    '--color-aurora-3': 'rgba(52, 211, 153, 0.35)',
+  },
+  midnight: {
+    '--color-bg': '#0D1117',
+    '--color-panel-bg': '#161B22',
+    '--color-panel-bg-translucent': 'rgba(22, 27, 34, 0.7)',
+    '--color-canvas-bg': '#0D1117',
+    '--color-node-bg': '#161B22',
+    '--color-button-bg': '#21262D',
+    '--color-button-bg-hover': '#30363D',
+    '--color-bg-input': '#21262D',
+    '--color-text-primary': '#F0F6FC',
+    '--color-text-secondary': '#8B949E',
+    '--color-text-tertiary': '#30363D',
+    '--color-border': '#30363D',
+    '--color-border-translucent': 'rgba(48, 54, 61, 0.7)',
+    '--color-link': '#8B949E',
+    '--color-grid-dot': 'rgba(139, 148, 158, 0.2)',
     '--color-accent': '#F472B6',
     '--color-accent-soft': 'rgba(244, 114, 182, 0.1)',
     '--color-accent-text': '#F472B6',
@@ -134,26 +106,10 @@ const themes = {
     '--color-tier-5': 'rgba(167, 139, 250, 0.05)',
     '--color-tier-6': 'rgba(107, 114, 128, 0.08)',
     '--color-tier-default': 'rgba(107, 114, 128, 0.08)',
-    
-    // --- SETTINGS SIDEBAR AURORA COLORS ---
-    // --- ACTIVE PALETTE: Cyber Glow ---
-    '--color-aurora-1': 'rgba(244, 114, 182, 0.45)', // Neon Pink
-    '--color-aurora-2': 'rgba(96, 165, 250, 0.35)',  // Neon Blue
-    '--color-aurora-3': 'rgba(167, 139, 250, 0.35)', // Neon Purple
-    
-    /*
-    // --- PALETTE: Synthwave ---
-    '--color-aurora-1': 'rgba(255, 0, 110, 0.4)',   // Hot Pink
-    '--color-aurora-2': 'rgba(128, 0, 255, 0.35)',  // Electric Purple
+    '--color-glow-highlight': 'rgba(255, 255, 255, 0.05)',
+    '--color-aurora-1': 'rgba(255, 0, 110, 0.45)',   // Hot Pink
+    '--color-aurora-2': 'rgba(128, 0, 255, 0.4)',  // Electric Purple
     '--color-aurora-3': 'rgba(0, 238, 255, 0.35)',  // Cyan
-    */
-
-    /*
-    // --- PALETTE: Emerald Nebula ---
-    '--color-aurora-1': 'rgba(5, 150, 105, 0.45)',  // Emerald Green
-    '--color-aurora-2': 'rgba(2, 132, 199, 0.35)',  // Sky Blue
-    '--color-aurora-3': 'rgba(14, 165, 233, 0.35)', // Bright Cyan
-    */
   }
 };
 

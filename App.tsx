@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
 import type { DiagramData, Node, Container, Link } from './types';
@@ -49,7 +47,10 @@ const pageItemVariants: Variants = {
 };
 
 const getPageFromHash = (): Page => {
-  const hash = window.location.hash.substring(1);
+  const hash = window.location.hash.substring(1).split('?')[0];
+  if (!hash) {
+    return 'landing';
+  }
   const validPages: Page[] = ['landing', 'auth', 'app', 'contact', 'about', 'sdk', 'apiKey', 'privacy', 'terms', 'docs', 'neuralNetwork', 'careers', 'research'];
   if (validPages.includes(hash as Page)) {
     return hash as Page;
@@ -60,37 +61,63 @@ const getPageFromHash = (): Page => {
 
 const App: React.FC = () => {
   const { currentUser, loading: authLoading } = useAuth();
-  const [page, setPage] = useState<Page>(getPageFromHash);
+  const [page, setPage] = useState<Page | null>(null);
 
-  // Effect to listen for URL hash changes (from browser back/forward or programmatic changes)
+  // State to reactively track the URL hash.
+  const [hash, setHash] = useState(() => window.location.hash);
+
+  // Effect to keep the `hash` state in sync with the browser's URL.
   useEffect(() => {
-    const handleHashChange = () => {
-      setPage(getPageFromHash());
-    };
+    const handleHashChange = () => setHash(window.location.hash);
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Effect to handle auth-based redirects and keep the URL hash synced
-  useEffect(() => {
-    if (authLoading) return; // Wait until auth state is resolved
+  const onNavigate = useCallback((targetPage: Page) => {
+    const currentHashPage = getPageFromHash();
+    if (currentHashPage !== targetPage) {
+        window.scrollTo(0, 0);
+        window.location.hash = targetPage;
+    }
+  }, []);
 
+  useEffect(() => {
+    // 1. Wait until authentication status is known.
+    if (authLoading) {
+      return;
+    }
+
+    // --- 2. INITIAL LOAD REDIRECT ---
+    // On the very first load (when hash is empty), if the user is already
+    // logged in, send them directly to the app. This avoids a flash of the
+    // landing page for returning users but still allows them to navigate back later.
+    if (currentUser && window.location.hash === '') {
+        onNavigate('app');
+        return; // Abort this run; the hash change will trigger the effect again.
+    }
+    
     const currentPage = getPageFromHash();
 
-    if (currentUser && (currentPage === 'landing' || currentPage === 'auth')) {
-      // Use replaceState to avoid adding a redirect to the browser history
-      window.history.replaceState(null, '', '#app');
-      setPage('app'); // Manually trigger state update
-    } else if (!currentUser && currentPage === 'app') {
-      window.history.replaceState(null, '', '#landing');
-      setPage('landing');
+    // --- 3. PERSISTENT REDIRECT RULES ---
+    // A logged-in user should never be able to navigate to the sign-in page.
+    if (currentUser && currentPage === 'auth') {
+      onNavigate('app');
+      return; // Abort this run.
     }
-  }, [currentUser, authLoading]);
+    
+    // A logged-out user should never be able to access protected pages.
+    const isProtectedPage = currentPage === 'app' || currentPage === 'neuralNetwork';
+    if (!currentUser && isProtectedPage) {
+      onNavigate('landing');
+      return; // Abort this run.
+    }
 
-  const onNavigate = useCallback((targetPage: Page) => {
-    window.scrollTo(0, 0);
-    window.location.hash = targetPage;
-  }, []);
+    // --- 4. PAGE RESOLUTION ---
+    // If no redirect was needed, this is the correct page to display.
+    setPage(currentPage);
+
+  }, [authLoading, currentUser, onNavigate, hash]); // Reruns when auth or URL changes.
+
 
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [promptIndex, setPromptIndex] = useState(0);
@@ -355,9 +382,16 @@ const App: React.FC = () => {
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
       if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
-          setLastAction({ type: 'generate', payload: prompt });
-          setShowApiKeyModal(true);
-          setError(null);
+          const userPlan = currentUser?.user_metadata?.plan;
+          const isPremiumUser = userPlan && ['pro', 'business'].includes(String(userPlan).toLowerCase());
+
+          if (isPremiumUser) {
+            setLastAction({ type: 'generate', payload: prompt });
+            setShowApiKeyModal(true);
+            setError(null);
+          } else {
+            setError("The shared API key has reached its daily limit. Please upgrade to a Pro plan to use your own key and continue generating.");
+          }
       } else {
           setError(errorMessage);
           setHistory([null]);
@@ -366,7 +400,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [prompt, userApiKey]);
+  }, [prompt, userApiKey, currentUser]);
   
   const handleExplain = useCallback(async (keyOverride?: string) => {
     if (!diagramData) return;
@@ -382,16 +416,23 @@ const App: React.FC = () => {
        console.error(String(err));
        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
        if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
-            setLastAction({ type: 'explain', payload: diagramData });
-            setShowApiKeyModal(true);
-            setError(null);
+            const userPlan = currentUser?.user_metadata?.plan;
+            const isPremiumUser = userPlan && ['pro', 'business'].includes(String(userPlan).toLowerCase());
+
+            if (isPremiumUser) {
+                setLastAction({ type: 'explain', payload: diagramData });
+                setShowApiKeyModal(true);
+                setError(null);
+            } else {
+                setError("The shared API key has reached its daily limit. Please upgrade to a Pro plan to use your own key and continue generating.");
+            }
        } else {
            setError(errorMessage);
        }
     } finally {
         setIsExplaining(false);
     }
-  }, [diagramData, userApiKey]);
+  }, [diagramData, userApiKey, currentUser]);
 
   const handleSaveAndRetryApiKey = (key: string) => {
     setUserApiKey(key);
@@ -437,15 +478,19 @@ const App: React.FC = () => {
     setPromptIndex(nextIndex);
     setPrompt(EXAMPLE_PROMPTS_LIST[nextIndex]);
   };
- // --- ROUTING LOGIC ---
-  if (authLoading) {
+  
+  // A single, unified loader for initial auth check and any in-progress redirects.
+  // The page state is only set once the final, correct page is determined.
+  if (page === null) {
     return (
       <div className="fixed inset-0 bg-white flex items-center justify-center">
         <Loader />
       </div>
     );
   }
-
+  
+  // --- Page rendering logic ---
+  // Now that redirects are handled, we can just render the page based on its state.
   if (page === 'landing') {
     return <LandingPage onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }

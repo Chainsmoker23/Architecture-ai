@@ -26,8 +26,8 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
 
   const userPlan = currentUser?.user_metadata?.plan;
 
-  // FIX: Make the premium user check case-insensitive to correctly identify plans.
-  const isPremiumUser = userPlan && ['hobbyist', 'pro', 'business'].includes(String(userPlan).toLowerCase());
+  // The "Bring Your Own Key" feature is only for Pro and Business users.
+  const isPremiumUser = userPlan && ['pro', 'business'].includes(String(userPlan).toLowerCase());
 
 
  
@@ -44,8 +44,8 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
  
   const themeOptions = [
     { value: 'light', label: 'Light' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'dark', label: 'Dark' },
+    { value: 'slate', label: 'Slate' },
+    { value: 'midnight', label: 'Midnight' },
   ] as const;
 
   const handleKeySave = () => {
@@ -128,11 +128,10 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
 
                 {currentUser && (
                   <div className="mb-4">
-                      <div className={`relative p-3 rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'border-[var(--color-accent)] shadow-md shadow-[var(--color-accent-soft)]' : 'border-[var(--color-border)]'}`}>
-                          {isPremiumUser && userPlan && (
-                              <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
-                                  {/* FIX: Capitalize plan name for display */}
-                                  {String(userPlan).charAt(0).toUpperCase() + String(userPlan).slice(1)} Member
+                      <div className={`relative p-3 rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'premium-glow' : 'border-[var(--color-border)]'}`}>
+                          {userPlan && userPlan !== 'free' && !isPremiumUser && (
+                              <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-gray-400 to-gray-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+                                  {String(userPlan).charAt(0).toUpperCase() + String(userPlan).slice(1)}
                               </div>
                           )}
                           <div className="flex-shrink-0">
@@ -169,68 +168,70 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                       </div>
                   </div>
 
-                  <div>
-                      <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">API Key</h3>
-                      <div className="p-4 rounded-xl border border-[var(--color-border)]">
-                        <AnimatePresence mode="wait">
-                          {userApiKey && !isEditing ? (
-                            <motion.div
-                              key="view"
-                              variants={formVariants}
-                              initial="hidden"
-                              animate="visible"
-                              exit="exit"
-                            >
-                              <p className="text-sm text-[var(--color-text-secondary)]">Your personal key is active.</p>
-                              <div className="bg-[var(--color-bg)] p-3 rounded-lg my-2 border border-[var(--color-border)]">
-                                  <p className="font-mono text-sm text-[var(--color-text-primary)]" aria-label={`API key ending in ${userApiKey.slice(-4)}`}>
-                                      ••••••••••••••••••••{userApiKey.slice(-4)}
-                                  </p>
-                              </div>
-                              <div className="flex items-center gap-2 mt-3">
-                                  <button onClick={() => setIsEditing(true)} className="flex-1 bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">Change</button>
-                                  <button onClick={handleClearKey} className="text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">Remove</button>
-                              </div>
-                            </motion.div>
-                          ) : (
-                            <motion.div
-                              key="edit"
-                              variants={formVariants}
-                              initial="hidden"
-                              animate="visible"
-                              exit="exit"
-                            >
-                              <p className="text-sm text-[var(--color-text-secondary)] mb-2">
-                                {userApiKey ? 'Update your key or clear to use the shared key.' : 'Add your own key to bypass usage limits.'}
-                              </p>
-                              <div>
-                                <input
-                                      id="api-key-input"
-                                      type="password"
-                                      value={editingKey}
-                                      onChange={(e) => setEditingKey(e.target.value)}
-                                      placeholder="Paste your API key here"
-                                      className="w-full mt-1 p-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
-                                />
-                                <a href="https://ai.google.dev/" target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--color-accent-text)] hover:underline mt-1 inline-block">
-                                      Get a key from Google AI Studio
-                                </a>
-                              </div>
-                              <div className="flex items-center gap-2 mt-3">
-                                  <button onClick={handleKeySave} className="flex-1 bg-[var(--color-accent)] text-[var(--color-accent-text-strong)] text-sm font-semibold py-2 px-3 rounded-lg hover:opacity-90 transition-opacity relative">
-                                      {showSaved ? 'Saved!' : (userApiKey ? 'Update Key' : 'Save Key')}
-                                  </button>
-                                  {userApiKey && isEditing && (
-                                      <button onClick={handleCancelEdit} className="bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">
-                                          Cancel
-                                      </button>
-                                  )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                  </div>
+                  {isPremiumUser && (
+                    <div>
+                        <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">API Key</h3>
+                        <div className="p-4 rounded-xl border border-[var(--color-border)]">
+                          <AnimatePresence mode="wait">
+                            {userApiKey && !isEditing ? (
+                              <motion.div
+                                key="view"
+                                variants={formVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                              >
+                                <p className="text-sm text-[var(--color-text-secondary)]">Your personal key is active.</p>
+                                <div className="bg-[var(--color-bg)] p-3 rounded-lg my-2 border border-[var(--color-border)]">
+                                    <p className="font-mono text-sm text-[var(--color-text-primary)]" aria-label={`API key ending in ${userApiKey.slice(-4)}`}>
+                                        ••••••••••••••••••••{userApiKey.slice(-4)}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 mt-3">
+                                    <button onClick={() => setIsEditing(true)} className="flex-1 bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">Change</button>
+                                    <button onClick={handleClearKey} className="text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">Remove</button>
+                                </div>
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="edit"
+                                variants={formVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                              >
+                                <p className="text-sm text-[var(--color-text-secondary)] mb-2">
+                                  {userApiKey ? 'Update your key or clear to use the shared key.' : 'Add your own key to bypass usage limits.'}
+                                </p>
+                                <div>
+                                  <input
+                                        id="api-key-input"
+                                        type="password"
+                                        value={editingKey}
+                                        onChange={(e) => setEditingKey(e.target.value)}
+                                        placeholder="Paste your API key here"
+                                        className="w-full mt-1 p-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
+                                  />
+                                  <a href="https://ai.google.dev/" target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--color-accent-text)] hover:underline mt-1 inline-block">
+                                        Get a key from Google AI Studio
+                                  </a>
+                                </div>
+                                <div className="flex items-center gap-2 mt-3">
+                                    <button onClick={handleKeySave} className="flex-1 bg-[var(--color-accent)] text-[var(--color-accent-text-strong)] text-sm font-semibold py-2 px-3 rounded-lg hover:opacity-90 transition-opacity relative">
+                                        {showSaved ? 'Saved!' : (userApiKey ? 'Update Key' : 'Save Key')}
+                                    </button>
+                                    {userApiKey && isEditing && (
+                                        <button onClick={handleCancelEdit} className="bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">
+                                            Cancel
+                                        </button>
+                                    )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                    </div>
+                  )}
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Modelers</h3>
                      <button

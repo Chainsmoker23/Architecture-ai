@@ -14,20 +14,6 @@ interface SdkPageProps {
   onNavigate: (page: Page) => void;
 }
 
-// Fictional Dodo Payments SDK types for type safety
-interface Dodo {
-  redirectToCheckout: (options: { sessionId: string }) => Promise<{ error?: { message: string } }>;
-}
-declare global {
-  function Dodo(publishableKey: string): Dodo;
-  interface Window { Dodo?: typeof Dodo; }
-}
-
-const dodoPublishableKey = (import.meta as any).env.VITE_DODO_PUBLISHABLE_KEY;
-if (!dodoPublishableKey) {
-  console.error('CRITICAL: VITE_DODO_PUBLISHABLE_KEY is not set in your environment file. Dodo Payments will not function.');
-}
-
 const useTypewriter = (text: string, enabled: boolean, speed = 10) => {
     const [displayedText, setDisplayedText] = useState('');
 
@@ -74,6 +60,7 @@ const CodeBlock: React.FC<{ code: string }> = ({ code }) => (
 
 const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
     const { currentUser } = useAuth();
+    const userPlan = currentUser?.user_metadata?.plan;
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
 
@@ -97,6 +84,9 @@ async function generate() {
         const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
         if (hashParams.get('payment') === 'success') {
             setToast({ message: 'Payment successful! Your plan is now active.', type: 'success' });
+            // Force a session refresh to get the latest user data (including the new plan).
+            // This will trigger the onAuthStateChange listener and update the UI.
+            supabase.auth.refreshSession();
             // Clean the URL to just #sdk to prevent the message from re-appearing on refresh.
             window.history.replaceState({}, document.title, window.location.pathname + '#sdk');
         }
@@ -112,25 +102,36 @@ async function generate() {
             return;
         }
 
-        if (!dodoPublishableKey || !window.Dodo) {
-            setToast({ message: 'Payment system is not configured.', type: 'error' });
-            return;
-        }
-
         setLoadingPriceId(priceId);
         setToast(null);
 
         try {
-            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-                body: { priceId },
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError || !session) {
+                throw new Error('You must be logged in to purchase a plan.');
+            }
+
+            const response = await fetch('http://localhost:3001/create-checkout-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ priceId }),
             });
 
-            if (error) throw new Error(error.message);
-            if (!data.sessionId) throw new Error(data.error || "Could not retrieve a checkout session.");
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create checkout session.');
+            }
             
-            const dodo = window.Dodo(dodoPublishableKey);
-            const { error: dodoError } = await dodo.redirectToCheckout({ sessionId: data.sessionId });
-            if (dodoError) throw new Error(dodoError.message);
+            if (!data.redirectUrl) {
+              throw new Error("Could not retrieve a checkout redirect URL.");
+            }
+            
+            // Redirect the user to the checkout page provided by the backend.
+            window.location.href = data.redirectUrl;
 
         } catch (error: any) {
             console.error('Error creating checkout session:', error.message);
@@ -253,11 +254,24 @@ async function generate() {
                             From solo developers to enterprise teams, choose a plan that fits your needs.
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto items-start">
-                           {plans.map((plan) => (
+                           {plans.map((plan) => {
+                               const isCurrentPlan = userPlan && userPlan === plan.name.toLowerCase();
+                               return (
                                 <motion.div
                                     key={plan.name}
-                                    className={`p-8 rounded-2xl border ${plan.isFeatured ? 'bg-white shadow-2xl border-[#D6336C] -translate-y-4' : 'bg-white/70 shadow-lg border-pink-100'}`}
+                                    className={`relative p-8 rounded-2xl border transition-all duration-300 ${
+                                        isCurrentPlan
+                                            ? 'bg-white border-2 border-[#D6336C] shadow-2xl scale-105'
+                                            : plan.isFeatured
+                                            ? 'bg-white shadow-2xl border-[#D6336C] -translate-y-4'
+                                            : 'bg-white/70 shadow-lg border-pink-100'
+                                    }`}
                                 >
+                                    {isCurrentPlan && (
+                                        <div className="absolute top-0 right-4 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+                                            Current Plan
+                                        </div>
+                                    )}
                                     <h3 className="text-xl font-bold">{plan.name}</h3>
                                     <p className="mt-2"><span className="text-4xl font-extrabold">{plan.price}</span><span className="text-gray-500"> / {plan.freq}</span></p>
                                     <ul className="mt-6 space-y-3 text-sm text-[#555555]">
@@ -265,18 +279,27 @@ async function generate() {
                                     </ul>
                                     <button
                                         onClick={() => plan.name === 'Business' ? onNavigate('contact') : handlePlanClick(plan.priceId)}
-                                        disabled={loadingPriceId === plan.priceId}
-                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed ${plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg'}`}
+                                        disabled={loadingPriceId === plan.priceId || isCurrentPlan}
+                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed ${
+                                            isCurrentPlan 
+                                            ? 'bg-gray-200 text-gray-500 cursor-default' 
+                                            : (plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg')
+                                        }`}
                                     >
-                                        {loadingPriceId === plan.priceId ? (
-                                            <>
-                                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                                Redirecting...
-                                            </>
-                                        ) : (currentUser ? plan.cta : "Sign In to Upgrade")}
+                                        {isCurrentPlan 
+                                            ? 'Current Plan'
+                                            : loadingPriceId === plan.priceId 
+                                            ? (
+                                                <>
+                                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                                    Redirecting...
+                                                </>
+                                            ) 
+                                            : (currentUser ? plan.cta : "Sign In to Upgrade")
+                                        }
                                     </button>
                                 </motion.div>
-                           ))}
+                           )})}
                         </div>
                     </div>
                 </section>

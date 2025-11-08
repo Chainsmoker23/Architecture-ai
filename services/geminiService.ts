@@ -9,9 +9,8 @@ const getGenAIClient = (userApiKey?: string) => {
     return new GoogleGenAI({ apiKey: userApiKey });
   }
 
-  // Use Vite's standard import.meta.env to read the environment variable.
-  // FIX: Cast import.meta to any to resolve TypeScript error 'Property 'env' does not exist on type 'ImportMeta''.
-  const apiKey = (import.meta as any).env.VITE_API_KEY;
+  // Use process.env, which is now populated by the Vite config.
+  const apiKey = process.env.VITE_API_KEY;
   if (!apiKey) {
     throw new Error("VITE_API_KEY is not configured. Please set it in your .env file or provide one in the app settings.");
   }

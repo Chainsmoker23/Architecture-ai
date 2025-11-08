@@ -26,10 +26,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         const initializeSession = async () => {
-            // Get the initial session from Supabase.
-            const { data: { session } } = await supabase.auth.getSession();
-            setCurrentUser(session?.user ?? null);
-            setLoading(false);
+            try {
+                // Get the initial session from Supabase. This might fail if the
+                // service is down or if the credentials in .env are incorrect.
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (error) {
+                    throw error;
+                }
+                setCurrentUser(session?.user ?? null);
+            } catch (error) {
+                // If getting the session fails, log the error and ensure the user is logged out.
+                console.error("AuthContext: Error fetching initial session:", error);
+                setCurrentUser(null);
+            } finally {
+                // CRITICAL: Always set loading to false, so the app doesn't get stuck
+                // on the loader even if the auth service is unreachable.
+                setLoading(false);
+            }
         };
 
         initializeSession();
