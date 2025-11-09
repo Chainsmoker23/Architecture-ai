@@ -65,6 +65,17 @@ export interface GraphData {
   datasets: DataSet[];
 }
 
+export interface PieSlice {
+  label: string;
+  value: number;
+  color: string;
+}
+
+export interface PieChartData {
+  title: string;
+  slices: PieSlice[];
+}
+
 export enum IconType {
   // --- Standard AWS ---
   AwsEc2 = 'aws-ec2',
@@ -203,6 +214,24 @@ export enum IconType {
   Sparkles = 'sparkles',
   Edit = 'edit',
   Gear = 'gear',
-  Graph = 'graph',
   Generic = 'generic',
+  
+  // --- Graph/Chart Icons ---
+  // FIX: Added 'Graph' to the IconType enum.
+  Graph = 'graph',
+  GraphLine = 'graph-line',
+  GraphBar = 'graph-bar',
+  GraphPie = 'graph-pie',
+  GraphDoughnut = 'graph-doughnut',
+  GraphArea = 'graph-area',
+  GraphScatter = 'graph-scatter',
+  GraphBubble = 'graph-bubble',
+  GraphRadar = 'graph-radar',
+  GraphPolar = 'graph-polar',
+  GraphCandlestick = 'graph-candlestick',
+  GraphFunnel = 'graph-funnel',
+  GraphTreemap = 'graph-treemap',
+  GraphSankey = 'graph-sankey',
+  GraphChord = 'graph-chord',
+  GraphHeatmap = 'graph-heatmap',
 }

@@ -7,25 +7,25 @@ import SettingsSidebar from '../SettingsSidebar';
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
 
 interface GraphHomePageProps {
-  onNavigate: (page: Page) => void;
+  onNavigate: (page: Page | string) => void;
 }
 
 const graphTypes = [
-    { name: 'Line Chart', icon: IconType.Graph },
-    { name: 'Bar Chart', icon: IconType.Monitoring },
-    { name: 'Pie Chart', icon: IconType.Grok },
-    { name: 'Doughnut Chart', icon: IconType.Gear },
-    { name: 'Area Chart', icon: IconType.AwsCloudfront },
-    { name: 'Scatter Plot', icon: IconType.Sparkles },
-    { name: 'Bubble Chart', icon: IconType.Docker },
-    { name: 'Radar Chart', icon: IconType.Oracle },
-    { name: 'Polar Area Chart', icon: IconType.Anthropic },
-    { name: 'Candlestick Chart', icon: IconType.ManagementConsole },
-    { name: 'Funnel Chart', icon: IconType.DataPreprocessing },
-    { name: 'Treemap', icon: IconType.AwsEcs },
-    { name: 'Sankey Diagram', icon: IconType.ServiceMesh },
-    { name: 'Chord Diagram', icon: IconType.Embody },
-    { name: 'Heatmap', icon: IconType.Gpu },
+    { name: 'Pie Chart', icon: IconType.GraphPie, href: '#graph/pie' },
+    { name: 'Line Chart', icon: IconType.GraphLine, href: '#' },
+    { name: 'Bar Chart', icon: IconType.GraphBar, href: '#' },
+    { name: 'Doughnut Chart', icon: IconType.GraphDoughnut, href: '#' },
+    { name: 'Area Chart', icon: IconType.GraphArea, href: '#' },
+    { name: 'Scatter Plot', icon: IconType.GraphScatter, href: '#' },
+    { name: 'Bubble Chart', icon: IconType.GraphBubble, href: '#' },
+    { name: 'Radar Chart', icon: IconType.GraphRadar, href: '#' },
+    { name: 'Polar Area Chart', icon: IconType.GraphPolar, href: '#' },
+    { name: 'Candlestick Chart', icon: IconType.GraphCandlestick, href: '#' },
+    { name: 'Funnel Chart', icon: IconType.GraphFunnel, href: '#' },
+    { name: 'Treemap', icon: IconType.GraphTreemap, href: '#' },
+    { name: 'Sankey Diagram', icon: IconType.GraphSankey, href: '#' },
+    { name: 'Chord Diagram', icon: IconType.GraphChord, href: '#' },
+    { name: 'Heatmap', icon: IconType.GraphHeatmap, href: '#' },
 ];
 
 const containerVariants = {
@@ -63,7 +63,7 @@ export const GraphHomePage: React.FC<GraphHomePageProps> = ({ onNavigate }) => {
 
       <header className="text-center relative py-4 px-20">
         <div className="flex items-center justify-center gap-3">
-            <ArchitectureIcon type={IconType.Graph} className="w-8 h-8 text-[var(--color-accent-text)]" />
+            <ArchitectureIcon type={IconType.GraphLine} className="w-8 h-8 text-[var(--color-accent-text)]" />
             <div>
                 <h1 className="text-xl font-bold">Graph Modeler</h1>
                 <p className="text-sm text-[var(--color-text-secondary)]">Generate charts and graphs from data descriptions.</p>
@@ -81,19 +81,32 @@ export const GraphHomePage: React.FC<GraphHomePageProps> = ({ onNavigate }) => {
                 initial="hidden"
                 animate="visible"
             >
-                {graphTypes.map((graph) => (
-                    <motion.button
-                        key={graph.name}
-                        variants={itemVariants}
-                        whileHover={{ scale: 1.05, y: -5 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="p-4 flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-input)] rounded-xl border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:shadow-lg hover:shadow-[var(--color-accent-soft)] transition-all"
-                        // onClick={() => alert(`Selected: ${graph.name}`)}
-                    >
-                        <ArchitectureIcon type={graph.icon} className="w-10 h-10 text-[var(--color-text-secondary)]" />
-                        <span className="text-sm font-semibold text-center">{graph.name}</span>
-                    </motion.button>
-                ))}
+                {graphTypes.map((graph) => {
+                    const isEnabled = graph.name === 'Pie Chart';
+                    return (
+                        <motion.button
+                            key={graph.name}
+                            variants={itemVariants}
+                            whileHover={{ scale: 1.05, y: -5 }}
+                            whileTap={{ scale: 0.95 }}
+                            className={`p-4 flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-input)] rounded-xl border  transition-all
+                                ${isEnabled 
+                                    ? 'border-[var(--color-border)] hover:border-[var(--color-accent)] hover:shadow-lg hover:shadow-[var(--color-accent-soft)]'
+                                    : 'border-[var(--color-border)] opacity-50 cursor-not-allowed'
+                                }
+                            `}
+                            onClick={() => isEnabled && onNavigate('graph/pie')}
+                            disabled={!isEnabled}
+                            title={isEnabled ? graph.name : `${graph.name} (Coming Soon)`}
+                        >
+                            <ArchitectureIcon type={graph.icon} className="w-10 h-10 text-[var(--color-text-secondary)]" />
+                            <span className="text-sm font-semibold text-center">{graph.name}</span>
+                             {!isEnabled && (
+                                <span className="text-xs bg-[var(--color-button-bg-hover)] px-2 py-0.5 rounded-full">Soon</span>
+                            )}
+                        </motion.button>
+                    );
+                 })}
             </motion.div>
         </div>
       </div>

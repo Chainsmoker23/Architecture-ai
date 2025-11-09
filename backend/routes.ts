@@ -1,12 +1,11 @@
-// Use namespaced express types to avoid collision with global Request/Response types.
-// FIX: Removed unused aliased imports for Request and Response.
 import express from 'express';
 import { 
     generateDiagram, 
     generateNeuralNetwork, 
     generateGraph, 
     explainArchitecture, 
-    chatWithAssistant 
+    chatWithAssistant,
+    generatePieChart
 } from './controllers/generationController';
 import { 
     createCheckoutSession, 
@@ -38,6 +37,7 @@ router.post('/create-checkout-session', express.json(), createCheckoutSession);
 router.post('/api/generate-diagram', express.json(), generateDiagram);
 router.post('/api/generate-neural-network', express.json(), generateNeuralNetwork);
 router.post('/api/generate-graph', express.json(), generateGraph);
+router.post('/api/generate-pie-chart', express.json(), generatePieChart);
 router.post('/api/explain-architecture', express.json(), explainArchitecture);
 router.post('/api/chat', express.json(), chatWithAssistant);
 

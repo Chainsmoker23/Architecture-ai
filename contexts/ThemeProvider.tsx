@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 
 type Theme = 'light' | 'slate' | 'midnight';
@@ -128,14 +126,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const themeProperties = themes[theme];
     
     Object.entries(themeProperties).forEach(([key, value]) => {
-      // FIX: Explicitly cast value to string to satisfy setProperty's type requirement.
       root.style.setProperty(key, value as string);
     });
 
     try {
       window.localStorage.setItem('app-theme', theme);
     } catch (error) {
-      // FIX: The error object in a catch block is of type 'unknown' and must be explicitly cast to a string to be used in a template literal.
       console.error(`Could not access localStorage to save theme: ${String(error)}`);
     }
   }, [theme]);

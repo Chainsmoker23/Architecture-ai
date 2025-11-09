@@ -1,5 +1,5 @@
-// FIX: Import express namespace to resolve type conflicts.
-import * as express from 'express';
+// FIX: Changed import to use named exports from express to resolve type conflicts.
+import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../supabaseClient';
@@ -14,8 +14,7 @@ const dodo = new DodoPayments(DODO_SECRET_KEY);
 
 // --- CONTROLLER FUNCTIONS ---
 
-// FIX: Use namespaced express types for request and response objects.
-export const serveMockPaymentPage = (req: express.Request, res: express.Response) => {
+export const serveMockPaymentPage = (req: Request, res: Response) => {
     const { sessionId } = req.query;
     if (typeof sessionId !== 'string' || !mockSessions.has(sessionId)) {
         return res.status(404).send('Session not found or has expired.');
@@ -24,8 +23,7 @@ export const serveMockPaymentPage = (req: express.Request, res: express.Response
     res.send(dodo.getPaymentPage(sessionId, session));
 };
 
-// FIX: Use namespaced express types for request and response objects.
-export const confirmMockPayment = async (req: express.Request, res: express.Response) => {
+export const confirmMockPayment = async (req: Request, res: Response) => {
     const { sessionId } = req.body;
     if (typeof sessionId !== 'string' || !mockSessions.has(sessionId)) {
         return res.status(404).send('Session not found or has expired.');
@@ -38,8 +36,7 @@ export const confirmMockPayment = async (req: express.Request, res: express.Resp
     res.redirect(303, session.success_url);
 };
 
-// FIX: Use namespaced express types for request and response objects.
-export const handleDodoWebhook = async (req: express.Request, res: express.Response) => {
+export const handleDodoWebhook = async (req: Request, res: Response) => {
     const signature = req.headers['dodo-signature'];
     if (!signature || typeof signature !== 'string') {
         return res.status(400).send('Webhook Error: Missing signature.');
@@ -94,8 +91,7 @@ export const handleDodoWebhook = async (req: express.Request, res: express.Respo
     res.status(200).send({ received: true });
 };
 
-// FIX: Use namespaced express types for request and response objects.
-export const createCheckoutSession = async (req: express.Request, res: express.Response) => {
+export const createCheckoutSession = async (req: Request, res: Response) => {
     const { priceId } = req.body;
     const user = await authenticateUser(req);
     

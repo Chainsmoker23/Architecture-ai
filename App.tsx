@@ -13,28 +13,30 @@ import NeuralNetworkPage from './components/NeuralNetworkPage';
 import CareersPage from './components/CareersPage';
 import ResearchPage from './components/ResearchPage';
 import { GraphHomePage } from './components/GraphHome/GraphHomePage';
+import PieChartPage from './components/GraphHome/PieChartPage';
 import GeneralArchitecturePage from './components/GeneralArchitecturePage';
 import Loader from './components/Loader';
 import { useAuth } from './contexts/AuthContext';
 
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
 
-const getPageFromHash = (): Page => {
+const getPageFromHash = (): { page: Page; subpage?: string } => {
   const hash = window.location.hash.substring(1).split('?')[0];
   if (!hash) {
-    return 'landing';
+    return { page: 'landing' };
   }
+  const [mainPage, subpage] = hash.split('/');
   const validPages: Page[] = ['landing', 'auth', 'app', 'contact', 'about', 'sdk', 'apiKey', 'privacy', 'terms', 'docs', 'neuralNetwork', 'careers', 'research', 'graph'];
-  if (validPages.includes(hash as Page)) {
-    return hash as Page;
+  if (validPages.includes(mainPage as Page)) {
+    return { page: mainPage as Page, subpage };
   }
-  return 'landing';
+  return { page: 'landing' };
 };
 
 
 const App: React.FC = () => {
   const { currentUser, loading: authLoading } = useAuth();
-  const [page, setPage] = useState<Page | null>(null);
+  const [page, setPage] = useState<{ page: Page; subpage?: string } | null>(null);
 
   // State to reactively track the URL hash.
   const [hash, setHash] = useState(() => window.location.hash);
@@ -46,8 +48,8 @@ const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const onNavigate = useCallback((targetPage: Page) => {
-    const currentHashPage = getPageFromHash();
+  const onNavigate = useCallback((targetPage: Page | string) => {
+    const currentHashPage = window.location.hash.substring(1).split('?')[0];
     if (currentHashPage !== targetPage) {
         window.scrollTo(0, 0);
         window.location.hash = targetPage;
@@ -66,22 +68,22 @@ const App: React.FC = () => {
         return; 
     }
     
-    const currentPage = getPageFromHash();
+    const currentPageInfo = getPageFromHash();
 
     // --- 3. PERSISTENT REDIRECT RULES ---
-    if (currentUser && currentPage === 'auth') {
+    if (currentUser && currentPageInfo.page === 'auth') {
       onNavigate('app');
       return;
     }
     
-    const isProtectedPage = currentPage === 'app' || currentPage === 'neuralNetwork' || currentPage === 'graph';
+    const isProtectedPage = currentPageInfo.page === 'app' || currentPageInfo.page === 'neuralNetwork' || currentPageInfo.page === 'graph';
     if (!currentUser && isProtectedPage) {
       onNavigate('landing');
       return;
     }
 
     // --- 4. PAGE RESOLUTION ---
-    setPage(currentPage);
+    setPage(currentPageInfo);
 
   }, [authLoading, currentUser, onNavigate, hash]);
 
@@ -96,46 +98,49 @@ const App: React.FC = () => {
   }
   
   // --- Page rendering logic ---
-  if (page === 'landing') {
+  if (page.page === 'landing') {
     return <LandingPage onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
-  if (page === 'auth') {
+  if (page.page === 'auth') {
     return <AuthPage onBack={() => onNavigate('landing')} />;
   }
-  if (page === 'contact') {
+  if (page.page === 'contact') {
     return <ContactPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'about') {
+  if (page.page === 'about') {
     return <AboutPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
-  if (page === 'sdk') {
+  if (page.page === 'sdk') {
     return <SdkPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'apiKey') {
+  if (page.page === 'apiKey') {
     return <ApiKeyPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
-  if (page === 'privacy') {
+  if (page.page === 'privacy') {
     return <PrivacyPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'terms') {
+  if (page.page === 'terms') {
     return <TermsPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'docs') {
+  if (page.page === 'docs') {
     return <DocsPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigateToSdk={() => onNavigate('sdk')} onNavigate={onNavigate} />;
   }
-  if (page === 'neuralNetwork') {
+  if (page.page === 'neuralNetwork') {
     return <NeuralNetworkPage onNavigate={onNavigate} />;
   }
-  if (page === 'careers') {
+  if (page.page === 'careers') {
     return <CareersPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'research') {
+  if (page.page === 'research') {
     return <ResearchPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
-  if (page === 'graph') {
+  if (page.page === 'graph') {
+    if (page.subpage === 'pie') {
+      return <PieChartPage onNavigate={onNavigate} />;
+    }
     return <GraphHomePage onNavigate={onNavigate} />;
   }
-  if (page === 'app') {
+  if (page.page === 'app') {
     return <GeneralArchitecturePage onNavigate={onNavigate} />;
   }
 

@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
 import type { DiagramData, Node } from '../types';
 import { IconType } from '../types';
 import { generateNeuralNetworkData } from '../services/geminiService';
@@ -9,7 +8,6 @@ import ArchitectureIcon from './ArchitectureIcon';
 import NeuralNetworkCanvas from './NeuralNetworkCanvas';
 import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
-// FIX: Corrected import path for Logo component.
 import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 import SettingsSidebar from './SettingsSidebar';
@@ -17,7 +15,7 @@ import SettingsSidebar from './SettingsSidebar';
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
 
 interface NeuralNetworkPageProps {
-  onNavigate: (page: Page) => void;
+  onNavigate: (page: Page | string) => void;
 }
 
 const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => {
@@ -33,7 +31,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
   });
 
   const { theme, setTheme } = useTheme();
-  // FIX: Update theme options to use valid Theme types from the global context.
   const themeOptions = [
     { value: 'light', label: 'Light' },
     { value: 'slate', label: 'Slate' },
@@ -46,8 +43,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // FIX: Explicitly cast `event.target` to `Node` to resolve compiler confusion caused by a name collision.
-      // FIX: Corrected typo from `exportMenu-ref` to `exportMenuRef`.
       if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target)) {
         setIsExportMenuOpen(false);
       }
@@ -95,7 +90,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
     originalElements.forEach((sourceEl, index) => {
         const targetEl = clonedElements[index] as SVGElement;
         if (targetEl && targetEl.style) {
-            // FIX: Explicitly cast sourceEl to globalThis.Element to resolve type ambiguity caused by 'Node' type collision.
             const computedStyle = window.getComputedStyle(sourceEl as globalThis.Element);
             let cssText = '';
             for (let i = 0; i < computedStyle.length; i++) {
@@ -106,8 +100,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
         }
     });
     
-    // FIX: Use a generic type argument with querySelector to specify the returned element type,
-    // which avoids type conflicts with the imported 'Node' interface.
     const contentGroup = svgElement.querySelector<SVGGElement>('#diagram-content');
     if (!contentGroup) {
         setError("Export failed: Diagram content not found.");
@@ -133,8 +125,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
     bgRect.setAttribute('fill', bgColor);
     exportRoot.appendChild(bgRect);
 
-    // FIX: Use a generic type argument with querySelector to specify the returned element type,
-    // which avoids type conflicts with the imported 'Node' interface.
     const clonedContentGroup = svgClone.querySelector<SVGGElement>('#diagram-content');
     if (clonedContentGroup) {
         clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
@@ -190,7 +180,6 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
       }
       setDiagramData(data);
     } catch (err) {
-      // FIX: Explicitly convert the unknown error object to a string for safe logging.
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
       if (errorMessage.includes('GENERATION_LIMIT_EXCEEDED')) {

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
-import type { DiagramData, Node, Container, Link } from '../types';
+// FIX: Aliased Node to ArchNode to avoid conflicts with the global DOM Node type.
+import type { DiagramData, Node as ArchNode, Container, Link } from '../types';
 import { IconType } from '../types';
 import { generateDiagramData, explainArchitecture } from '../services/geminiService';
 import PromptInput from './PromptInput';
@@ -363,7 +364,7 @@ const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNav
   const selectedItem = useMemo(() => {
     if (!diagramData || selectedIds.length !== 1) return null;
     const selectedId = selectedIds[0];
-    const items: (Node | Container | Link)[] = [
+    const items: (ArchNode | Container | Link)[] = [
         ...(diagramData.nodes || []),
         ...(diagramData.containers || []),
         ...(diagramData.links || []),
@@ -371,7 +372,7 @@ const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNav
     return items.find(item => item.id === selectedId) || null;
   }, [diagramData, selectedIds]);
 
-  const handlePropertyChange = (itemId: string, newProps: Partial<Node | Container | Link>) => {
+  const handlePropertyChange = (itemId: string, newProps: Partial<ArchNode | Container | Link>) => {
     if (!diagramData) return;
     const newNodes = diagramData.nodes.map(n => n.id === itemId ? {...n, ...newProps} : n);
     const newContainers = diagramData.containers?.map(c => c.id === itemId ? {...c, ...newProps as Partial<Container>} : c);

@@ -1,4 +1,4 @@
-import { DiagramData, Node, GraphData } from "../types";
+import { DiagramData, Node, GraphData, PieChartData } from "../types";
 import type { Content } from "@google/genai";
 import { supabase } from '../supabaseClient';
 
@@ -93,6 +93,17 @@ export const generateGraphData = async (prompt: string, userApiKey?: string): Pr
         throw error;
     }
 };
+
+export const generatePieChartData = async (prompt: string, userApiKey?: string): Promise<PieChartData> => {
+    try {
+        const parsedData = await fetchFromApi('/generate-pie-chart', { prompt, userApiKey });
+        return parsedData as PieChartData;
+    } catch (error) {
+        console.error("Error fetching pie chart data from backend:", String(error));
+        throw error;
+    }
+};
+
 
 export const explainArchitecture = async (diagramData: DiagramData, userApiKey?: string): Promise<string> => {
     try {
