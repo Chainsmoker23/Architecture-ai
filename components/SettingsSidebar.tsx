@@ -24,12 +24,12 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   const [editingKey, setEditingKey] = useState(userApiKey || '');
   const [showSaved, setShowSaved] = useState(false);
 
-  const userPlan = currentUser?.user_metadata?.plan;
-
-  // The "Bring Your Own Key" feature is only for Pro and Business users.
-  const isPremiumUser = userPlan && ['pro', 'business'].includes(String(userPlan).toLowerCase());
-
-
+  const plan = currentUser?.user_metadata?.plan || 'free';
+  const isFreeUser = plan === 'free';
+  const isPremiumUser = ['pro', 'business'].includes(plan);
+  const generationCount = currentUser?.user_metadata?.generation_count || 0;
+  const generationsRemaining = 30 - generationCount;
+  const usagePercentage = Math.min((generationCount / 30) * 100, 100);
  
   useEffect(() => {
     // Sync local state if the userApiKey prop changes from outside
@@ -136,13 +136,13 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                                   </svg>
                               </div>
                           )}
-                          {userPlan && userPlan !== 'free' && !isPremiumUser && (
+                          {plan && plan !== 'free' && !isPremiumUser && (
                               <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-gray-400 to-gray-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
-                                  {String(userPlan).charAt(0).toUpperCase() + String(userPlan).slice(1)}
+                                  {String(plan).charAt(0).toUpperCase() + String(plan).slice(1)}
                               </div>
                           )}
                           <div className="flex-shrink-0">
-                              <img src={currentUser.user_metadata?.avatar_url || undefined} alt="User avatar" className="w-12 h-12 rounded-full object-cover" />
+                              <img src={currentUser.user_metadata?.custom_avatar_url || currentUser.user_metadata?.avatar_url || undefined} alt="User avatar" className="w-12 h-12 rounded-full object-cover" />
                             
                           </div>
 
@@ -174,6 +174,27 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                           ))}
                       </div>
                   </div>
+
+                  {isFreeUser && (
+                     <div>
+                        <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Usage</h3>
+                        <div className="p-4 rounded-xl border border-[var(--color-border)]">
+                          <div className="flex justify-between items-center mb-1">
+                            <p className="text-sm text-[var(--color-text-secondary)]">Generations Remaining</p>
+                            <p className="text-sm font-semibold">{generationsRemaining > 0 ? generationsRemaining : 0} / 30</p>
+                          </div>
+                          <div className="w-full bg-[var(--color-bg-input)] rounded-full h-2.5 border border-[var(--color-border)]">
+                            <div className="bg-[var(--color-accent)] h-2 rounded-full" style={{ width: `${100 - usagePercentage}%` }}></div>
+                          </div>
+                           <button 
+                                onClick={() => { onNavigate('sdk'); setIsOpen(false); }}
+                                className="w-full mt-4 bg-[var(--color-accent)] text-[var(--color-accent-text-strong)] text-sm font-semibold py-2 px-3 rounded-lg hover:opacity-90 transition-opacity"
+                           >
+                                Upgrade to Pro
+                           </button>
+                        </div>
+                    </div>
+                  )}
                   
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Modelers</h3>

@@ -19,5 +19,13 @@ export default defineConfig(({ mode }) => {
       'process.env.VITE_DODO_PUBLISHABLE_KEY': JSON.stringify(env.VITE_DODO_PUBLISHABLE_KEY),
       'process.env.VITE_API_KEY': JSON.stringify(env.VITE_API_KEY),
     },
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
+    },
   };
 });

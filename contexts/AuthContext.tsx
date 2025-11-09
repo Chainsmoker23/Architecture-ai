@@ -11,6 +11,8 @@ interface AuthContextType {
     signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
     signInWithEmail: (email: string, password: string) => Promise<void>;
     signOut: () => void;
+    pollForPlanUpdate: (expectedPlan: string) => Promise<void>;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,13 +30,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const syncUserSession = async (session: Session | null) => {
         const user = session?.user;
 
-        if (user && !user.user_metadata?.has_custom_avatar) {
-            // This is a new user. We must assign an avatar and wait for the update to complete
+        if (user && !user.user_metadata?.custom_avatar_url) {
+            // This is a new user or a user without our custom avatar.
+            // We must assign an avatar and wait for the update to complete
             // before setting the user in the state to prevent showing the social media picture.
             const { data: { user: updatedUser }, error: updateError } = await supabase.auth.updateUser({
                 data: {
-                    avatar_url: getRandomAvatarUrl(),
-                    has_custom_avatar: true,
+                    // Save to a separate field to avoid being overwritten by social provider.
+                    custom_avatar_url: getRandomAvatarUrl(),
                 }
             });
 
@@ -53,7 +56,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoading(false);
     };
 
-
     useEffect(() => {
         // On initial load, get the session and synchronize the user.
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -62,16 +64,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Then, listen for any subsequent auth events.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            // A user's plan is updated via a webhook, and the frontend calls refreshSession(),
-            // which triggers this event. We sync the session to get the new plan details.
             if (event === 'USER_UPDATED') {
                 setCurrentUser(session?.user ?? null);
             } 
-            // This handles logins. We run the full sync process.
             else if (event === 'SIGNED_IN') {
                 await syncUserSession(session);
             } 
-            // This handles logouts.
             else if (event === 'SIGNED_OUT') {
                 setCurrentUser(null);
             }
@@ -81,6 +79,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             subscription.unsubscribe();
         };
     }, []);
+
+    const pollForPlanUpdate = async (expectedPlan: string) => {
+        const MAX_RETRIES = 6;
+        const RETRY_DELAY = 1000; // 1 second
+    
+        for (let i = 0; i < MAX_RETRIES; i++) {
+            const { data: { user }, error } = await supabase.auth.getUser();
+    
+            if (error) {
+                console.error("Error fetching user during poll:", error);
+                break; 
+            }
+    
+            if (user && user.user_metadata?.plan === expectedPlan) {
+                console.log(`Plan updated to ${expectedPlan}!`);
+                setCurrentUser(user);
+                return;
+            }
+    
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        }
+    
+        console.warn(`User plan did not update to ${expectedPlan} after ${MAX_RETRIES} retries. Falling back to refreshSession.`);
+        supabase.auth.refreshSession();
+    };
+
+    const refreshUser = async () => {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) {
+            console.error("Error refreshing user data:", error.message);
+        } else {
+            setCurrentUser(user);
+        }
+    };
     
     const signInWithGoogle = async () => {
         const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
@@ -124,6 +156,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signUpWithEmail,
         signInWithEmail,
         signOut,
+        pollForPlanUpdate,
+        refreshUser,
     };
 
     return (

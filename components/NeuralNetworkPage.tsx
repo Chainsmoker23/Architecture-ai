@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
@@ -12,6 +10,7 @@ import NeuralNetworkCanvas from './NeuralNetworkCanvas';
 import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
 import Logo from './Logo';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NeuralNetworkPageProps {
   onBack: () => void;
@@ -22,6 +21,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
   const [diagramData, setDiagramData] = useState<DiagramData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser, refreshUser } = useAuth();
 
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   const [userApiKey, setUserApiKey] = useState<string | null>(() => {
@@ -180,12 +180,17 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     try {
       const apiKeyToUse = keyOverride || userApiKey;
       const data = await generateNeuralNetworkData(prompt, apiKeyToUse || undefined);
+      if (currentUser) {
+          await refreshUser();
+      }
       setDiagramData(data);
     } catch (err) {
       // FIX: Explicitly convert the unknown error object to a string for safe logging.
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
+      if (errorMessage.includes('GENERATION_LIMIT_EXCEEDED')) {
+          setError("You've used all 30 free generations. Please upgrade to continue.");
+      } else if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
           setShowApiKeyModal(true);
           setError(null);
       } else {
@@ -195,7 +200,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [prompt, userApiKey]);
+  }, [prompt, userApiKey, currentUser, refreshUser]);
 
   const handleSaveAndRetryApiKey = (key: string) => {
     setUserApiKey(key);

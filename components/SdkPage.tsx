@@ -59,10 +59,11 @@ const CodeBlock: React.FC<{ code: string }> = ({ code }) => (
 );
 
 const SdkPage: React.FC<SdkPageProps> = ({ onBack, onNavigate }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, pollForPlanUpdate } = useAuth();
     const userPlan = currentUser?.user_metadata?.plan;
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
+    const [isUpgrading, setIsUpgrading] = useState(false);
 
     const codeExample = `import { CubeGenAI } from '@cubegen/sdk';
 
@@ -80,21 +81,32 @@ async function generate() {
     const typedCode = useTypewriter(codeExample, true, 10);
     
     useEffect(() => {
-        // Parse params from the hash, not the search query, because we use hash-based routing.
-        const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
-        if (hashParams.get('payment') === 'success') {
-            setToast({ message: 'Payment successful! Your plan is now active.', type: 'success' });
-            // Force a session refresh to get the latest user data (including the new plan).
-            // This will trigger the onAuthStateChange listener and update the UI.
-            supabase.auth.refreshSession();
-            // Clean the URL to just #sdk to prevent the message from re-appearing on refresh.
-            window.history.replaceState({}, document.title, window.location.pathname + '#sdk');
-        }
-        if (hashParams.get('payment') === 'cancelled') {
-            setToast({ message: 'Payment was cancelled.', type: 'error' });
-            window.history.replaceState({}, document.title, window.location.pathname + '#sdk');
-        }
-    }, []);
+        const handlePaymentSuccess = async () => {
+            const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
+            const paymentStatus = hashParams.get('payment');
+            const planName = hashParams.get('plan');
+
+            if (paymentStatus === 'success' && planName) {
+                setIsUpgrading(true);
+                setToast(null);
+
+                window.history.replaceState({}, document.title, window.location.pathname + '#sdk');
+                
+                await pollForPlanUpdate(planName);
+
+                setIsUpgrading(false);
+                const capitalizedPlan = planName.charAt(0).toUpperCase() + planName.slice(1);
+                setToast({ message: `Upgrade successful! Your ${capitalizedPlan} plan is now active.`, type: 'success' });
+
+            } else if (paymentStatus === 'cancelled') {
+                setToast({ message: 'Payment was cancelled.', type: 'error' });
+                window.history.replaceState({}, document.title, window.location.pathname + '#sdk');
+            }
+        };
+
+        handlePaymentSuccess();
+    }, [pollForPlanUpdate]);
+
 
     const handlePlanClick = async (priceId: string) => {
         if (!currentUser) {
@@ -189,6 +201,14 @@ async function generate() {
         <div className="bg-white text-[#2B2B2B] overflow-x-hidden">
             <AnimatePresence>
                 {toast && <Toast message={toast.message} onDismiss={() => setToast(null)} />}
+                {isUpgrading && (
+                    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+                        <div className="bg-white text-gray-800 text-sm font-medium px-4 py-2 rounded-full shadow-lg border border-gray-200 flex items-center gap-2">
+                            <svg className="animate-spin h-4 w-4 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Finalizing your upgrade...
+                        </div>
+                    </div>
+                )}
             </AnimatePresence>
             <header className="absolute top-0 left-0 w-full p-6 z-20">
                 <button onClick={onBack} className="flex items-center gap-2 font-semibold text-[#555555] hover:text-[#2B2B2B] transition-colors pulse-subtle">

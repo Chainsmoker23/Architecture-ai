@@ -60,7 +60,7 @@ const getPageFromHash = (): Page => {
 
 
 const App: React.FC = () => {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading, refreshUser } = useAuth();
   const [page, setPage] = useState<Page | null>(null);
 
   // State to reactively track the URL hash.
@@ -373,6 +373,11 @@ const App: React.FC = () => {
     try {
       const apiKeyToUse = keyOverride || userApiKey;
       const data = await generateDiagramData(prompt, apiKeyToUse || undefined);
+      
+      if (currentUser) {
+        await refreshUser();
+      }
+
       setHistory([data]);
       setHistoryIndex(0);
       // Add a small delay for the canvas to render before fitting
@@ -381,7 +386,9 @@ const App: React.FC = () => {
       // FIX: Explicitly convert the unknown error object to a string for safe logging.
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
+      if (errorMessage.includes('GENERATION_LIMIT_EXCEEDED')) {
+          setError("You've used all 30 free generations. Please upgrade to continue.");
+      } else if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
           const userPlan = currentUser?.user_metadata?.plan;
           const isPremiumUser = userPlan && ['pro', 'business'].includes(String(userPlan).toLowerCase());
 
@@ -400,7 +407,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [prompt, userApiKey, currentUser]);
+  }, [prompt, userApiKey, currentUser, refreshUser]);
   
   const handleExplain = useCallback(async (keyOverride?: string) => {
     if (!diagramData) return;

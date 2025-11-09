@@ -211,6 +211,29 @@
         box-shadow: 0 0 18px 4px var(--color-accent-soft), 0 0 8px 2px var(--color-accent);
         border-color: var(--color-accent);
       }
+
+      /* --- LOADER ANIMATION STYLES --- */
+      .loader-path {
+          stroke-dasharray: 500;
+          stroke-dashoffset: 500;
+          animation: draw 3s ease-in-out infinite;
+      }
+      .loader-node {
+          animation: pop-in 3s ease-in-out infinite .3s;
+          transform-origin: center;
+          transform: scale(0);
+      }
+      @keyframes draw {
+          0% { stroke-dashoffset: 500; }
+          40% { stroke-dashoffset: 0; }
+          60% { stroke-dashoffset: 0; }
+          100% { stroke-dashoffset: -500; }
+      }
+      @keyframes pop-in {
+          0% { transform: scale(0); }
+          30% { transform: scale(1.1); }
+          50%, 100% { transform: scale(1); }
+      }
     </style>
   <script type="importmap">
 {

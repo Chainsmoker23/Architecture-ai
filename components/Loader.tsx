@@ -25,29 +25,6 @@ const Loader: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center gap-4">
         <svg width="80" height="80" viewBox="0 0 100 100" strokeLinecap="round" strokeLinejoin="round">
-            <style>{`
-                .loader-path {
-                    stroke-dasharray: 500;
-                    stroke-dashoffset: 500;
-                    animation: draw 3s ease-in-out infinite;
-                }
-                .loader-node {
-                    animation: pop-in 3s ease-in-out infinite .3s; /* Delay pop-in until after lines start drawing */
-                    transform-origin: center;
-                    transform: scale(0);
-                }
-                @keyframes draw {
-                    0% { stroke-dashoffset: 500; }
-                    40% { stroke-dashoffset: 0; }
-                    60% { stroke-dashoffset: 0; }
-                    100% { stroke-dashoffset: -500; }
-                }
-                @keyframes pop-in {
-                    0% { transform: scale(0); }
-                    30% { transform: scale(1.1); }
-                    50%, 100% { transform: scale(1); }
-                }
-            `}</style>
             <g stroke="var(--color-accent-text)" strokeWidth="2.5" fill="none">
                 {/* Main Bus Line */}
                 <path className="loader-path" style={{ animationDelay: '0s' }} d="M 20 50 H 80" />
