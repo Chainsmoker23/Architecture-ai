@@ -517,7 +517,8 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
                 .on('drag', (event) => handleResize(event.dx, event.dy, handle))
                 .on('end', () => props.onDataChange(dataRef.current, false));
             selection.call(dragBehavior);
-            return () => selection.on('.drag', null);
+// FIX: The cleanup function for useEffect must return `void`. This ensures no value is returned from the cleanup function.
+            return () => { selection.on('.drag', null); };
         }, []);
 
         const getCoords = () => {

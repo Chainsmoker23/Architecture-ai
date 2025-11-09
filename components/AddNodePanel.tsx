@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { ICONS } from '../constants';
+import { ICONS } from './content/iconConstants';
 import { IconType } from '../types';
 import ArchitectureIcon from './ArchitectureIcon';
 

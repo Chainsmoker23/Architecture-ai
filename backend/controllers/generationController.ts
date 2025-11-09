@@ -1,6 +1,5 @@
-// FIX: Import express namespace to resolve type conflicts.
-// FIX: Changed import to use named exports from express to resolve type conflicts.
-import { Request, Response } from 'express';
+// FIX: Changed imports to use the `express` namespace for `Request` and `Response` types to resolve type conflicts.
+import * as express from 'express';
 import { GoogleGenAI, Type } from "@google/genai";
 import { authenticateUser, checkAndIncrementGenerationCount } from '../userUtils';
 
@@ -183,7 +182,7 @@ const getGenAIClient = (userApiKey?: string) => {
 };
 
 // FIX: Use namespaced express types for request and response objects.
-const handleGeminiError = (error: unknown, res: Response, userApiKey?: string) => {
+const handleGeminiError = (error: unknown, res: express.Response, userApiKey?: string) => {
     console.error("[Backend] Gemini API Error:", String(error));
     const errorMessage = error instanceof Error ? error.message : String(error);
     let clientMessage = "Failed to process request. The model may have returned an invalid format or an unexpected error occurred.";
@@ -202,7 +201,7 @@ const handleGeminiError = (error: unknown, res: Response, userApiKey?: string) =
 // --- CONTROLLER FUNCTIONS ---
 
 // FIX: Use namespaced express types for request and response objects.
-const generationEndpoint = async (req: Request, res: Response, schema: any, modelPrompt: string) => {
+const generationEndpoint = async (req: express.Request, res: express.Response, schema: any, modelPrompt: string) => {
     const { prompt, userApiKey } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
 
@@ -243,25 +242,25 @@ const generationEndpoint = async (req: Request, res: Response, schema: any, mode
 }
 
 // FIX: Use namespaced express types for request and response objects.
-export const generateDiagram = async (req: Request, res: Response) => {
+export const generateDiagram = async (req: express.Request, res: express.Response) => {
     const modelPrompt = `Generate a professional software architecture diagram based on the following prompt: "${'${prompt}'}". The output must be a valid JSON object adhering to the specified schema. **CRITICAL RULE: Link Label Budget** You MUST strictly control the number of link labels to keep the diagram clean. - For **small diagrams** (fewer than 8 nodes), you MUST use a maximum of **3-4 labels**. - For **large diagrams** (8 nodes or more), you MUST use a maximum of **5-8 labels**. - **ONLY** label the most critical, non-obvious data flows. DO NOT label simple connections like 'request' or 'response' if the flow is already clear. Your primary goal is to minimize text on the diagram. **Layout Strategy:** Based on the prompt, you MUST choose ONE of the following layout strategies that best represents the architecture. 1. **Hierarchical (Top-to-Bottom):** Use this for request flows or n-tier architectures. Arrange components in horizontal tiers. Entry-points ('User', 'WebApp') go at the top, services in the middle, and data stores ('Database') at the bottom. Flow is primarily downwards. 2. **Hub-and-Spoke (Centralized):** Use this for event-driven systems or microservice architectures with a central component (e.g., API Gateway, Message Bus). Place the central "hub" component in the middle of the canvas. Arrange the "spoke" components radiating around it. 3. **Pipeline (Left-to-Right):** Use this for data processing pipelines (ETL), CI/CD workflows, or any sequential process. Arrange components in a clear horizontal flow from left to right. **General Layout Guidelines:** 1. **Proactive Grouping**: Use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components logically. 2. **Spacing & Alignment**: Ensure generous and consistent spacing. Align nodes within their logical group (e.g., horizontally within a tier, or vertically in a pipeline stage). There must be NO overlaps between any nodes or containers. 3. **Sizing**: Choose an appropriate 'width' and 'height' for each node. Minimum width 120, height 80. 4. **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left. 5. **IDs**: Ensure all 'id' fields are unique, kebab-case strings. 6. **Connectivity**: Make sure all 'source' and 'target' IDs correspond to existing node IDs. 7. **Bidirectional Communication**: When two components have a clear two-way communication flow, it is often clearer to represent this with TWO separate, unidirectional links. However, for simpler cases, you may use a single link with 'bidirectional: true'. 8. **Description**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type'. 9. **Compactness & Proximity**: Strive for a compact layout. Minimize unnecessary whitespace. Components that communicate frequently should be placed closer to each other. 10. **Final Review Step**: Mentally review your generated diagram. Is it logical, balanced, and does it match the chosen layout strategy? Correct any deviations. **ULTRA-STRICT Instructions for Neural Network Diagrams:** If the prompt describes a "neural network", "ANN", "deep learning model", or similar, you MUST abandon all other layout rules and follow these rules EXCLUSIVELY. 1. **Node Types:** You can ONLY use two node types: \`'neuron'\` and \`'layer-label'\`. 2. **Neuron Nodes (\`type: 'neuron'\`):** * **Purpose:** Represents a single neuron. They are rendered as glossy spheres. * **JSON Properties:** \`label\` and \`description\` MUST be an empty string (\`""\`). \`width\` and \`height\` MUST be equal and small (e.g., \`30\` or \`40\`). \`shape\` MUST be \`'ellipse'\`. \`color\` MUST be \`'#2B2B2B'\` for input/output neurons and \`'#D1D5DB'\` for hidden neurons. 3. **Layer Label Nodes (\`type: 'layer-label'\`):** * **Purpose:** To label a vertical layer of neurons (e.g., 'Input', 'Hidden', 'Output'). They are rendered as text only. * **JSON Properties:** The node MUST be positioned horizontally centered with its layer, and vertically positioned 40px above the topmost neuron of that layer. \`description\` MUST be an empty string (\`""\`). 4. **Layout:** * Neurons MUST be arranged in perfectly vertical columns (layers). All neurons in a layer share the same X-coordinate. * Layers MUST be spaced far apart horizontally (e.g., 250-300px between layer X-coordinates). * Neurons within a layer MUST be spaced perfectly and evenly in their vertical column. 5. **Connectivity (Links):** * The network MUST be fully connected. Every neuron in a layer \`N\` MUST have a link pointing to EVERY neuron in the next layer \`N+1\`. * All links MUST be directed from a lower layer number to the next layer on the right. They must be \`'solid'\` and \`'thin'\`. * The \`label\` for all links between neurons MUST be an empty string (\`""\`). 6. **DO NOT:** Do not create large container boxes for layers. Do not put labels inside neuron nodes. The only labels are the separate \`'layer-label'\` nodes.`;
     await generationEndpoint(req, res, responseSchema, modelPrompt);
 };
 
 // FIX: Use namespaced express types for request and response objects.
-export const generateNeuralNetwork = async (req: Request, res: Response) => {
+export const generateNeuralNetwork = async (req: express.Request, res: express.Response) => {
     const modelPrompt = `Generate a neural network diagram structure from the prompt: "${'${prompt}'}". **VERY STRICT RULES:** 1. Parse the prompt to identify the layers (input, hidden, output) and the number of neurons in each. 2. Create a 'node' object for EACH neuron. 3. Create one 'node' object for EACH layer's label (e.g., 'Input', 'Hidden 1', 'Output'). 4. For ALL nodes (neurons and labels), assign a \`layer\` number, starting with 0 for the input layer. All nodes in the same vertical layer must have the same \`layer\` number. 5. For neuron nodes: \`type\` must be 'neuron', \`label\` must be an empty string. Assign colors appropriately ('#2B2B2B' for input/output, '#D1D5DB' for hidden). 6. For label nodes: \`type\` must be 'layer-label', \`label\` is the name of the layer. 7. Create 'link' objects for a fully-connected network between adjacent layers. All links must go from a lower layer number to a higher one. 8. Do NOT include 'x', 'y', 'width', 'height', 'description', or 'shape' properties. They will be ignored. Only provide properties defined in the schema.`;
     await generationEndpoint(req, res, neuralNetworkResponseSchema, modelPrompt);
 };
 
 // FIX: Use namespaced express types for request and response objects.
-export const generateGraph = async (req: Request, res: Response) => {
+export const generateGraph = async (req: express.Request, res: express.Response) => {
     const modelPrompt = `You are a data visualization expert. Your task is to convert a user's natural language description into a valid JSON object representing a graph, strictly adhering to the provided schema. Analyze the user's prompt to extract data points, series labels, axis labels, and determine the most appropriate graph type ('line' or 'bar'). The X-axis can be either numerical or categorical (strings), while the Y-axis must always be numerical. For each dataset, you must assign a unique and visually appealing hex color code. User prompt: "${'${prompt}'}"`;
     await generationEndpoint(req, res, graphResponseSchema, modelPrompt);
 };
 
 // FIX: Use namespaced express types for request and response objects.
-export const explainArchitecture = async (req: Request, res: Response) => {
+export const explainArchitecture = async (req: express.Request, res: express.Response) => {
     const { diagramData, userApiKey } = req.body;
     if (!diagramData) return res.status(400).json({ error: 'Diagram data is required.' });
     
@@ -281,7 +280,7 @@ export const explainArchitecture = async (req: Request, res: Response) => {
 };
 
 // FIX: Use namespaced express types for request and response objects.
-export const chatWithAssistant = async (req: Request, res: Response) => {
+export const chatWithAssistant = async (req: express.Request, res: express.Response) => {
     const { history, userApiKey } = req.body;
     if (!history) return res.status(400).json({ error: 'Chat history is required.' });
 
@@ -301,7 +300,7 @@ export const chatWithAssistant = async (req: Request, res: Response) => {
 };
 
 // FIX: Added generatePieChart function to handle pie chart generation requests.
-export const generatePieChart = async (req: Request, res: Response) => {
+export const generatePieChart = async (req: express.Request, res: express.Response) => {
     const modelPrompt = `You are a data visualization expert. Your task is to convert a user's natural language description of data into a valid JSON object representing a pie chart, strictly adhering to the provided schema. The 'value' for each slice should represent its proportion. Assign a unique and visually appealing hex color code for each slice. User prompt: "${'${prompt}'}"`;
     await generationEndpoint(req, res, pieChartResponseSchema, modelPrompt);
 };

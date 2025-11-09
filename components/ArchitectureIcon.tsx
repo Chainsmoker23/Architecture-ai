@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconType } from '../types';
-import { ICONS } from './constants';
+import { ICONS } from './content/iconConstants';
 import { motion } from 'framer-motion';
 
 interface ArchitectureIconProps {

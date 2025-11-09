@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
-import { FOOTER_LINKS, TESTIMONIALS } from './constants';
+import { TESTIMONIALS } from './content/landingContent';
+import { FOOTER_LINKS } from './content/iconConstants';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import AssistantWidget from './AssistantWidget';

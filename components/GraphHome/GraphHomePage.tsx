@@ -3,30 +3,13 @@ import { motion } from 'framer-motion';
 import { IconType } from '../../types';
 import ArchitectureIcon from '../ArchitectureIcon';
 import SettingsSidebar from '../SettingsSidebar';
+import { CHART_PREVIEWS } from '../content/iconConstants';
 
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
 
 interface GraphHomePageProps {
   onNavigate: (page: Page | string) => void;
 }
-
-const graphTypes = [
-    { name: 'Pie Chart', icon: IconType.GraphPie, href: '#graph/pie' },
-    { name: 'Line Chart', icon: IconType.GraphLine, href: '#' },
-    { name: 'Bar Chart', icon: IconType.GraphBar, href: '#' },
-    { name: 'Doughnut Chart', icon: IconType.GraphDoughnut, href: '#' },
-    { name: 'Area Chart', icon: IconType.GraphArea, href: '#' },
-    { name: 'Scatter Plot', icon: IconType.GraphScatter, href: '#' },
-    { name: 'Bubble Chart', icon: IconType.GraphBubble, href: '#' },
-    { name: 'Radar Chart', icon: IconType.GraphRadar, href: '#' },
-    { name: 'Polar Area Chart', icon: IconType.GraphPolar, href: '#' },
-    { name: 'Candlestick Chart', icon: IconType.GraphCandlestick, href: '#' },
-    { name: 'Funnel Chart', icon: IconType.GraphFunnel, href: '#' },
-    { name: 'Treemap', icon: IconType.GraphTreemap, href: '#' },
-    { name: 'Sankey Diagram', icon: IconType.GraphSankey, href: '#' },
-    { name: 'Chord Diagram', icon: IconType.GraphChord, href: '#' },
-    { name: 'Heatmap', icon: IconType.GraphHeatmap, href: '#' },
-];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -76,20 +59,20 @@ export const GraphHomePage: React.FC<GraphHomePageProps> = ({ onNavigate }) => {
             <h2 className="text-2xl font-bold text-center mb-2">Choose a Visualization Type</h2>
             <p className="text-center text-[var(--color-text-secondary)] mb-8">Select a chart to begin generating your visualization.</p>
             <motion.div 
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 overflow-y-auto"
+                className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-6 overflow-y-auto"
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
             >
-                {graphTypes.map((graph) => {
+                {CHART_PREVIEWS.map((graph) => {
                     const isEnabled = graph.name === 'Pie Chart';
                     return (
                         <motion.button
                             key={graph.name}
                             variants={itemVariants}
-                            whileHover={{ scale: 1.05, y: -5 }}
-                            whileTap={{ scale: 0.95 }}
-                            className={`p-4 flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-input)] rounded-xl border  transition-all
+                            whileHover={isEnabled ? { scale: 1.05, y: -5, zIndex: 10 } : {}}
+                            whileTap={isEnabled ? { scale: 0.95 } : {}}
+                            className={`relative p-4 flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-input)] rounded-xl border  transition-all
                                 ${isEnabled 
                                     ? 'border-[var(--color-border)] hover:border-[var(--color-accent)] hover:shadow-lg hover:shadow-[var(--color-accent-soft)]'
                                     : 'border-[var(--color-border)] opacity-50 cursor-not-allowed'
@@ -99,7 +82,9 @@ export const GraphHomePage: React.FC<GraphHomePageProps> = ({ onNavigate }) => {
                             disabled={!isEnabled}
                             title={isEnabled ? graph.name : `${graph.name} (Coming Soon)`}
                         >
-                            <ArchitectureIcon type={graph.icon} className="w-10 h-10 text-[var(--color-text-secondary)]" />
+                            <div className="w-full h-32 flex items-center justify-center p-2">
+                                {graph.preview}
+                            </div>
                             <span className="text-sm font-semibold text-center">{graph.name}</span>
                              {!isEnabled && (
                                 <span className="text-xs bg-[var(--color-button-bg-hover)] px-2 py-0.5 rounded-full">Soon</span>

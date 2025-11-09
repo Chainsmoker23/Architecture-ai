@@ -27,8 +27,8 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   useEffect(() => {
     const updateActiveModeler = () => {
       const hash = window.location.hash.substring(1);
-      if (hash === 'neuralNetwork' || hash === 'graph') {
-        setActiveModeler(hash);
+      if (hash === 'neuralNetwork' || hash.startsWith('graph')) {
+        setActiveModeler(hash.split('/')[0]);
       } else {
         setActiveModeler('app');
       }

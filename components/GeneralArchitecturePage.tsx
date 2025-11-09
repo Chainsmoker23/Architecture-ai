@@ -11,7 +11,7 @@ import SummaryModal from './SummaryModal';
 import Loader from './Loader';
 import PropertiesSidebar from './PropertiesSidebar';
 import SettingsSidebar from './SettingsSidebar';
-import { EXAMPLE_PROMPT, EXAMPLE_PROMPTS_LIST } from './constants';
+import { EXAMPLE_PROMPT, EXAMPLE_PROMPTS_LIST } from './content/landingContent';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import Playground from './Playground';
 import ArchitectureIcon from './ArchitectureIcon';

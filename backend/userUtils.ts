@@ -1,5 +1,5 @@
-// FIX: Changed import to use named exports from express to resolve type conflicts.
-import { Request } from 'express';
+// FIX: Changed import to use the `express` namespace for `Request` type to resolve type conflicts.
+import * as express from 'express';
 import { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabaseClient';
 
@@ -11,7 +11,7 @@ export const HOBBYIST_GENERATION_LIMIT = 50;
  * @param req The Express request object.
  * @returns The authenticated Supabase User object or null.
  */
-export const authenticateUser = async (req: Request): Promise<User | null> => {
+export const authenticateUser = async (req: express.Request): Promise<User | null> => {
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return null;

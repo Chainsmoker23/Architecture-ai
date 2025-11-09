@@ -1,4 +1,5 @@
-import express from 'express';
+// FIX: Use a namespace import for express to resolve type conflicts.
+import * as express from 'express';
 import { 
     generateDiagram, 
     generateNeuralNetwork, 

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
-import { AVATARS, svgToDataURL } from '../components/constants';
+import { AVATARS } from '../components/content/avatarContent';
+import { svgToDataURL } from '../utils/dataUrls';
 
 interface AuthContextType {
     currentUser: User | null;

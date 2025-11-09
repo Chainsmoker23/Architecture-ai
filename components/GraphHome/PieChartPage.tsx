@@ -1,12 +1,10 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChartData, IconType } from '../../types';
 import { generatePieChartData } from '../../services/geminiService';
 import Loader from '../Loader';
 import ArchitectureIcon from '../ArchitectureIcon';
 import ApiKeyModal from '../ApiKeyModal';
-import { useTheme } from '../../contexts/ThemeProvider';
-import Logo from '../Logo';
 import { useAuth } from '../../contexts/AuthContext';
 import SettingsSidebar from '../SettingsSidebar';
 import PieChartCanvas from './PieChartCanvas';
@@ -27,7 +25,87 @@ const PieChartPage: React.FC<PieChartPageProps> = ({ onNavigate }) => {
     try { return window.localStorage.getItem('user-api-key'); } catch { return null; }
   });
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
-  const { theme, setTheme } = useTheme();
+  
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  
+  const handleExport = async (format: 'png' | 'json') => {
+    if (!chartData) return;
+    const filename = chartData.title.replace(/[\s/]/g, '_').toLowerCase();
+
+    if (format === 'json') {
+      const dataStr = JSON.stringify(chartData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      downloadBlob(blob, `${filename}.json`);
+      return;
+    }
+
+    if (format === 'png') {
+        const svgElement = svgRef.current;
+        if (!svgElement) {
+            setError("Export failed: SVG element not found.");
+            return;
+        }
+        
+        // Temporarily set a specific size for export rendering
+        const exportWidth = 800;
+        const exportHeight = 600;
+
+        // Clone the SVG to manipulate it without affecting the on-screen version
+        const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
+        svgClone.setAttribute('width', String(exportWidth));
+        svgClone.setAttribute('height', String(exportHeight));
+        
+        // Embed all computed styles inline
+        const originalElements = Array.from(svgElement.querySelectorAll('*'));
+        const clonedElements = Array.from(svgClone.querySelectorAll('*'));
+        originalElements.forEach((sourceEl, index) => {
+            const computedStyle = window.getComputedStyle(sourceEl);
+            if(clonedElements[index]) {
+                (clonedElements[index] as SVGElement).style.cssText = computedStyle.cssText;
+            }
+        });
+        
+        const rootStyle = getComputedStyle(document.documentElement);
+        const bgColor = rootStyle.getPropertyValue('--color-canvas-bg').trim() || '#FFFFFF';
+
+        // Create an outer SVG with a background for the final image
+        const svgString = `
+            <svg width="${exportWidth}" height="${exportHeight}" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100%" height="100%" fill="${bgColor}" />
+                ${svgClone.outerHTML}
+            </svg>
+        `;
+
+        const canvas = document.createElement('canvas');
+        const scale = 2; // Render at 2x for higher resolution
+        canvas.width = exportWidth * scale;
+        canvas.height = exportHeight * scale;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.scale(scale, scale);
+
+        const img = new Image();
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0, exportWidth, exportHeight);
+            canvas.toBlob((blob) => {
+                if (blob) downloadBlob(blob, `${filename}.png`);
+            }, 'image/png');
+        };
+        img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+    }
+  };
+
 
   const handleGenerate = useCallback(async (keyOverride?: string) => {
     if (!prompt) {
@@ -104,7 +182,7 @@ const PieChartPage: React.FC<PieChartPageProps> = ({ onNavigate }) => {
             </motion.button>
         </aside>
 
-        <section className="lg:col-span-9 rounded-2xl shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0 glass-panel p-2">
+        <section className="lg:col-span-9 rounded-2xl shadow-sm flex flex-col relative min-h-[60vh] lg:min-h-0 glass-panel app-bg">
           <AnimatePresence>
             {isLoading && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-panel-bg-translucent)] flex items-center justify-center z-20 rounded-2xl">
@@ -123,7 +201,20 @@ const PieChartPage: React.FC<PieChartPageProps> = ({ onNavigate }) => {
             )}
           </AnimatePresence>
 
-          {chartData && <PieChartCanvas data={chartData} />}
+          {chartData && (
+            <div className="w-full h-full flex flex-col">
+              <div className="p-2 px-4 flex justify-between items-center gap-2 border-b border-[var(--color-border)]">
+                <h2 className="text-lg font-bold truncate">{chartData.title}</h2>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => handleExport('png')} className="px-3 py-1.5 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)]">Export PNG</button>
+                    <button onClick={() => handleExport('json')} className="px-3 py-1.5 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)]">Export JSON</button>
+                </div>
+              </div>
+              <div className="flex-1 w-full h-full p-4">
+                <PieChartCanvas data={chartData} forwardedRef={svgRef} />
+              </div>
+            </div>
+          )}
           {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
         </section>
       </div>
