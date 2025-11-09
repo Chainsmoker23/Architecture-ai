@@ -1,15 +1,18 @@
-import { Request } from 'express';
+// FIX: Import express namespace to resolve type conflicts with global Request.
+import * as express from 'express';
 import { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabaseClient';
 
 export const FREE_GENERATION_LIMIT = 30;
+export const HOBBYIST_GENERATION_LIMIT = 50;
 
 /**
  * Authenticates a user based on the Authorization header.
  * @param req The Express request object.
  * @returns The authenticated Supabase User object or null.
  */
-export const authenticateUser = async (req: Request): Promise<User | null> => {
+// FIX: Use express.Request type to correctly type the request object.
+export const authenticateUser = async (req: express.Request): Promise<User | null> => {
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return null;
@@ -36,14 +39,15 @@ export const authenticateUser = async (req: Request): Promise<User | null> => {
 export const checkAndIncrementGenerationCount = async (user: User): Promise<{ allowed: boolean; error?: string }> => {
     const plan = user.user_metadata?.plan || 'free';
     
-    if (plan !== 'free') {
-        // Premium users have unlimited generations.
+    // Premium users have unlimited generations.
+    if (plan === 'pro' || plan === 'business') {
         return { allowed: true };
     }
 
     const generationCount = user.user_metadata?.generation_count || 0;
+    const limit = plan === 'hobbyist' ? HOBBYIST_GENERATION_LIMIT : FREE_GENERATION_LIMIT;
 
-    if (generationCount >= FREE_GENERATION_LIMIT) {
+    if (generationCount >= limit) {
         return { allowed: false, error: 'GENERATION_LIMIT_EXCEEDED' };
     }
 

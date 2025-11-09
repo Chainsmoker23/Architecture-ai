@@ -46,6 +46,25 @@ export interface DiagramData {
   containers?: Container[];
 }
 
+export interface DataPoint {
+  x: number | string;
+  y: number;
+}
+
+export interface DataSet {
+  label: string;
+  data: DataPoint[];
+  color?: string;
+}
+
+export interface GraphData {
+  title: string;
+  graphType: 'line' | 'bar';
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  datasets: DataSet[];
+}
+
 export enum IconType {
   // --- Standard AWS ---
   AwsEc2 = 'aws-ec2',
@@ -184,5 +203,6 @@ export enum IconType {
   Sparkles = 'sparkles',
   Edit = 'edit',
   Gear = 'gear',
+  Graph = 'graph',
   Generic = 'generic',
 }

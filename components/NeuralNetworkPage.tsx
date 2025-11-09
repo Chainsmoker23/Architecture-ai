@@ -9,14 +9,18 @@ import ArchitectureIcon from './ArchitectureIcon';
 import NeuralNetworkCanvas from './NeuralNetworkCanvas';
 import ApiKeyModal from './ApiKeyModal';
 import { useTheme } from '../contexts/ThemeProvider';
+// FIX: Corrected import path for Logo component.
 import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
+import SettingsSidebar from './SettingsSidebar';
+
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
 
 interface NeuralNetworkPageProps {
-  onBack: () => void;
+  onNavigate: (page: Page) => void;
 }
 
-const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
+const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => {
   const [prompt, setPrompt] = useState('A simple neural network with 3 input neurons, one hidden layer of 5 neurons, and 2 output neurons.');
   const [diagramData, setDiagramData] = useState<DiagramData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +47,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // FIX: Explicitly cast `event.target` to `Node` to resolve compiler confusion caused by a name collision.
+      // FIX: Corrected typo from `exportMenu-ref` to `exportMenuRef`.
       if (exportMenuRef.current && event.target instanceof globalThis.Node && !exportMenuRef.current.contains(event.target)) {
         setIsExportMenuOpen(false);
       }
@@ -189,7 +194,10 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
       if (errorMessage.includes('GENERATION_LIMIT_EXCEEDED')) {
-          setError("You've used all 30 free generations. Please upgrade to continue.");
+          const userPlan = currentUser?.user_metadata?.plan || 'free';
+          const limit = userPlan === 'hobbyist' ? 50 : 30;
+          const planName = String(userPlan).charAt(0).toUpperCase() + String(userPlan).slice(1);
+          setError(`You've used all ${limit} generations for your ${planName} plan. Please upgrade to continue.`);
       } else if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
           setShowApiKeyModal(true);
           setError(null);
@@ -211,40 +219,28 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onBack }) => {
 
   return (
     <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col transition-colors duration-300 app-bg">
-      <header className="relative z-50 flex justify-between items-center p-4 border-b border-[var(--color-border)] bg-[var(--color-panel-bg)]/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
+      <SettingsSidebar userApiKey={userApiKey} setUserApiKey={setUserApiKey} onNavigate={onNavigate} />
+      <button
+            onClick={() => onNavigate('landing')}
+            className="fixed top-4 right-4 z-40 p-2 rounded-full bg-[var(--color-panel-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)] shadow-sm hover:text-[var(--color-text-primary)] transition-colors"
+            aria-label="Back to Home"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
+      </button>
+
+      <header className="text-center relative py-4 px-20">
+        <div className="flex items-center justify-center gap-3">
             <ArchitectureIcon type={IconType.Brain} className="w-8 h-8 text-[var(--color-accent-text)]" />
             <div>
                 <h1 className="text-xl font-bold">Neural Network Modeler</h1>
                 <p className="text-sm text-[var(--color-text-secondary)]">A dedicated canvas for perfect network diagrams.</p>
             </div>
         </div>
-         <div className="flex items-center gap-2">
-            <div className="relative" ref={exportMenuRef}>
-              <button 
-                onClick={() => setIsExportMenuOpen(prev => !prev)}
-                disabled={!diagramData}
-                className="px-3 py-2 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors flex items-center disabled:opacity-50"
-              >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  Export
-              </button>
-              {isExportMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-32 bg-[var(--color-panel-bg)] border border-[var(--color-border)] rounded-xl shadow-lg z-30 p-1">
-                      <a onClick={() => handleExport('html')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">HTML</a>
-                      <a onClick={() => handleExport('json')} className="block px-3 py-1.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-button-bg-hover)] rounded-md cursor-pointer">JSON</a>
-                  </div>
-              )}
-            </div>
-
-            <button onClick={onBack} className="px-3 py-2 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors flex items-center">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                <span className="hidden md:inline">Exit Modeler</span>
-            </button>
-        </div>
       </header>
       
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 pt-0">
         <aside className="lg:col-span-3 p-6 rounded-2xl shadow-sm h-full flex flex-col glass-panel">
             <div className="flex-1 flex flex-col">
                 <h3 className="font-semibold text-[var(--color-text-primary)] mb-2">Describe Your Network</h3>

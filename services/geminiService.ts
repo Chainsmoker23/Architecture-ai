@@ -1,4 +1,4 @@
-import { DiagramData, Node } from "../types";
+import { DiagramData, Node, GraphData } from "../types";
 import type { Content } from "@google/genai";
 import { supabase } from '../supabaseClient';
 
@@ -80,6 +80,16 @@ export const generateNeuralNetworkData = async (prompt: string, userApiKey?: str
         } as DiagramData;
     } catch (error) {
         console.error("Error fetching neural network data from backend:", String(error));
+        throw error;
+    }
+};
+
+export const generateGraphData = async (prompt: string, userApiKey?: string): Promise<GraphData> => {
+    try {
+        const parsedData = await fetchFromApi('/generate-graph', { prompt, userApiKey });
+        return parsedData as GraphData;
+    } catch (error) {
+        console.error("Error fetching graph data from backend:", String(error));
         throw error;
     }
 };

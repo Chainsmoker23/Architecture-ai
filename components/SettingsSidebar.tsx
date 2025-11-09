@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
 
 
 interface SettingsSidebarProps {
@@ -19,20 +19,34 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   const { theme, setTheme } = useTheme();
   const { currentUser, signOut } = useAuth();
  
-  // State for managing the API key form
   const [isEditing, setIsEditing] = useState(!userApiKey);
   const [editingKey, setEditingKey] = useState(userApiKey || '');
   const [showSaved, setShowSaved] = useState(false);
+  const [activeModeler, setActiveModeler] = useState('app');
+
+  useEffect(() => {
+    const updateActiveModeler = () => {
+      const hash = window.location.hash.substring(1);
+      if (hash === 'neuralNetwork' || hash === 'graph') {
+        setActiveModeler(hash);
+      } else {
+        setActiveModeler('app');
+      }
+    };
+    updateActiveModeler();
+    window.addEventListener('hashchange', updateActiveModeler);
+    return () => window.removeEventListener('hashchange', updateActiveModeler);
+  }, []);
 
   const plan = currentUser?.user_metadata?.plan || 'free';
-  const isFreeUser = plan === 'free';
+  const isLimitedUser = ['free', 'hobbyist'].includes(plan);
   const isPremiumUser = ['pro', 'business'].includes(plan);
+  const generationLimit = plan === 'hobbyist' ? 50 : 30;
   const generationCount = currentUser?.user_metadata?.generation_count || 0;
-  const generationsRemaining = 30 - generationCount;
-  const usagePercentage = Math.min((generationCount / 30) * 100, 100);
+  const generationsRemaining = generationLimit - generationCount;
+  const usagePercentage = Math.min((generationCount / generationLimit) * 100, 100);
  
   useEffect(() => {
-    // Sync local state if the userApiKey prop changes from outside
     setIsEditing(!userApiKey);
     setEditingKey(userApiKey || '');
   }, [userApiKey]);
@@ -54,21 +68,19 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 2000);
     if (trimmedKey) {
-        setIsEditing(false); // Switch to view mode on successful save
+        setIsEditing(false);
     }
   };
 
   const handleClearKey = () => {
       setUserApiKey(null);
-      // The useEffect will handle setting isEditing and editingKey
   };
  
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setEditingKey(userApiKey || ''); // Reset any changes
+    setEditingKey(userApiKey || '');
   };
 
-  // IMPROVEMENT: Close the sidebar on sign out for a better UX.
   const handleSignOut = () => {
     signOut();
     setIsOpen(false);
@@ -78,6 +90,14 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
     hidden: { opacity: 0, y: -10, transition: { duration: 0.2 } },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3, delay: 0.1 } },
     exit: { opacity: 0, y: 10, transition: { duration: 0.2 } },
+  };
+
+  const modelerButtonClasses = (modeler: string) => {
+    const base = "w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-colors text-left";
+    if (activeModeler === modeler) {
+      return `${base} bg-[var(--color-accent-soft)] border border-[var(--color-accent)] cursor-default`;
+    }
+    return `${base} bg-[var(--color-bg-input)] border border-[var(--color-border)] hover:bg-[var(--color-button-bg)]`;
   };
 
   return (
@@ -128,7 +148,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
 
                 {currentUser && (
                   <div className="mb-4">
-                      <div className={`relative p-3 rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'premium-glow' : 'border-[var(--color-border)]'}`}>
+                      <div className={`relative p-3 rounded-xl flex items-center gap-3 border transition-all ${isPremiumUser ? 'premium-glow' : 'bg-[var(--color-bg-input)] border-[var(--color-border)]'}`}>
                           {isPremiumUser && (
                               <div className="absolute top-1.5 right-1.5 text-yellow-400" title="Pro Member">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -136,28 +156,24 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                                   </svg>
                               </div>
                           )}
-                          {plan && plan !== 'free' && !isPremiumUser && (
+                           {plan && plan === 'hobbyist' && (
                               <div className="absolute top-0 right-3 -translate-y-1/2 bg-gradient-to-r from-gray-400 to-gray-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
-                                  {String(plan).charAt(0).toUpperCase() + String(plan).slice(1)}
+                                  Hobbyist
                               </div>
                           )}
                           <div className="flex-shrink-0">
                               <img src={currentUser.user_metadata?.custom_avatar_url || currentUser.user_metadata?.avatar_url || undefined} alt="User avatar" className="w-12 h-12 rounded-full object-cover" />
                             
                           </div>
-
                           <div>
                               <p className="font-semibold text-sm">{currentUser.user_metadata?.full_name || currentUser.email}</p>
                               <p className="text-xs text-[var(--color-text-secondary)]">{currentUser.email}</p>
                           </div>
-                        
                       </div>
-                    
                   </div>
                 )}
 
-
-                <div className="flex-1 flex flex-col space-y-8">
+                <div className="flex-1 flex flex-col space-y-6">
                   <div>
                       <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Theme</h3>
                       <div className="flex items-center space-x-2 bg-[var(--color-bg-input)] p-1 rounded-xl border border-[var(--color-border)]">
@@ -175,16 +191,18 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                       </div>
                   </div>
 
-                  {isFreeUser && (
+                  <div className="w-full h-px bg-[var(--color-border)] opacity-50" />
+                  
+                  {isLimitedUser && (
                      <div>
                         <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Usage</h3>
-                        <div className="p-4 rounded-xl border border-[var(--color-border)]">
+                        <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-input)]">
                           <div className="flex justify-between items-center mb-1">
                             <p className="text-sm text-[var(--color-text-secondary)]">Generations Remaining</p>
-                            <p className="text-sm font-semibold">{generationsRemaining > 0 ? generationsRemaining : 0} / 30</p>
+                            <p className="text-sm font-semibold">{generationsRemaining > 0 ? generationsRemaining : 0} / {generationLimit}</p>
                           </div>
-                          <div className="w-full bg-[var(--color-bg-input)] rounded-full h-2.5 border border-[var(--color-border)]">
-                            <div className="bg-[var(--color-accent)] h-2 rounded-full" style={{ width: `${100 - usagePercentage}%` }}></div>
+                          <div className="w-full bg-[var(--color-bg)] rounded-full h-2.5 border border-[var(--color-border)] overflow-hidden">
+                            <div className="bg-gradient-to-r from-[var(--color-accent)] to-pink-400 h-2 rounded-full" style={{ width: `${100 - usagePercentage}%` }}></div>
                           </div>
                            <button 
                                 onClick={() => { onNavigate('sdk'); setIsOpen(false); }}
@@ -199,24 +217,36 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Modelers</h3>
                      <div className="space-y-2">
-                        <button className="w-full flex items-center justify-start gap-3 p-3 bg-[var(--color-accent-soft)] rounded-xl border border-[var(--color-accent)] cursor-default">
-                          <ArchitectureIcon type={IconType.Cloud} className="w-6 h-6 text-[var(--color-accent-text)] flex-shrink-0" />
-                          <span className="font-semibold text-sm text-[var(--color-text-primary)]">General Architecture</span>
+                        <button
+                          onClick={() => { onNavigate('app'); setIsOpen(false); }}
+                          className={modelerButtonClasses('app')}
+                        >
+                          <ArchitectureIcon type={IconType.Cloud} className={`w-6 h-6 flex-shrink-0 ${activeModeler === 'app' ? 'text-[var(--color-accent-text)]' : 'text-[var(--color-text-secondary)]'}`} />
+                          <span className={`font-semibold text-sm ${activeModeler === 'app' ? 'text-[var(--color-text-primary)]' : ''}`}>General Architecture</span>
                         </button>
                         <button
                           onClick={() => { onNavigate('neuralNetwork'); setIsOpen(false); }}
-                          className="w-full flex items-center justify-start gap-3 p-3 bg-[var(--color-bg-input)] rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-button-bg)] transition-colors"
+                           className={modelerButtonClasses('neuralNetwork')}
                         >
-                          <ArchitectureIcon type={IconType.Brain} className="w-6 h-6 text-[var(--color-text-secondary)] flex-shrink-0" />
-                          <span className="font-semibold text-sm">Neural Network Modeler</span>
+                          <ArchitectureIcon type={IconType.Brain} className={`w-6 h-6 flex-shrink-0 ${activeModeler === 'neuralNetwork' ? 'text-[var(--color-accent-text)]' : 'text-[var(--color-text-secondary)]'}`} />
+                           <span className={`font-semibold text-sm ${activeModeler === 'neuralNetwork' ? 'text-[var(--color-text-primary)]' : ''}`}>Neural Network Modeler</span>
+                        </button>
+                        <button
+                          onClick={() => { onNavigate('graph'); setIsOpen(false); }}
+                           className={modelerButtonClasses('graph')}
+                        >
+                          <ArchitectureIcon type={IconType.Graph} className={`w-6 h-6 flex-shrink-0 ${activeModeler === 'graph' ? 'text-[var(--color-accent-text)]' : 'text-[var(--color-text-secondary)]'}`} />
+                           <span className={`font-semibold text-sm ${activeModeler === 'graph' ? 'text-[var(--color-text-primary)]' : ''}`}>Graph Modeler</span>
                         </button>
                     </div>
                   </div>
 
                   {isPremiumUser && (
+                    <>
+                    <div className="w-full h-px bg-[var(--color-border)] opacity-50" />
                     <div>
                         <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">API Key</h3>
-                        <div className="p-4 rounded-xl border border-[var(--color-border)]">
+                        <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-input)]">
                           <AnimatePresence mode="wait">
                             {userApiKey && !isEditing ? (
                               <motion.div
@@ -276,12 +306,12 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                           </AnimatePresence>
                         </div>
                     </div>
+                    </>
                   )}
                 </div>
-                <div className="mt-auto">
-                  {/* FIX: Only show sign out button if user is logged in */}
+                <div className="mt-auto pt-6 border-t border-[var(--color-border)]">
                   {currentUser && (
-                    <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 bg-[var(--color-button-bg)] text-sm font-semibold text-[var(--color-text-secondary)] py-2.5 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors">
+                    <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-500 py-2.5 px-3 rounded-lg hover:bg-red-500/10 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>
                         Sign Out
                     </button>
