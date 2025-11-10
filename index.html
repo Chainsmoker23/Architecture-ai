@@ -212,6 +212,37 @@
         border-color: var(--color-accent);
       }
 
+      /* --- CREATIVE STYLES FOR GRAPH HOME PAGE --- */
+      .graph-home-bg {
+          background-color: var(--color-bg);
+          overflow: hidden;
+          position: relative;
+      }
+      .graph-home-bg::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          background-image:
+              radial-gradient(circle at 15% 20%, var(--color-aurora-1, #ff00ff), transparent 30%),
+              radial-gradient(circle at 85% 30%, var(--color-aurora-2, #00ffff), transparent 30%),
+              radial-gradient(circle at 70% 85%, var(--color-aurora-3, #ffff00), transparent 30%);
+          background-size: 250% 250%;
+          animation: aurora-flow 25s ease-in-out infinite;
+          filter: blur(100px);
+          opacity: 0.3;
+          transform: translate3d(0, 0, 0);
+      }
+      .graph-card-enabled:hover {
+          transform: translateY(-5px) scale(1.03);
+          box-shadow: 0 15px 30px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+          border-color: var(--color-accent) !important;
+      }
+      .graph-card-disabled {
+          filter: grayscale(80%);
+          opacity: 0.6;
+      }
+
       /* --- LOADER ANIMATION STYLES --- */
       .loader-path {
           stroke-dasharray: 500;

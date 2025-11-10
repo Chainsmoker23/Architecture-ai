@@ -30,9 +30,8 @@ const itemVariants = {
 };
 
 export const GraphHomePage: React.FC<GraphHomePageProps> = ({ onNavigate }) => {
-
   return (
-    <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col transition-colors duration-300 app-bg">
+    <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col transition-colors duration-300 graph-home-bg">
       <SettingsSidebar userApiKey={null} setUserApiKey={() => {}} onNavigate={onNavigate} />
        <button
             onClick={() => onNavigate('landing')}
@@ -44,22 +43,22 @@ export const GraphHomePage: React.FC<GraphHomePageProps> = ({ onNavigate }) => {
             </svg>
       </button>
 
-      <header className="text-center relative py-4 px-20">
-        <div className="flex items-center justify-center gap-3">
-            <ArchitectureIcon type={IconType.GraphLine} className="w-8 h-8 text-[var(--color-accent-text)]" />
-            <div>
-                <h1 className="text-xl font-bold">Graph Modeler</h1>
-                <p className="text-sm text-[var(--color-text-secondary)]">Generate charts and graphs from data descriptions.</p>
+      <div className="relative z-10 flex flex-col flex-1">
+        <header className="text-center py-4 px-20">
+            <div className="flex items-center justify-center gap-3">
+                <ArchitectureIcon type={IconType.GraphLine} className="w-8 h-8 text-[var(--color-accent-text)]" />
+                <div>
+                    <h1 className="text-xl font-bold">Graph Modeler</h1>
+                    <p className="text-sm text-[var(--color-text-secondary)]">Generate charts and graphs from data descriptions.</p>
+                </div>
             </div>
-        </div>
-      </header>
-      
-      <div className="flex-1 p-6">
-        <div className="glass-panel rounded-2xl h-full p-8 flex flex-col">
-            <h2 className="text-2xl font-bold text-center mb-2">Choose a Visualization Type</h2>
-            <p className="text-center text-[var(--color-text-secondary)] mb-8">Select a chart to begin generating your visualization.</p>
+        </header>
+        
+        <main className="flex-1 container mx-auto px-6 py-8 flex flex-col">
+            <h2 className="text-3xl font-bold text-center mb-2">Choose a Visualization Type</h2>
+            <p className="text-center text-[var(--color-text-secondary)] mb-10">Select a chart to begin generating your visualization.</p>
             <motion.div 
-                className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-6 overflow-y-auto"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
@@ -70,30 +69,30 @@ export const GraphHomePage: React.FC<GraphHomePageProps> = ({ onNavigate }) => {
                         <motion.button
                             key={graph.name}
                             variants={itemVariants}
-                            whileHover={isEnabled ? { scale: 1.05, y: -5, zIndex: 10 } : {}}
-                            whileTap={isEnabled ? { scale: 0.95 } : {}}
-                            className={`relative p-4 flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-input)] rounded-xl border  transition-all
-                                ${isEnabled 
-                                    ? 'border-[var(--color-border)] hover:border-[var(--color-accent)] hover:shadow-lg hover:shadow-[var(--color-accent-soft)]'
-                                    : 'border-[var(--color-border)] opacity-50 cursor-not-allowed'
-                                }
-                            `}
+                            className={`glass-panel rounded-2xl p-4 flex flex-col items-center text-center transition-all duration-300 group ${
+                                isEnabled ? 'graph-card-enabled cursor-pointer' : 'graph-card-disabled cursor-not-allowed'
+                            }`}
                             onClick={() => isEnabled && onNavigate('graph/pie')}
                             disabled={!isEnabled}
                             title={isEnabled ? graph.name : `${graph.name} (Coming Soon)`}
                         >
-                            <div className="w-full h-32 flex items-center justify-center p-2">
+                            <div className="w-full h-36 flex items-center justify-center p-2 mb-3 bg-[var(--color-bg)] rounded-xl overflow-hidden border border-[var(--color-border)]">
                                 {graph.preview}
                             </div>
-                            <span className="text-sm font-semibold text-center">{graph.name}</span>
-                             {!isEnabled && (
-                                <span className="text-xs bg-[var(--color-button-bg-hover)] px-2 py-0.5 rounded-full">Soon</span>
+                            <h3 className="font-semibold text-[var(--color-text-primary)]">{graph.name}</h3>
+                            {!isEnabled && (
+                                <span className="mt-2 text-xs bg-[var(--color-button-bg-hover)] px-2.5 py-1 rounded-full font-medium">Coming Soon</span>
+                            )}
+                            {isEnabled && (
+                                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <svg className="w-6 h-6 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                </div>
                             )}
                         </motion.button>
                     );
-                 })}
+                  })}
             </motion.div>
-        </div>
+        </main>
       </div>
     </div>
   );
