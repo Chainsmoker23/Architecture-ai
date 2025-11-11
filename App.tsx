@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
 import LandingPage from './components/LandingPage';
 import ContactPage from './components/ContactPage';
 import AboutPage from './components/AboutPage';
@@ -13,10 +12,13 @@ import NeuralNetworkPage from './components/NeuralNetworkPage';
 import CareersPage from './components/CareersPage';
 import ResearchPage from './components/ResearchPage';
 import GeneralArchitecturePage from './components/GeneralArchitecturePage';
+import AdminPage from './components/AdminPage';
+import AdminLoginPage from './components/AdminLoginPage';
 import Loader from './components/Loader';
 import { useAuth } from './contexts/AuthContext';
+import { useAdminAuth } from './contexts/AdminAuthContext';
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'admin' | 'adminLogin';
 
 const getPageFromHash = (): { page: Page; subpage?: string } => {
   const hash = window.location.hash.substring(1).split('?')[0];
@@ -24,7 +26,7 @@ const getPageFromHash = (): { page: Page; subpage?: string } => {
     return { page: 'landing' };
   }
   const [mainPage, subpage] = hash.split('/');
-  const validPages: Page[] = ['landing', 'auth', 'app', 'contact', 'about', 'api', 'apiKey', 'privacy', 'terms', 'docs', 'neuralNetwork', 'careers', 'research'];
+  const validPages: Page[] = ['landing', 'auth', 'app', 'contact', 'about', 'api', 'apiKey', 'privacy', 'terms', 'docs', 'neuralNetwork', 'careers', 'research', 'admin', 'adminLogin'];
   if (validPages.includes(mainPage as Page)) {
     return { page: mainPage as Page, subpage };
   }
@@ -34,12 +36,11 @@ const getPageFromHash = (): { page: Page; subpage?: string } => {
 
 const App: React.FC = () => {
   const { currentUser, loading: authLoading } = useAuth();
+  const { isAdminAuthenticated, loading: adminAuthLoading } = useAdminAuth();
   const [page, setPage] = useState<{ page: Page; subpage?: string } | null>(null);
 
-  // State to reactively track the URL hash.
   const [hash, setHash] = useState(() => window.location.hash);
 
-  // Effect to keep the `hash` state in sync with the browser's URL.
   useEffect(() => {
     const handleHashChange = () => setHash(window.location.hash);
     window.addEventListener('hashchange', handleHashChange);
@@ -55,20 +56,25 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // 1. Wait until authentication status is known.
-    if (authLoading) {
-      return;
-    }
+    if (authLoading || adminAuthLoading) return;
 
-    // --- 2. INITIAL LOAD REDIRECT ---
-    if (currentUser && window.location.hash === '') {
-        onNavigate('app');
-        return; 
+    const currentPageInfo = getPageFromHash();
+    
+    // --- Admin Route Handling (Highest Priority) ---
+    if (currentPageInfo.page === 'admin' || currentPageInfo.page === 'adminLogin') {
+        const targetPage = isAdminAuthenticated ? 'admin' : 'adminLogin';
+        
+        // If we are on the right page, set the state to render it.
+        // Otherwise, navigate, which will re-trigger this effect.
+        if (currentPageInfo.page === targetPage) {
+            setPage({ page: targetPage });
+        } else {
+            onNavigate(targetPage);
+        }
+        return; // IMPORTANT: Prevent other logic from running for admin routes.
     }
     
-    const currentPageInfo = getPageFromHash();
-
-    // --- 3. PERSISTENT REDIRECT RULES ---
+    // --- General Redirect Rules for Regular Users ---
     if (currentUser && currentPageInfo.page === 'auth') {
       onNavigate('app');
       return;
@@ -79,15 +85,14 @@ const App: React.FC = () => {
       onNavigate('landing');
       return;
     }
-
-    // --- 4. PAGE RESOLUTION ---
+    
+    // If no other rules matched, render the page from the hash.
     setPage(currentPageInfo);
 
-  }, [authLoading, currentUser, onNavigate, hash]);
+  }, [authLoading, adminAuthLoading, currentUser, isAdminAuthenticated, onNavigate, hash]);
 
   
-  // A single, unified loader for initial auth check and any in-progress redirects.
-  if (page === null) {
+  if (page === null || authLoading || adminAuthLoading) {
     return (
       <div className="fixed inset-0 bg-white flex items-center justify-center">
         <Loader />
@@ -101,6 +106,12 @@ const App: React.FC = () => {
   }
   if (page.page === 'auth') {
     return <AuthPage onBack={() => onNavigate('landing')} />;
+  }
+  if (page.page === 'admin') {
+    return <AdminPage onNavigate={onNavigate} />;
+  }
+  if (page.page === 'adminLogin') {
+    return <AdminLoginPage onBack={() => onNavigate('landing')} />;
   }
   if (page.page === 'contact') {
     return <ContactPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
@@ -136,7 +147,6 @@ const App: React.FC = () => {
     return <GeneralArchitecturePage onNavigate={onNavigate} />;
   }
 
-  // Fallback for unknown pages
   return <LandingPage onLaunch={() => onNavigate('auth')} onNavigate={onNavigate} />;
 };
 

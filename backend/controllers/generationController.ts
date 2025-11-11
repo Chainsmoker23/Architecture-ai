@@ -1,9 +1,8 @@
 import * as express from 'express';
-// FIX: Updated to use modern GoogleGenAI SDK instead of deprecated GoogleGenerativeAI
 import { GoogleGenAI, Type } from "@google/genai";
-import { authenticateUser, checkAndIncrementGenerationCount } from '../userUtils';
+import { authenticateUser } from '../userUtils';
+import { getApiKeyForRequest } from '../services/apiKeyService';
 import { supabaseAdmin } from '../supabaseClient';
-import { User } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 // --- SCHEMAS & PROMPTS ---
@@ -21,14 +20,14 @@ const responseSchema = {
         properties: {
           id: { type: Type.STRING, description: "A unique, kebab-case identifier for the node (e.g., 'web-server-1')." },
           label: { type: Type.STRING, description: "The human-readable name of the component (e.g., 'EC2 Instance')." },
-          type: { type: Type.STRING, description: "The type of component for icon mapping. Use one of the predefined types like 'aws-ec2', 'user', 'database', 'neuron', 'layer-label', 'group-label'." },
-          description: { type: Type.STRING, description: "A brief, one-sentence description of the node's purpose. For 'neuron', 'layer-label', or 'group-label' types, this can be an empty string." },
+          type: { type: Type.STRING, description: "The type of component for icon mapping. Use one of the predefined types like 'aws-ec2', 'user', 'database', etc. CRITICAL: Do NOT use the 'neuron' type for general architecture diagrams." },
+          description: { type: Type.STRING, description: "A brief, one-sentence description of the node's purpose. Can be an empty string for purely visual elements." },
           shape: { type: Type.STRING, description: "Optional. The visual shape of the node. Can be 'rectangle', 'ellipse', or 'diamond'. Defaults to 'rectangle'."},
           x: { type: Type.NUMBER, description: "The initial horizontal position of the node's center on a 1200x800 canvas." },
           y: { type: Type.NUMBER, description: "The initial vertical position of the node's center." },
-          width: { type: Type.NUMBER, description: "The initial width of the node. For 'neuron' type, this should be small (e.g., 30). For 'layer-label' this should be wide enough for the text." },
-          height: { type: Type.NUMBER, description: "The initial height of the node. For 'neuron' type, this should be small (e.g., 30). For 'layer-label' this can be small (e.g., 20)." },
-          color: { type: Type.STRING, description: "Optional hex color code for the node. For 'neuron' type, use '#2B2B2B' for input/output layers and '#D1D5DB' for hidden layers." },
+          width: { type: Type.NUMBER, description: "The initial width of the node. Should be large enough for the label." },
+          height: { type: Type.NUMBER, description: "The initial height of the node. Should be large enough for the label and icon." },
+          color: { type: Type.STRING, description: "Optional hex color code for the node's fill." },
         },
         required: ["id", "label", "type", "description", "x", "y", "width", "height"],
       },
@@ -123,33 +122,20 @@ For any diagram with logical tiers (e.g., Presentation, Application, Data), you 
 4.  **Labels (Crucial):** BE EXTREMELY CONSERVATIVE WITH LABELS. The user wants clean diagrams.
     - DO NOT use link labels for common interactions like 'API Call' or 'HTTP Request'. The connection itself implies this.
     - DO NOT use floating text labels (\`layer-label\` or \`group-label\`) to label a tier if it is already inside a labeled container. The container's label is sufficient.
-    - For a simple architecture (e.g., a 3-tier app), generate a MAXIMUM of 3-4 essential labels.
-    - For complex architectures, generate a MAXIMUM of 6-8 labels.
+    - For a simple architecture (e.g., a 3-tier app), generate a MAXIMUM of 2-3 essential labels.
+    - For complex architectures, generate a MAXIMUM of 4-6 labels.
     - Only add a label if it clarifies a major concept that is impossible to understand from the component icons and container labels alone.
-5.  **Neural Networks:** If the prompt is for a neural network, use the 'neuron' and 'layer-label' types. Calculate layer numbers starting from 0 for the input layer. Neurons should be small and circular. Lay out neurons in distinct vertical layers.
-6.  **Node Sizing:** Ensure the 'width' and 'height' for each node are sufficiently large to contain the 'label' text comfortably without truncation. For longer labels like "Smart Contract Interaction," use a wider 'width' (e.g., 180) and a taller 'height' (e.g., 90) to allow for text wrapping.
+5.  **Node Sizing:** Ensure the 'width' and 'height' for each node are sufficiently large to contain the 'label' text comfortably without truncation. For longer labels like "Smart Contract Interaction," use a wider 'width' (e.g., 180) and a taller 'height' (e.g., 90) to allow for text wrapping.
+6.  **Shape Constraint (CRITICAL):** For this general architecture modeler, you MUST NOT use the 'neuron' type for any node, even if the topic is AI-related. The 'neuron' type is reserved for a different modeler. Instead, use appropriate, standard icons like 'llm', 'embedding-model', 'vector-database', etc. Use standard shapes like 'rectangle' or 'ellipse'.
 `;
 
 
 // --- HELPER FUNCTIONS ---
 
-const getApiKeyForRequest = async (req: express.Request, user: User | null): Promise<string | null> => {
-    // Priority 1: User-provided key in the request body (for temporary modal overrides)
-    if (req.body.userApiKey) {
-        return req.body.userApiKey;
-    }
-    // Priority 2: User's own key stored securely in their app_metadata
-    if (user && user.app_metadata?.personal_api_key) {
-        return user.app_metadata.personal_api_key;
-    }
-    // Priority 3: Shared key from environment variables (fallback)
-    return process.env.GEMINI_API_KEY || null;
-};
-
 const getGeminiResponse = async (apiKey: string, promptPayload: any, schema?: any) => {
     try {
         const ai = new GoogleGenAI({ apiKey });
-        const model = schema ? 'gemini-2.5-flash' : 'gemini-2.5-pro';
+        const model = 'gemini-2.5-flash';
 
         const contents = promptPayload.contents || promptPayload;
         const systemInstruction = promptPayload.systemInstruction;
@@ -181,7 +167,6 @@ const getGeminiResponse = async (apiKey: string, promptPayload: any, schema?: an
         return text || "";
     } catch (e: any) {
         console.error("Gemini API Error:", e.message, e.stack);
-        // Provide a more specific error for API key issues
         if (e.message.includes('API key not valid')) {
             throw new Error("The provided API key is invalid. Please check your key and try again.");
         }
@@ -216,17 +201,11 @@ export const handleGenerateDiagram = async (req: express.Request, res: express.R
         return res.status(401).json({ error: 'Unauthorized: Invalid authentication token.' });
     }
 
-    const { allowed, error: limitError } = await checkAndIncrementGenerationCount(user);
-    if (!allowed) {
-        return handleError(res, new Error(limitError));
-    }
-
     try {
-        const apiKey = await getApiKeyForRequest(req, user);
-        if (!apiKey) {
-            return res.status(400).json({ error: 'API key is missing.' });
-        }
-        const { prompt } = req.body;
+        const { prompt, userApiKey: userProvidedKey } = req.body;
+        
+        const apiKey = await getApiKeyForRequest(user, userProvidedKey, { checkLimits: true });
+
         const fullPrompt = {
             parts: [
                 { text: systemPrompt },
@@ -246,18 +225,12 @@ export const handleGenerateNeuralNetwork = async (req: express.Request, res: exp
         return res.status(401).json({ error: 'Unauthorized: Invalid authentication token.' });
     }
 
-    const { allowed, error: limitError } = await checkAndIncrementGenerationCount(user);
-    if (!allowed) {
-        return handleError(res, new Error(limitError));
-    }
-
     try {
-        const apiKey = await getApiKeyForRequest(req, user);
-        if (!apiKey) {
-            return res.status(400).json({ error: 'API key is missing.' });
-        }
-        const { prompt } = req.body;
-         const fullPrompt = {
+        const { prompt, userApiKey: userProvidedKey } = req.body;
+        
+        const apiKey = await getApiKeyForRequest(user, userProvidedKey, { checkLimits: true });
+
+        const fullPrompt = {
             parts: [
                 { text: systemPrompt },
                 { text: `Generate the JSON for the following neural network prompt: "${prompt}"` }
@@ -273,18 +246,15 @@ export const handleGenerateNeuralNetwork = async (req: express.Request, res: exp
 export const handleExplainArchitecture = async (req: express.Request, res: express.Response) => {
     const user = await authenticateUser(req);
     if (!user) {
-        // Allow explanation even for non-logged-in users if a key is provided
-        if (!req.body.userApiKey && !process.env.GEMINI_API_KEY) {
-            return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
-        }
+        return res.status(401).json({ error: 'Unauthorized: You must be logged in to use this feature.' });
     }
-
+    
     try {
-        const apiKey = await getApiKeyForRequest(req, user);
-        if (!apiKey) {
-            return res.status(400).json({ error: 'API key is missing.' });
-        }
-        const { diagramData } = req.body;
+        const { diagramData, userApiKey: userProvidedKey } = req.body;
+        
+        // Use the API key service but disable limit checking for explanations.
+        const apiKey = await getApiKeyForRequest(user, userProvidedKey, { checkLimits: false });
+
         const prompt = `Based on the following JSON data representing an architecture diagram, provide a concise, markdown-formatted explanation of what the system does, its key components, and how they interact. JSON: ${JSON.stringify(diagramData)}`;
         const explanation = await getGeminiResponse(apiKey, prompt);
         res.json({ explanation });
@@ -292,6 +262,7 @@ export const handleExplainArchitecture = async (req: express.Request, res: expre
         handleError(res, e);
     }
 };
+
 
 // --- API KEY MANAGEMENT CONTROLLERS ---
 
@@ -301,7 +272,7 @@ export const handleGetApiKey = async (req: express.Request, res: express.Respons
         return res.status(401).json({ error: 'Unauthorized.' });
     }
     try {
-        // The user object from authenticateUser contains app_metadata
+        // This refers to the personal API key for *external* API use, not the in-app key.
         const apiKey = user.app_metadata?.personal_api_key || null;
         res.json({ apiKey });
     } catch (e) {

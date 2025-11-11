@@ -2,12 +2,17 @@ import { DiagramData, ArchNode } from "../types";
 import type { Content } from "@google/genai";
 import { supabase } from '../supabaseClient';
 
+const BACKEND_URL = ''; // Use Vite proxy for local development
+
 // Reusable fetch function for our backend API
-const fetchFromApi = async (endpoint: string, body?: object, method: 'POST' | 'GET' | 'DELETE' = 'POST') => {
+const fetchFromApi = async (endpoint: string, body?: object, method: 'POST' | 'GET' | 'DELETE' = 'POST', adminToken?: string | null) => {
     const { data: { session } } = await supabase.auth.getSession();
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
+    
+    // Use the admin token if provided, otherwise use the regular user's session token
+    const token = adminToken || session?.access_token;
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
 
     const options: RequestInit = {
@@ -18,7 +23,7 @@ const fetchFromApi = async (endpoint: string, body?: object, method: 'POST' | 'G
         options.body = JSON.stringify(body);
     }
 
-    const response = await fetch(`/api${endpoint}`, options);
+    const response = await fetch(`${BACKEND_URL}/api${endpoint}`, options);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
@@ -153,6 +158,46 @@ export const revokeUserApiKey = async (): Promise<void> => {
         await fetchFromApi('/user/api-key', undefined, 'DELETE');
     } catch (error) {
         console.error("Error revoking user API key:", String(error));
+        throw error;
+    }
+};
+
+// --- Admin Services ---
+
+export const adminLogin = async (email: string, password: string): Promise<string> => {
+    try {
+        const { token } = await fetchFromApi('/admin/login', { email, password });
+        if (!token) throw new Error("Login failed, no token received.");
+        return token;
+    } catch (error) {
+        console.error("Error during admin login:", String(error));
+        throw error;
+    }
+};
+
+export const adminLogout = async (token: string): Promise<void> => {
+    try {
+        await fetchFromApi('/admin/logout', {}, 'POST', token);
+    } catch (error) {
+        console.error("Error during admin logout:", String(error));
+        // Don't re-throw, as logout should succeed client-side even if server fails
+    }
+};
+
+export const getAdminConfig = async (adminToken: string): Promise<any> => {
+    try {
+        return await fetchFromApi('/admin/config', undefined, 'GET', adminToken);
+    } catch (error) {
+        console.error("Error fetching admin config:", String(error));
+        throw error;
+    }
+};
+
+export const updateAdminConfig = async (config: any, adminToken: string): Promise<void> => {
+    try {
+        await fetchFromApi('/admin/config', { config }, 'POST', adminToken);
+    } catch (error) {
+        console.error("Error updating admin config:", String(error));
         throw error;
     }
 };

@@ -4,12 +4,8 @@ import { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../supabaseClient';
 import { DodoPayments, mockSessions } from '../dodo-payments';
 import { authenticateUser } from '../userUtils';
+import { getCachedConfig } from './adminController';
 
-const DODO_SECRET_KEY = process.env.DODO_SECRET_KEY!;
-const SITE_URL = process.env.SITE_URL!;
-const DODO_WEBHOOK_SECRET = process.env.DODO_WEBHOOK_SECRET!;
-
-const dodo = new DodoPayments(DODO_SECRET_KEY);
 
 // --- CONTROLLER FUNCTIONS ---
 
@@ -20,6 +16,16 @@ export const confirmMockPayment = async (req: express.Request, res: express.Resp
     }
     const session = mockSessions.get(sessionId);
 
+    // Initialize Dodo with the live/cached secret key
+    const config = await getCachedConfig();
+    
+    // FIX: Add a null check for the secret key before using it.
+    if (!config.dodo_secret_key) {
+        console.error('[Payment Controller] Dodo secret key is not configured.');
+        return res.status(500).json({ error: 'Payment processing is not configured on the server.' });
+    }
+    const dodo = new DodoPayments(config.dodo_secret_key);
+    
     await dodo.simulateWebhook(sessionId, session.customer, session.line_items);
     mockSessions.delete(sessionId);
     
@@ -32,9 +38,16 @@ export const handleDodoWebhook = async (req: express.Request, res: express.Respo
         return res.status(400).send('Webhook Error: Missing signature.');
     }
 
+    const config = await getCachedConfig();
+    const dodoWebhookSecret = config.dodo_webhook_secret;
+
+    if (!dodoWebhookSecret) {
+        return res.status(500).send('Webhook Error: Webhook secret is not configured on the server.');
+    }
+
     try {
         const expectedSignature = crypto
-            .createHmac('sha256', DODO_WEBHOOK_SECRET)
+            .createHmac('sha256', dodoWebhookSecret)
             .update(req.body)
             .digest('hex');
         if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
@@ -90,6 +103,15 @@ export const createCheckoutSession = async (req: express.Request, res: express.R
     }
 
     try {
+        const config = await getCachedConfig();
+        const dodoSecretKey = config.dodo_secret_key;
+        const siteUrl = config.site_url;
+
+        if (!dodoSecretKey || !siteUrl) {
+            return res.status(500).send({ error: 'Payment system is not configured correctly on the server.' });
+        }
+
+        const dodo = new DodoPayments(dodoSecretKey);
         let dodoCustomerId = user.user_metadata.dodo_customer_id;
 
         if (!dodoCustomerId) {
@@ -108,7 +130,7 @@ export const createCheckoutSession = async (req: express.Request, res: express.R
             }
         }
 
-        const cleanSiteUrl = SITE_URL.endsWith('/') ? SITE_URL.slice(0, -1) : SITE_URL;
+        const cleanSiteUrl = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
         let plan = 'free';
         if (priceId === 'dodo_price_hobby') plan = 'hobbyist';
         if (priceId === 'dodo_price_pro') plan = 'pro';

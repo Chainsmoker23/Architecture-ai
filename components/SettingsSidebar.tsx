@@ -11,7 +11,7 @@ type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' 
 interface SettingsSidebarProps {
   userApiKey: string | null;
   setUserApiKey: (key: string | null) => void;
-  onNavigate: (page: Page) => void;
+  onNavigate: (page: Page | 'admin') => void;
 }
 
 const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserApiKey, onNavigate }) => {

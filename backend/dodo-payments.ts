@@ -1,6 +1,5 @@
 import crypto from 'crypto';
-
-const DODO_WEBHOOK_SECRET = process.env.DODO_WEBHOOK_SECRET!;
+import { getCachedConfig } from './controllers/adminController';
 
 // Store session data in memory for the mock flow
 export const mockSessions = new Map<string, any>();
@@ -60,6 +59,14 @@ export class DodoPayments {
     async simulateWebhook(sessionId: string, customerId: string, lineItems: any[]) {
         console.log(`[Dodo Payments Mock] Simulating webhook for session: ${sessionId}`);
         
+        const config = await getCachedConfig();
+        const dodoWebhookSecret = config.dodo_webhook_secret;
+
+        if (!dodoWebhookSecret) {
+            console.error('[Dodo Payments Mock] Webhook secret not found in config. Cannot simulate webhook.');
+            return;
+        }
+
         const payload = JSON.stringify({
             type: 'checkout.session.completed',
             data: {
@@ -73,7 +80,7 @@ export class DodoPayments {
 
         // Create a signature to send with the webhook for verification
         const signature = crypto
-            .createHmac('sha256', DODO_WEBHOOK_SECRET)
+            .createHmac('sha256', dodoWebhookSecret)
             .update(payload)
             .digest('hex');
 
