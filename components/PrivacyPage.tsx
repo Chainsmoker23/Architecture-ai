@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import SharedFooter from './SharedFooter';
 
-type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
+type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
 
 interface PrivacyPageProps {
   onBack: () => void;
@@ -29,7 +29,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack, onNavigate }) => {
       </header>
 
       <main>
-        <section className="relative flex items-center justify-center overflow-hidden sdk-hero-bg py-20 pt-32 md:pt-40">
+        <section className="relative flex items-center justify-center overflow-hidden api-hero-bg py-20 pt-32 md:pt-40">
           <div className="container mx-auto px-6 z-10 text-center">
             <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
               <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">

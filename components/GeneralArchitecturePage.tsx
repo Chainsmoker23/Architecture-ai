@@ -1,7 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-// FIX: Use a type-only import for interfaces to prevent collision with the built-in DOM 'Node' type.
-// FIX: Aliased Node to ArchNode to avoid conflicts with the global DOM Node type.
-import type { DiagramData, Node as ArchNode, Container, Link } from '../types';
+import type { DiagramData, ArchNode, Container, Link } from '../types';
 import { IconType } from '../types';
 import { generateDiagramData, explainArchitecture } from '../services/geminiService';
 import PromptInput from './PromptInput';
@@ -19,7 +17,7 @@ import ApiKeyModal from './ApiKeyModal';
 import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
 interface GeneralArchitecturePageProps {
     onNavigate: (page: Page) => void;
@@ -541,7 +539,7 @@ const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNav
               )}
 
               {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
-            </motion.section>
+            </section>
 
             <AnimatePresence>
                 {isPropertiesPanelOpen && (

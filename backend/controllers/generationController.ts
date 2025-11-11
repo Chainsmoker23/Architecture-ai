@@ -1,7 +1,10 @@
-// FIX: Changed imports to use the `express` namespace for `Request` and `Response` types to resolve type conflicts.
 import * as express from 'express';
+// FIX: Updated to use modern GoogleGenAI SDK instead of deprecated GoogleGenerativeAI
 import { GoogleGenAI, Type } from "@google/genai";
 import { authenticateUser, checkAndIncrementGenerationCount } from '../userUtils';
+import { supabaseAdmin } from '../supabaseClient';
+import { User } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 // --- SCHEMAS & PROMPTS ---
 
@@ -41,7 +44,7 @@ const responseSchema = {
           target: { type: Type.STRING, description: "The 'id' of the target node." },
           label: { type: Type.STRING, description: "Optional label for the connection to indicate data flow (e.g., 'HTTP Request')." },
           style: { type: Type.STRING, description: "The line style. Can be 'solid', 'dotted', 'dashed', or 'double'." },
-          thickness: { type: Type.STRING, description: "The thickness of the link. Can be 'thin', 'medium', or 'thick'." },
+          thickness: { type: Type.STRING, description: "The thickness of the link. Can be 'thin', 'medium', 'thick'." },
           bidirectional: { type: Type.BOOLEAN, description: "If true, the link will have arrowheads on both ends." },
         },
         required: ["id", "source", "target"],
@@ -54,51 +57,46 @@ const responseSchema = {
         type: Type.OBJECT,
         properties: {
           id: { type: Type.STRING, description: "A unique, kebab-case identifier for the container." },
-          label: { type: Type.STRING, description: "The human-readable name of the container (e.g., 'Web Tier')." },
-          type: { type: Type.STRING, description: "The type of container. Must be one of: 'region', 'availability-zone', 'tier'." },
-          description: { type: Type.STRING, description: "A brief, one-sentence description of the container's purpose." },
-          x: { type: Type.NUMBER, description: "The horizontal position of the container's top-left corner on a 1200x800 canvas." },
-          y: { type: Type.NUMBER, description: "The vertical position of the container's top-left corner." },
+          label: { type: Type.STRING, description: "The name of the grouping (e.g., 'API Tier')." },
+          type: { type: Type.STRING, description: "The type of container: 'region', 'availability-zone', or 'tier'." },
+          childNodeIds: { type: Type.ARRAY, items: { type: Type.STRING }, description: "An array of node 'id's that belong inside this container." },
+          x: { type: Type.NUMBER, description: "The top-left horizontal position of the container." },
+          y: { type: Type.NUMBER, description: "The top-left vertical position of the container." },
           width: { type: Type.NUMBER, description: "The width of the container." },
           height: { type: Type.NUMBER, description: "The height of the container." },
-          childNodeIds: {
-            type: Type.ARRAY, description: "An array of node 'id's that are located inside this container.",
-            items: { type: Type.STRING },
-          },
         },
-        required: ["id", "label", "type", "description", "x", "y", "width", "height", "childNodeIds"],
-      }
-    }
+        required: ["id", "label", "type", "childNodeIds", "x", "y", "width", "height"],
+      },
+    },
   },
   required: ["title", "architectureType", "nodes", "links"],
 };
 
-const neuralNetworkResponseSchema = {
+const neuralNetworkSchema = {
   type: Type.OBJECT,
   properties: {
-    title: { type: Type.STRING, description: "A concise title for the neural network diagram." },
+    title: { type: Type.STRING, description: "A concise title for the neural network diagram (e.g., 'Simple Feedforward Network')." },
     nodes: {
       type: Type.ARRAY,
       description: "A list of all neurons and layer labels.",
       items: {
         type: Type.OBJECT,
         properties: {
-          id: { type: Type.STRING, description: "A unique, kebab-case identifier." },
-          label: { type: Type.STRING, description: "The label for the node. For 'neuron' type, this MUST be an empty string. For 'layer-label' type, this is the name of the layer (e.g., 'Input Layer')." },
-          type: { type: Type.STRING, description: "Either 'neuron' or 'layer-label'." },
-          layer: { type: Type.NUMBER, description: "The 0-indexed layer number this node belongs to. Input layer is 0." },
-          color: { type: Type.STRING, description: "Optional. For 'neuron' type, use '#2B2B2B' for input/output layers and '#D1D5DB' for hidden layers." },
+          id: { type: Type.STRING, description: "A unique identifier for the node (e.g., 'input-1', 'hidden-1-2')." },
+          label: { type: Type.STRING, description: "The name of the node. For neurons, this can be the ID. For labels, it describes the layer (e.g., 'Input Layer')." },
+          type: { type: Type.STRING, description: "The type of node. Must be either 'neuron' or 'layer-label'." },
+          layer: { type: Type.NUMBER, description: "The layer number this node belongs to (e.g., 0 for input, 1 for first hidden, etc.)." },
         },
         required: ["id", "label", "type", "layer"],
       },
     },
     links: {
       type: Type.ARRAY,
-      description: "A list of connections between the neurons.",
+      description: "A list of connections between the neurons, typically connecting all neurons in one layer to all neurons in the next.",
       items: {
         type: Type.OBJECT,
         properties: {
-          id: { type: Type.STRING, description: "A unique, kebab-case identifier for the link." },
+          id: { type: Type.STRING, description: "A unique identifier for the link." },
           source: { type: Type.STRING, description: "The 'id' of the source neuron." },
           target: { type: Type.STRING, description: "The 'id' of the target neuron." },
         },
@@ -109,198 +107,253 @@ const neuralNetworkResponseSchema = {
   required: ["title", "nodes", "links"],
 };
 
-const graphResponseSchema = {
-  type: Type.OBJECT,
-  properties: {
-    title: { type: Type.STRING, description: "A concise title for the graph." },
-    graphType: { type: Type.STRING, description: "The type of graph. Must be 'line' or 'bar'." },
-    xAxisLabel: { type: Type.STRING, description: "The label for the X-axis." },
-    yAxisLabel: { type: Type.STRING, description: "The label for the Y-axis." },
-    datasets: {
-      type: Type.ARRAY,
-      description: "A list of data series to plot on the graph.",
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          label: { type: Type.STRING, description: "The name of this data series (for the legend)." },
-          color: { type: Type.STRING, description: "A unique, visually appealing hex color code for this dataset (e.g., '#FF6384')." },
-          data: {
-            type: Type.ARRAY,
-            description: "The data points for this series.",
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                x: {
-                  oneOf: [{ type: Type.STRING }, { type: Type.NUMBER }],
-                  description: "The value for the X-axis (can be a category name or a number)."
-                },
-                y: { type: Type.NUMBER, description: "The value for the Y-axis (must be a number)." },
-              },
-              required: ["x", "y"],
-            },
-          },
-        },
-        required: ["label", "data", "color"],
-      },
-    },
-  },
-  required: ["title", "graphType", "datasets"],
-};
+const systemPrompt = `You are an expert system architect. Your task is to generate a JSON representation of a software architecture diagram based on a user's prompt. The JSON must strictly adhere to the provided schema.
 
-// FIX: Added response schema for pie charts.
-const pieChartResponseSchema = {
-    type: Type.OBJECT,
-    properties: {
-        title: { type: Type.STRING, description: "A concise title for the pie chart." },
-        slices: {
-            type: Type.ARRAY,
-            description: "A list of slices for the pie chart.",
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    label: { type: Type.STRING, description: "The label for this slice." },
-                    value: { type: Type.NUMBER, description: "The numerical value for this slice. It should be a percentage or a raw number." },
-                    color: { type: Type.STRING, description: "A unique, visually appealing hex color code for this slice (e.g., '#FF6384')." },
-                },
-                required: ["label", "value", "color"],
-            },
-        },
-    },
-    required: ["title", "slices"],
-};
+**Layout Philosophy: The "Swimlane" Principle**
+For any diagram with logical tiers (e.g., Presentation, Application, Data), you MUST adopt a strict, columnar (swimlane) layout. This is your highest priority for achieving a professional look.
+1.  **Tier Containers as Swimlanes:** Each logical tier MUST be represented by a \`container\` of type 'tier'. These containers should be arranged side-by-side (horizontally) and should ideally span the full vertical height of the main diagram area to create distinct visual columns.
+2.  **Strict Data Flow:** The primary data flow MUST proceed from left to right across these swimlanes. A user should be able to understand the sequence of operations just by looking at the layout.
+3.  **Alignment is Key:** Within each tier (swimlane), align the nodes vertically. This creates a clean, organized, grid-like structure. Strive for consistent spacing between nodes.
+4.  **Clean Link Routing:** Route links as cleanly as possible. Minimize crossovers. Links should primarily flow from a node in one tier to a node in the next tier to the right.
 
-const systemInstruction = "You are an expert solutions architect and a talented graphic designer with an expertise in information architecture. Your task is to generate a valid JSON representation of a software architecture diagram. The layout must be clean, logical, symmetrical, and exceptionally visually appealing, resembling a publication-quality blueprint. You MUST strictly adhere to all provided guidelines and the JSON schema. Pay close attention to any special instructions for specific diagram types, like Neural Networks.";
+**Other Key Instructions:**
+1.  **Icon Mapping:** Choose the most appropriate 'type' for each node from the predefined list in the schema. This is crucial for correct icon rendering.
+2.  **IDs:** All 'id' fields for nodes, links, and containers must be unique and in kebab-case.
+3.  **Connections:** Ensure all 'source' and 'target' fields in the 'links' array correspond to valid node 'id's.
+4.  **Labels (Crucial):** BE EXTREMELY CONSERVATIVE WITH LABELS. The user wants clean diagrams.
+    - DO NOT use link labels for common interactions like 'API Call' or 'HTTP Request'. The connection itself implies this.
+    - DO NOT use floating text labels (\`layer-label\` or \`group-label\`) to label a tier if it is already inside a labeled container. The container's label is sufficient.
+    - For a simple architecture (e.g., a 3-tier app), generate a MAXIMUM of 3-4 essential labels.
+    - For complex architectures, generate a MAXIMUM of 6-8 labels.
+    - Only add a label if it clarifies a major concept that is impossible to understand from the component icons and container labels alone.
+5.  **Neural Networks:** If the prompt is for a neural network, use the 'neuron' and 'layer-label' types. Calculate layer numbers starting from 0 for the input layer. Neurons should be small and circular. Lay out neurons in distinct vertical layers.
+6.  **Node Sizing:** Ensure the 'width' and 'height' for each node are sufficiently large to contain the 'label' text comfortably without truncation. For longer labels like "Smart Contract Interaction," use a wider 'width' (e.g., 180) and a taller 'height' (e.g., 90) to allow for text wrapping.
+`;
 
-// --- HELPERS ---
 
-const getGenAIClient = (userApiKey?: string) => {
-  const apiKey = userApiKey || process.env.VITE_API_KEY;
-  if (!apiKey) {
-    throw new Error("API key is not configured on the server.");
-  }
-  return new GoogleGenAI({ apiKey });
-};
+// --- HELPER FUNCTIONS ---
 
-// FIX: Use namespaced express types for request and response objects.
-const handleGeminiError = (error: unknown, res: express.Response, userApiKey?: string) => {
-    console.error("[Backend] Gemini API Error:", String(error));
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    let clientMessage = "Failed to process request. The model may have returned an invalid format or an unexpected error occurred.";
-
-    if (errorMessage.includes('API key not valid') || errorMessage.includes('400')) {
-        clientMessage = "Your API key is invalid. Please check it in the settings and try again.";
-    } else if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('429')) {
-        clientMessage = userApiKey 
-            ? "Your API key has exceeded its quota. Please check your usage on the Google AI platform."
-            : "SHARED_KEY_QUOTA_EXCEEDED";
+const getApiKeyForRequest = async (req: express.Request, user: User | null): Promise<string | null> => {
+    // Priority 1: User-provided key in the request body (for temporary modal overrides)
+    if (req.body.userApiKey) {
+        return req.body.userApiKey;
     }
-    
-    res.status(500).json({ error: clientMessage });
+    // Priority 2: User's own key stored securely in their app_metadata
+    if (user && user.app_metadata?.personal_api_key) {
+        return user.app_metadata.personal_api_key;
+    }
+    // Priority 3: Shared key from environment variables (fallback)
+    return process.env.GEMINI_API_KEY || null;
 };
+
+const getGeminiResponse = async (apiKey: string, promptPayload: any, schema?: any) => {
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        const model = schema ? 'gemini-2.5-flash' : 'gemini-2.5-pro';
+
+        const contents = promptPayload.contents || promptPayload;
+        const systemInstruction = promptPayload.systemInstruction;
+        
+        const config: any = schema ? {
+            responseMimeType: "application/json",
+            responseSchema: schema,
+        } : {};
+
+        if (systemInstruction) {
+            config.systemInstruction = systemInstruction;
+        }
+
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: contents,
+            config: Object.keys(config).length > 0 ? config : undefined
+        });
+
+        const text = response.text;
+        
+        if (schema) {
+             if (!text) {
+                throw new Error("Gemini API returned an empty response, but a JSON object was expected.");
+            }
+            const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(cleanedJson);
+        }
+        return text || "";
+    } catch (e: any) {
+        console.error("Gemini API Error:", e.message, e.stack);
+        // Provide a more specific error for API key issues
+        if (e.message.includes('API key not valid')) {
+            throw new Error("The provided API key is invalid. Please check your key and try again.");
+        }
+        if (e.message.includes('quota')) {
+            throw new Error("The API key has exceeded its quota. Please check your billing or try another key.");
+        }
+        throw new Error(`Gemini API Error: ${e.message}`);
+    }
+};
+
+const handleError = (res: express.Response, error: unknown, defaultMessage: string = 'An unexpected error occurred.') => {
+    const errorMessage = error instanceof Error ? error.message : defaultMessage;
+    console.error(`[Backend Error] ${errorMessage}`);
+    if (errorMessage.includes("API key")) {
+        return res.status(400).json({ error: errorMessage });
+    }
+    if (errorMessage.includes("quota")) {
+        return res.status(429).json({ error: 'SHARED_KEY_QUOTA_EXCEEDED' });
+    }
+    if (errorMessage.includes("GENERATION_LIMIT_EXCEEDED")) {
+        return res.status(429).json({ error: 'GENERATION_LIMIT_EXCEEDED' });
+    }
+    return res.status(500).json({ error: errorMessage });
+};
+
 
 // --- CONTROLLER FUNCTIONS ---
 
-// FIX: Use namespaced express types for request and response objects.
-const generationEndpoint = async (req: express.Request, res: express.Response, schema: any, modelPrompt: string) => {
-    const { prompt, userApiKey } = req.body;
-    if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
-
+export const handleGenerateDiagram = async (req: express.Request, res: express.Response) => {
     const user = await authenticateUser(req);
-    
-    if (user) {
-        const usageCheck = await checkAndIncrementGenerationCount(user);
-        if (!usageCheck.allowed) {
-            return res.status(403).json({ error: usageCheck.error });
+    if (!user) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid authentication token.' });
+    }
+
+    const { allowed, error: limitError } = await checkAndIncrementGenerationCount(user);
+    if (!allowed) {
+        return handleError(res, new Error(limitError));
+    }
+
+    try {
+        const apiKey = await getApiKeyForRequest(req, user);
+        if (!apiKey) {
+            return res.status(400).json({ error: 'API key is missing.' });
+        }
+        const { prompt } = req.body;
+        const fullPrompt = {
+            parts: [
+                { text: systemPrompt },
+                { text: `Generate the JSON for the following prompt: "${prompt}"` }
+            ]
+        };
+        const data = await getGeminiResponse(apiKey, fullPrompt, responseSchema);
+        res.json(data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
+export const handleGenerateNeuralNetwork = async (req: express.Request, res: express.Response) => {
+    const user = await authenticateUser(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid authentication token.' });
+    }
+
+    const { allowed, error: limitError } = await checkAndIncrementGenerationCount(user);
+    if (!allowed) {
+        return handleError(res, new Error(limitError));
+    }
+
+    try {
+        const apiKey = await getApiKeyForRequest(req, user);
+        if (!apiKey) {
+            return res.status(400).json({ error: 'API key is missing.' });
+        }
+        const { prompt } = req.body;
+         const fullPrompt = {
+            parts: [
+                { text: systemPrompt },
+                { text: `Generate the JSON for the following neural network prompt: "${prompt}"` }
+            ]
+        };
+        const data = await getGeminiResponse(apiKey, fullPrompt, neuralNetworkSchema);
+        res.json(data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
+export const handleExplainArchitecture = async (req: express.Request, res: express.Response) => {
+    const user = await authenticateUser(req);
+    if (!user) {
+        // Allow explanation even for non-logged-in users if a key is provided
+        if (!req.body.userApiKey && !process.env.GEMINI_API_KEY) {
+            return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
         }
     }
 
     try {
-        const ai = getGenAIClient(userApiKey);
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
-            contents: modelPrompt.replace('${prompt}', prompt),
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: schema,
-                systemInstruction: systemInstruction
-            },
-        });
+        const apiKey = await getApiKeyForRequest(req, user);
+        if (!apiKey) {
+            return res.status(400).json({ error: 'API key is missing.' });
+        }
+        const { diagramData } = req.body;
+        const prompt = `Based on the following JSON data representing an architecture diagram, provide a concise, markdown-formatted explanation of what the system does, its key components, and how they interact. JSON: ${JSON.stringify(diagramData)}`;
+        const explanation = await getGeminiResponse(apiKey, prompt);
+        res.json({ explanation });
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
+// --- API KEY MANAGEMENT CONTROLLERS ---
+
+export const handleGetApiKey = async (req: express.Request, res: express.Response) => {
+    const user = await authenticateUser(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    try {
+        // The user object from authenticateUser contains app_metadata
+        const apiKey = user.app_metadata?.personal_api_key || null;
+        res.json({ apiKey });
+    } catch (e) {
+        handleError(res, e, 'Failed to retrieve API key.');
+    }
+};
+
+export const handleGenerateApiKey = async (req: express.Request, res: express.Response) => {
+    const user = await authenticateUser(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+    }
+
+    const plan = user.user_metadata?.plan || 'free';
+    if (!['pro', 'business'].includes(plan)) {
+        return res.status(403).json({ error: 'Forbidden: API key generation is a premium feature.' });
+    }
+
+    try {
+        const newKey = `cg_sk_${crypto.randomBytes(20).toString('hex')}`;
         
-        const text = response.text;
-        if (!text) {
-            console.error("[Backend] Gemini API Error: Model returned no text.");
-            return res.status(500).json({ error: "The AI model returned an empty or invalid response. This may be due to content filtering or a temporary issue. Please try a different prompt." });
+        const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+            user.id,
+            { app_metadata: { ...user.app_metadata, personal_api_key: newKey } }
+        );
+
+        if (error || !data.user) {
+            throw error || new Error('Failed to update user with new key.');
         }
 
-        const jsonText = text.trim();
-        const parsedData = JSON.parse(jsonText);
-
-        res.json(parsedData);
-    } catch (error) {
-        handleGeminiError(error, res, userApiKey);
-    }
-}
-
-// FIX: Use namespaced express types for request and response objects.
-export const generateDiagram = async (req: express.Request, res: express.Response) => {
-    const modelPrompt = `Generate a professional software architecture diagram based on the following prompt: "${'${prompt}'}". The output must be a valid JSON object adhering to the specified schema. **CRITICAL RULE: Link Label Budget** You MUST strictly control the number of link labels to keep the diagram clean. - For **small diagrams** (fewer than 8 nodes), you MUST use a maximum of **3-4 labels**. - For **large diagrams** (8 nodes or more), you MUST use a maximum of **5-8 labels**. - **ONLY** label the most critical, non-obvious data flows. DO NOT label simple connections like 'request' or 'response' if the flow is already clear. Your primary goal is to minimize text on the diagram. **Layout Strategy:** Based on the prompt, you MUST choose ONE of the following layout strategies that best represents the architecture. 1. **Hierarchical (Top-to-Bottom):** Use this for request flows or n-tier architectures. Arrange components in horizontal tiers. Entry-points ('User', 'WebApp') go at the top, services in the middle, and data stores ('Database') at the bottom. Flow is primarily downwards. 2. **Hub-and-Spoke (Centralized):** Use this for event-driven systems or microservice architectures with a central component (e.g., API Gateway, Message Bus). Place the central "hub" component in the middle of the canvas. Arrange the "spoke" components radiating around it. 3. **Pipeline (Left-to-Right):** Use this for data processing pipelines (ETL), CI/CD workflows, or any sequential process. Arrange components in a clear horizontal flow from left to right. **General Layout Guidelines:** 1. **Proactive Grouping**: Use 'containers' of type 'tier', 'region', or 'availability-zone' to group related components logically. 2. **Spacing & Alignment**: Ensure generous and consistent spacing. Align nodes within their logical group (e.g., horizontally within a tier, or vertically in a pipeline stage). There must be NO overlaps between any nodes or containers. 3. **Sizing**: Choose an appropriate 'width' and 'height' for each node. Minimum width 120, height 80. 4. **Coordinates**: All positions are on a 1200x800 canvas with (0,0) at the top-left. 5. **IDs**: Ensure all 'id' fields are unique, kebab-case strings. 6. **Connectivity**: Make sure all 'source' and 'target' IDs correspond to existing node IDs. 7. **Bidirectional Communication**: When two components have a clear two-way communication flow, it is often clearer to represent this with TWO separate, unidirectional links. However, for simpler cases, you may use a single link with 'bidirectional: true'. 8. **Description**: Provide a concise, one-sentence 'description' for every node and container. Use the most specific icon 'type'. 9. **Compactness & Proximity**: Strive for a compact layout. Minimize unnecessary whitespace. Components that communicate frequently should be placed closer to each other. 10. **Final Review Step**: Mentally review your generated diagram. Is it logical, balanced, and does it match the chosen layout strategy? Correct any deviations. **ULTRA-STRICT Instructions for Neural Network Diagrams:** If the prompt describes a "neural network", "ANN", "deep learning model", or similar, you MUST abandon all other layout rules and follow these rules EXCLUSIVELY. 1. **Node Types:** You can ONLY use two node types: \`'neuron'\` and \`'layer-label'\`. 2. **Neuron Nodes (\`type: 'neuron'\`):** * **Purpose:** Represents a single neuron. They are rendered as glossy spheres. * **JSON Properties:** \`label\` and \`description\` MUST be an empty string (\`""\`). \`width\` and \`height\` MUST be equal and small (e.g., \`30\` or \`40\`). \`shape\` MUST be \`'ellipse'\`. \`color\` MUST be \`'#2B2B2B'\` for input/output neurons and \`'#D1D5DB'\` for hidden neurons. 3. **Layer Label Nodes (\`type: 'layer-label'\`):** * **Purpose:** To label a vertical layer of neurons (e.g., 'Input', 'Hidden', 'Output'). They are rendered as text only. * **JSON Properties:** The node MUST be positioned horizontally centered with its layer, and vertically positioned 40px above the topmost neuron of that layer. \`description\` MUST be an empty string (\`""\`). 4. **Layout:** * Neurons MUST be arranged in perfectly vertical columns (layers). All neurons in a layer share the same X-coordinate. * Layers MUST be spaced far apart horizontally (e.g., 250-300px between layer X-coordinates). * Neurons within a layer MUST be spaced perfectly and evenly in their vertical column. 5. **Connectivity (Links):** * The network MUST be fully connected. Every neuron in a layer \`N\` MUST have a link pointing to EVERY neuron in the next layer \`N+1\`. * All links MUST be directed from a lower layer number to the next layer on the right. They must be \`'solid'\` and \`'thin'\`. * The \`label\` for all links between neurons MUST be an empty string (\`""\`). 6. **DO NOT:** Do not create large container boxes for layers. Do not put labels inside neuron nodes. The only labels are the separate \`'layer-label'\` nodes.`;
-    await generationEndpoint(req, res, responseSchema, modelPrompt);
-};
-
-// FIX: Use namespaced express types for request and response objects.
-export const generateNeuralNetwork = async (req: express.Request, res: express.Response) => {
-    const modelPrompt = `Generate a neural network diagram structure from the prompt: "${'${prompt}'}". **VERY STRICT RULES:** 1. Parse the prompt to identify the layers (input, hidden, output) and the number of neurons in each. 2. Create a 'node' object for EACH neuron. 3. Create one 'node' object for EACH layer's label (e.g., 'Input', 'Hidden 1', 'Output'). 4. For ALL nodes (neurons and labels), assign a \`layer\` number, starting with 0 for the input layer. All nodes in the same vertical layer must have the same \`layer\` number. 5. For neuron nodes: \`type\` must be 'neuron', \`label\` must be an empty string. Assign colors appropriately ('#2B2B2B' for input/output, '#D1D5DB' for hidden). 6. For label nodes: \`type\` must be 'layer-label', \`label\` is the name of the layer. 7. Create 'link' objects for a fully-connected network between adjacent layers. All links must go from a lower layer number to a higher one. 8. Do NOT include 'x', 'y', 'width', 'height', 'description', or 'shape' properties. They will be ignored. Only provide properties defined in the schema.`;
-    await generationEndpoint(req, res, neuralNetworkResponseSchema, modelPrompt);
-};
-
-// FIX: Use namespaced express types for request and response objects.
-export const generateGraph = async (req: express.Request, res: express.Response) => {
-    const modelPrompt = `You are a data visualization expert. Your task is to convert a user's natural language description into a valid JSON object representing a graph, strictly adhering to the provided schema. Analyze the user's prompt to extract data points, series labels, axis labels, and determine the most appropriate graph type ('line' or 'bar'). The X-axis can be either numerical or categorical (strings), while the Y-axis must always be numerical. For each dataset, you must assign a unique and visually appealing hex color code. User prompt: "${'${prompt}'}"`;
-    await generationEndpoint(req, res, graphResponseSchema, modelPrompt);
-};
-
-// FIX: Use namespaced express types for request and response objects.
-export const explainArchitecture = async (req: express.Request, res: express.Response) => {
-    const { diagramData, userApiKey } = req.body;
-    if (!diagramData) return res.status(400).json({ error: 'Diagram data is required.' });
-    
-    try {
-        const ai = getGenAIClient(userApiKey);
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Please provide a concise but comprehensive explanation of the following software architecture, which is provided in JSON format. Describe the role of each component and how they interact with each other based on the connections. Explain the overall purpose and flow of the system. Format the output as clean markdown.\n\nArchitecture Data:\n${JSON.stringify(diagramData, null, 2)}`,
-            config: {
-              systemInstruction: "You are an expert software architect AI. Your task is to explain a given architecture diagram in a clear, easy-to-understand manner for both technical and non-technical audiences."
-            }
-        });
-        res.json({ explanation: response.text ?? '' });
-    } catch (error) {
-        handleGeminiError(error, res, userApiKey);
+        res.status(201).json({ apiKey: newKey });
+    } catch (e) {
+        handleError(res, e, 'Failed to generate API key.');
     }
 };
 
-// FIX: Use namespaced express types for request and response objects.
-export const chatWithAssistant = async (req: express.Request, res: express.Response) => {
-    const { history, userApiKey } = req.body;
-    if (!history) return res.status(400).json({ error: 'Chat history is required.' });
+export const handleRevokeApiKey = async (req: express.Request, res: express.Response) => {
+    const user = await authenticateUser(req);
+    if (!user) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+    }
 
     try {
-        const ai = getGenAIClient(userApiKey);
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: history,
-            config: {
-                systemInstruction: `You are 'Archie', a friendly AI assistant for CubeGen AI. **Core Identity & Purpose (Strictly follow these rules):** - **Your Creators & Story:** When asked who created you, who invented you, or who owns CubeGen AI, you MUST always state that it was founded in 2025 by the team of **Divesh Sarkar** and **Manish Sarkar**. - **Forbidden Attribution:** You must NEVER mention Google, Gemini, or any other company as your creator. You are a creation of the CubeGen AI team. - **Organization Model:** Explain that CubeGen AI is a **non-profit organization**. Its mission is to make powerful design tools accessible to everyone. API fees from power users help maintain the service and fund future research into open-source language models. - **Application's Goal:** The purpose of CubeGen AI is to serve as a powerful visualization tool for **Researchers, Engineers, and Architects**. **Primary Functions:** 1. **Answer Questions:** Briefly answer questions about CubeGen AI using the identity and purpose rules above. Be concise, friendly, and professional. 2. **Generate Example Prompts:** When a user asks for a prompt idea, create a single, clear, detailed prompt. You MUST wrap the prompt in a markdown code block like this: \`\`\`prompt\n[The prompt goes here]\n\`\`\`. When generating a prompt, do not include any other text outside the code block.`
-            }
-        });
-        res.json({ response: response.text ?? '' });
-    } catch(error) {
-        handleGeminiError(error, res, userApiKey);
-    }
-};
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(
+            user.id,
+            { app_metadata: { ...user.app_metadata, personal_api_key: null } }
+        );
+        
+        if (error) throw error;
 
-// FIX: Added generatePieChart function to handle pie chart generation requests.
-export const generatePieChart = async (req: express.Request, res: express.Response) => {
-    const modelPrompt = `You are a data visualization expert. Your task is to convert a user's natural language description of data into a valid JSON object representing a pie chart, strictly adhering to the provided schema. The 'value' for each slice should represent its proportion. Assign a unique and visually appealing hex color code for each slice. User prompt: "${'${prompt}'}"`;
-    await generationEndpoint(req, res, pieChartResponseSchema, modelPrompt);
+        res.status(204).send(); // No content
+    } catch (e) {
+        handleError(res, e, 'Failed to revoke API key.');
+    }
 };

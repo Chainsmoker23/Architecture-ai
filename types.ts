@@ -1,4 +1,4 @@
-export interface Node {
+export interface ArchNode {
   id: string;
   label: string;
   type: string;
@@ -16,8 +16,8 @@ export interface Node {
 
 export interface Link {
   id: string;
-  source: string | Node;
-  target: string | Node;
+  source: string | ArchNode;
+  target: string | ArchNode;
   label?: string;
   style?: 'solid' | 'dotted' | 'dashed' | 'double';
   color?: string;
@@ -41,39 +41,9 @@ export interface Container {
 export interface DiagramData {
   title: string;
   architectureType: string;
-  nodes: Node[];
+  nodes: ArchNode[];
   links: Link[];
   containers?: Container[];
-}
-
-export interface DataPoint {
-  x: number | string;
-  y: number;
-}
-
-export interface DataSet {
-  label: string;
-  data: DataPoint[];
-  color?: string;
-}
-
-export interface GraphData {
-  title: string;
-  graphType: 'line' | 'bar';
-  xAxisLabel?: string;
-  yAxisLabel?: string;
-  datasets: DataSet[];
-}
-
-export interface PieSlice {
-  label: string;
-  value: number;
-  color: string;
-}
-
-export interface PieChartData {
-  title: string;
-  slices: PieSlice[];
 }
 
 export enum IconType {
@@ -215,23 +185,4 @@ export enum IconType {
   Edit = 'edit',
   Gear = 'gear',
   Generic = 'generic',
-  
-  // --- Graph/Chart Icons ---
-  // FIX: Added 'Graph' to the IconType enum.
-  Graph = 'graph',
-  GraphLine = 'graph-line',
-  GraphBar = 'graph-bar',
-  GraphPie = 'graph-pie',
-  GraphDoughnut = 'graph-doughnut',
-  GraphArea = 'graph-area',
-  GraphScatter = 'graph-scatter',
-  GraphBubble = 'graph-bubble',
-  GraphRadar = 'graph-radar',
-  GraphPolar = 'graph-polar',
-  GraphCandlestick = 'graph-candlestick',
-  GraphFunnel = 'graph-funnel',
-  GraphTreemap = 'graph-treemap',
-  GraphSankey = 'graph-sankey',
-  GraphChord = 'graph-chord',
-  GraphHeatmap = 'graph-heatmap',
 }

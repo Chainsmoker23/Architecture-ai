@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { DiagramData, IconType, Node, Link } from '../types';
+import { DiagramData, IconType, ArchNode, Link } from '../types';
 import ArchitectureIcon from './ArchitectureIcon';
 
 const ARCHITECTURE_EXAMPLES: DiagramData[] = [
@@ -133,13 +133,13 @@ const containerVariants: Variants = {
 };
 
 const nodeVariants: Variants = {
-    hidden: (node: Node) => ({
+    hidden: (node: ArchNode) => ({
         opacity: 0,
         scale: 0.5,
         x: node.x - node.width / 2,
         y: node.y - node.height / 2
     }),
-    visible: (node: Node) => ({
+    visible: (node: ArchNode) => ({
         opacity: 1,
         scale: 1,
         x: node.x - node.width / 2,
@@ -151,7 +151,7 @@ const nodeVariants: Variants = {
             delay: 0.5 + (node.animationOrder || 0) * 0.15
         }
     }),
-    exit: (node: Node) => ({
+    exit: (node: ArchNode) => ({
         opacity: 0,
         scale: 0.5,
         x: node.x - node.width / 2,
@@ -198,7 +198,7 @@ const buildPathFromPoints = (points: Point[]): string => {
     `;
 };
 
-const generateOrthogonalPathD = (source: Node, target: Node, obstacles: Rect[]): string => {
+const generateOrthogonalPathD = (source: ArchNode, target: ArchNode, obstacles: Rect[]): string => {
     const sourceEdgeXRight = source.x + source.width / 2;
     const sourceEdgeXLeft = source.x - source.width / 2;
     const targetEdgeXLeft = target.x - target.width / 2;

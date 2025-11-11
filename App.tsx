@@ -3,7 +3,7 @@ import { motion, AnimatePresence, Variants } from 'framer-motion';
 import LandingPage from './components/LandingPage';
 import ContactPage from './components/ContactPage';
 import AboutPage from './components/AboutPage';
-import SdkPage from './components/SdkPage';
+import ApiPricingPage from './components/ApiPricingPage';
 import AuthPage from './components/AuthPage';
 import ApiKeyPage from './components/ApiKeyPage';
 import PrivacyPage from './components/PrivacyPage';
@@ -12,13 +12,11 @@ import DocsPage from './components/DocsPage';
 import NeuralNetworkPage from './components/NeuralNetworkPage';
 import CareersPage from './components/CareersPage';
 import ResearchPage from './components/ResearchPage';
-import { GraphHomePage } from './components/GraphHome/GraphHomePage';
-import PieChartPage from './components/GraphHome/PieChartPage';
 import GeneralArchitecturePage from './components/GeneralArchitecturePage';
 import Loader from './components/Loader';
 import { useAuth } from './contexts/AuthContext';
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
 const getPageFromHash = (): { page: Page; subpage?: string } => {
   const hash = window.location.hash.substring(1).split('?')[0];
@@ -26,7 +24,7 @@ const getPageFromHash = (): { page: Page; subpage?: string } => {
     return { page: 'landing' };
   }
   const [mainPage, subpage] = hash.split('/');
-  const validPages: Page[] = ['landing', 'auth', 'app', 'contact', 'about', 'sdk', 'apiKey', 'privacy', 'terms', 'docs', 'neuralNetwork', 'careers', 'research', 'graph'];
+  const validPages: Page[] = ['landing', 'auth', 'app', 'contact', 'about', 'api', 'apiKey', 'privacy', 'terms', 'docs', 'neuralNetwork', 'careers', 'research'];
   if (validPages.includes(mainPage as Page)) {
     return { page: mainPage as Page, subpage };
   }
@@ -76,7 +74,7 @@ const App: React.FC = () => {
       return;
     }
     
-    const isProtectedPage = currentPageInfo.page === 'app' || currentPageInfo.page === 'neuralNetwork' || currentPageInfo.page === 'graph';
+    const isProtectedPage = ['app', 'neuralNetwork', 'apiKey'].includes(currentPageInfo.page);
     if (!currentUser && isProtectedPage) {
       onNavigate('landing');
       return;
@@ -110,8 +108,8 @@ const App: React.FC = () => {
   if (page.page === 'about') {
     return <AboutPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
-  if (page.page === 'sdk') {
-    return <SdkPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
+  if (page.page === 'api') {
+    return <ApiPricingPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
   if (page.page === 'apiKey') {
     return <ApiKeyPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
@@ -123,7 +121,7 @@ const App: React.FC = () => {
     return <TermsPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
   }
   if (page.page === 'docs') {
-    return <DocsPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigateToSdk={() => onNavigate('sdk')} onNavigate={onNavigate} />;
+    return <DocsPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigateToApi={() => onNavigate('api')} onNavigate={onNavigate} />;
   }
   if (page.page === 'neuralNetwork') {
     return <NeuralNetworkPage onNavigate={onNavigate} />;
@@ -133,12 +131,6 @@ const App: React.FC = () => {
   }
   if (page.page === 'research') {
     return <ResearchPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
-  }
-  if (page.page === 'graph') {
-    if (page.subpage === 'pie') {
-      return <PieChartPage onNavigate={onNavigate} />;
-    }
-    return <GraphHomePage onNavigate={onNavigate} />;
   }
   if (page.page === 'app') {
     return <GeneralArchitecturePage onNavigate={onNavigate} />;

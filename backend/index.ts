@@ -19,6 +19,7 @@ const requiredEnvVars = [
   'DODO_SECRET_KEY',
   'SITE_URL',
   'DODO_WEBHOOK_SECRET',
+  'GEMINI_API_KEY', // UPDATED: Check for backend-specific key
 ];
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);
 if (missingVars.length > 0) {

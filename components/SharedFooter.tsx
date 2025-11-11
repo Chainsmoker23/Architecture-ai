@@ -2,15 +2,15 @@ import React from 'react';
 import { FOOTER_LINKS } from './content/iconConstants';
 import Logo from './Logo';
 
-type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'careers' | 'research';
+type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'careers' | 'research' | 'apiKey';
 
 interface SharedFooterProps {
-  onNavigate: (page: Page | 'apiKey') => void;
+  onNavigate: (page: Page) => void;
   activePage?: Page;
 }
 
 const SharedFooter: React.FC<SharedFooterProps> = ({ onNavigate, activePage }) => {
-    const validPages: (Page)[] = ['about', 'sdk', 'research', 'docs', 'careers', 'contact', 'privacy', 'terms'];
+    const validPages: (Page)[] = ['about', 'api', 'research', 'docs', 'careers', 'contact', 'privacy', 'terms'];
 
     return (
       <footer className="bg-gradient-to-t from-white to-[#FFF0F5]">
@@ -32,9 +32,9 @@ const SharedFooter: React.FC<SharedFooterProps> = ({ onNavigate, activePage }) =
                         e.preventDefault();
                         onNavigate(page);
                       }}
-                      className={`font-medium transition-colors ${activePage === page ? 'text-[#D6336C]' : 'text-[#555] hover:text-[#2B2B2B]'}`}
+                      className={`font-medium transition-colors capitalize ${activePage === page ? 'text-[#D6336C]' : 'text-[#555] hover:text-[#2B2B2B]'}`}
                     >
-                        {page.charAt(0).toUpperCase() + page.slice(1)}
+                        {page === 'api' ? 'API & Pricing' : page}
                     </a>
                 ))}
             </div>

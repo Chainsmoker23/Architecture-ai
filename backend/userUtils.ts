@@ -1,4 +1,3 @@
-// FIX: Changed import to use the `express` namespace for `Request` type to resolve type conflicts.
 import * as express from 'express';
 import { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabaseClient';
@@ -11,6 +10,7 @@ export const HOBBYIST_GENERATION_LIMIT = 50;
  * @param req The Express request object.
  * @returns The authenticated Supabase User object or null.
  */
+// FIX: Use consistent express namespace for Request type.
 export const authenticateUser = async (req: express.Request): Promise<User | null> => {
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -58,8 +58,9 @@ export const checkAndIncrementGenerationCount = async (user: User): Promise<{ al
 
     if (error) {
         console.error(`[Backend] Failed to update generation count for user ${user.id}:`, error);
-        // Allow the generation for a better user experience, even if the update fails, but log the error.
-        return { allowed: true }; 
+        // FIX: Previously, this would fail silently. Now, we explicitly return an error
+        // to prevent users from exceeding their quota due to a database issue.
+        return { allowed: false, error: 'Failed to update user generation count. Please try again.' };
     }
 
     console.log(`[Backend] User ${user.id} generation count updated to ${newCount}.`);

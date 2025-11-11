@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { DiagramData, Node } from '../types';
+import type { DiagramData, ArchNode } from '../types';
 import { IconType } from '../types';
 import { generateNeuralNetworkData } from '../services/geminiService';
 import Loader from './Loader';
@@ -12,7 +12,7 @@ import Logo from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 import SettingsSidebar from './SettingsSidebar';
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
 interface NeuralNetworkPageProps {
   onNavigate: (page: Page | string) => void;

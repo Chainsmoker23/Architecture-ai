@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'sdk' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'graph';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
 
 interface SettingsSidebarProps {
@@ -27,7 +27,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   useEffect(() => {
     const updateActiveModeler = () => {
       const hash = window.location.hash.substring(1);
-      if (hash === 'neuralNetwork' || hash.startsWith('graph')) {
+      if (hash === 'neuralNetwork' || hash === 'apiKey') {
         setActiveModeler(hash.split('/')[0]);
       } else {
         setActiveModeler('app');
@@ -205,7 +205,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                             <div className="bg-gradient-to-r from-[var(--color-accent)] to-pink-400 h-2 rounded-full" style={{ width: `${100 - usagePercentage}%` }}></div>
                           </div>
                            <button 
-                                onClick={() => { onNavigate('sdk'); setIsOpen(false); }}
+                                onClick={() => { onNavigate('api'); setIsOpen(false); }}
                                 className="w-full mt-4 bg-[var(--color-accent)] text-[var(--color-accent-text-strong)] text-sm font-semibold py-2 px-3 rounded-lg hover:opacity-90 transition-opacity"
                            >
                                 Upgrade to Pro
@@ -231,13 +231,6 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                           <ArchitectureIcon type={IconType.Brain} className={`w-6 h-6 flex-shrink-0 ${activeModeler === 'neuralNetwork' ? 'text-[var(--color-accent-text)]' : 'text-[var(--color-text-secondary)]'}`} />
                            <span className={`font-semibold text-sm ${activeModeler === 'neuralNetwork' ? 'text-[var(--color-text-primary)]' : ''}`}>Neural Network Modeler</span>
                         </button>
-                        <button
-                          onClick={() => { onNavigate('graph'); setIsOpen(false); }}
-                           className={modelerButtonClasses('graph')}
-                        >
-                          <ArchitectureIcon type={IconType.Graph} className={`w-6 h-6 flex-shrink-0 ${activeModeler === 'graph' ? 'text-[var(--color-accent-text)]' : 'text-[var(--color-text-secondary)]'}`} />
-                           <span className={`font-semibold text-sm ${activeModeler === 'graph' ? 'text-[var(--color-text-primary)]' : ''}`}>Graph Modeler</span>
-                        </button>
                     </div>
                   </div>
 
@@ -245,7 +238,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                     <>
                     <div className="w-full h-px bg-[var(--color-border)] opacity-50" />
                     <div>
-                        <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">API Key</h3>
+                        <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Personal Key</h3>
                         <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-input)]">
                           <AnimatePresence mode="wait">
                             {userApiKey && !isEditing ? (
@@ -309,14 +302,48 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                     </>
                   )}
                 </div>
-                <div className="mt-auto pt-6 border-t border-[var(--color-border)]">
-                  {currentUser && (
-                    <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-500 py-2.5 px-3 rounded-lg hover:bg-red-500/10 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>
-                        Sign Out
-                    </button>
-                  )}
+                
+                <div className="mt-auto pt-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Developer</h3>
+                    {isPremiumUser ? (
+                      <button
+                        onClick={() => { onNavigate('apiKey'); setIsOpen(false); }}
+                        className="developer-button w-full flex items-center justify-start gap-3 p-3 rounded-xl text-left relative"
+                      >
+                        <div className="z-10 flex items-center gap-3">
+                            <ArchitectureIcon type={IconType.Api} className="w-6 h-6 text-[var(--color-accent-text)]" />
+                            <div>
+                                <span className="font-semibold text-sm text-[var(--color-text-primary)]">API Keys</span>
+                                <span className="block text-xs text-[var(--color-text-secondary)]">Manage & integrate</span>
+                            </div>
+                        </div>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { onNavigate('api'); setIsOpen(false); }}
+                        className="developer-button w-full flex items-center justify-start gap-3 p-3 rounded-xl text-left relative"
+                      >
+                        <div className="z-10 flex items-center gap-3">
+                            <ArchitectureIcon type={IconType.Api} className="w-6 h-6 text-[var(--color-text-secondary)]" />
+                            <div>
+                                <span className="font-semibold text-sm text-[var(--color-text-primary)]">API Access</span>
+                                <span className="block text-xs text-[var(--color-text-secondary)]">Upgrade to Pro</span>
+                            </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                  <div className="border-t border-[var(--color-border)] pt-4">
+                    {currentUser && (
+                      <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-500 py-2.5 px-3 rounded-lg hover:bg-red-500/10 transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>
+                          Sign Out
+                      </button>
+                    )}
+                  </div>
                 </div>
+
               </div>
             </motion.div>
           </>

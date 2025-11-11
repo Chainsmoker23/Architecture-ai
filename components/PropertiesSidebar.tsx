@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Node, Container, Link } from '../types';
+import { ArchNode, Container, Link } from '../types';
 import { motion } from 'framer-motion';
 
-type Item = Node | Container | Link;
+type Item = ArchNode | Container | Link;
 
 interface PropertiesSidebarProps {
   item: Item | null;

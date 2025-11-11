@@ -4,7 +4,7 @@ import SharedFooter from './SharedFooter';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 
-type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
+type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
 
 interface AboutPageProps {
   onBack: () => void;
@@ -95,7 +95,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onBack, onLaunch, onNavigate }) =
           <div className="container mx-auto px-6">
             <h2 className="text-4xl font-bold text-center mb-4">Our Sustainable Model</h2>
             <p className="text-lg text-[#555555] max-w-3xl mx-auto text-center mb-12">
-              As a non-profit, our focus is on impact, not profit. API charges from our SDK and power-users with personal keys directly fund our mission.
+              As a non-profit, our focus is on impact, not profit. API charges from our API and power-users with personal keys directly fund our mission.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {modelPillars.map((pillar, index) => (

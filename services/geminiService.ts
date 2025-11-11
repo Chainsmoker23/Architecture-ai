@@ -1,27 +1,36 @@
-import { DiagramData, Node, GraphData, PieChartData } from "../types";
+import { DiagramData, ArchNode } from "../types";
 import type { Content } from "@google/genai";
 import { supabase } from '../supabaseClient';
 
 // Reusable fetch function for our backend API
-const fetchFromApi = async (endpoint: string, body: object) => {
+const fetchFromApi = async (endpoint: string, body?: object, method: 'POST' | 'GET' | 'DELETE' = 'POST') => {
     const { data: { session } } = await supabase.auth.getSession();
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
     if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`;
     }
 
-    const response = await fetch(`/api${endpoint}`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(body),
-    });
+    const options: RequestInit = {
+        method,
+        headers,
+    };
+    if (body) {
+        options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(`/api${endpoint}`, options);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
         throw new Error(errorData.error || `An unknown error occurred on the server.`);
     }
 
-    return response.json();
+    // Handle responses that might not have a body (like DELETE)
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+        return response.json();
+    }
+    return {}; // Return empty object for non-json responses
 };
 
 export const generateDiagramData = async (prompt: string, userApiKey?: string): Promise<DiagramData> => {
@@ -29,17 +38,29 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
     const parsedData = await fetchFromApi('/generate-diagram', { prompt, userApiKey });
     
     // Sanitize node and container data to prevent rendering issues from invalid values
-    (parsedData.nodes || []).forEach((node: any) => {
-        node.x = parseFloat(node.x);
-        node.y = parseFloat(node.y);
-        node.width = parseFloat(node.width);
-        node.height = parseFloat(node.height);
+    (parsedData.nodes || []).forEach((node: ArchNode) => {
+        node.x = parseFloat(String(node.x));
+        node.y = parseFloat(String(node.y));
+        node.width = parseFloat(String(node.width));
+        node.height = parseFloat(String(node.height));
 
         node.x = isFinite(node.x) ? node.x : 600;
         node.y = isFinite(node.y) ? node.y : 400;
         node.width = isFinite(node.width) && node.width > 10 ? node.width : 150;
         node.height = isFinite(node.height) && node.height > 10 ? node.height : 80;
         if (node.locked === undefined) node.locked = false;
+        
+        // Auto-sizing safety net to prevent text truncation
+        if (node.label && node.type !== 'neuron' && node.type !== 'layer-label') {
+            const labelLength = node.label.length;
+            // Heuristic to ensure nodes are large enough for their labels.
+            if (labelLength > 25) { // For very long labels
+                if (node.width < 180) node.width = 180;
+                if (node.height < 90) node.height = 90;
+            } else if (labelLength > 18) { // For moderately long labels
+                if (node.width < 160) node.width = 160;
+            }
+        }
     });
 
     (parsedData.containers || []).forEach((container: any) => {
@@ -67,7 +88,7 @@ export const generateNeuralNetworkData = async (prompt: string, userApiKey?: str
         const parsedData = await fetchFromApi('/generate-neural-network', { prompt, userApiKey });
 
         // Add dummy geometric properties to satisfy the DiagramData type; these will be calculated by the canvas.
-        (parsedData.nodes || []).forEach((node: Node) => {
+        (parsedData.nodes || []).forEach((node: ArchNode) => {
             node.x = 0;
             node.y = 0;
             node.width = node.type === 'neuron' ? 40 : 100;
@@ -83,27 +104,6 @@ export const generateNeuralNetworkData = async (prompt: string, userApiKey?: str
         throw error;
     }
 };
-
-export const generateGraphData = async (prompt: string, userApiKey?: string): Promise<GraphData> => {
-    try {
-        const parsedData = await fetchFromApi('/generate-graph', { prompt, userApiKey });
-        return parsedData as GraphData;
-    } catch (error) {
-        console.error("Error fetching graph data from backend:", String(error));
-        throw error;
-    }
-};
-
-export const generatePieChartData = async (prompt: string, userApiKey?: string): Promise<PieChartData> => {
-    try {
-        const parsedData = await fetchFromApi('/generate-pie-chart', { prompt, userApiKey });
-        return parsedData as PieChartData;
-    } catch (error) {
-        console.error("Error fetching pie chart data from backend:", String(error));
-        throw error;
-    }
-};
-
 
 export const explainArchitecture = async (diagramData: DiagramData, userApiKey?: string): Promise<string> => {
     try {
@@ -123,4 +123,36 @@ export const chatWithAssistant = async (history: Content[], userApiKey?: string)
     console.error("Error fetching chat response from backend:", String(error));
     throw error;
   }
+};
+
+// --- API Key Management Services ---
+
+export const getUserApiKey = async (): Promise<string | null> => {
+    try {
+        const { apiKey } = await fetchFromApi('/user/api-key', undefined, 'GET');
+        return apiKey;
+    } catch (error) {
+        console.error("Error fetching user API key:", String(error));
+        throw error;
+    }
+};
+
+export const generateUserApiKey = async (): Promise<string> => {
+    try {
+        const { apiKey } = await fetchFromApi('/user/api-key', {}, 'POST');
+        if (!apiKey) throw new Error("API key was not returned from the server.");
+        return apiKey;
+    } catch (error) {
+        console.error("Error generating user API key:", String(error));
+        throw error;
+    }
+};
+
+export const revokeUserApiKey = async (): Promise<void> => {
+    try {
+        await fetchFromApi('/user/api-key', undefined, 'DELETE');
+    } catch (error) {
+        console.error("Error revoking user API key:", String(error));
+        throw error;
+    }
 };

@@ -1,4 +1,3 @@
-// FIX: Changed imports to use the `express` namespace for `Request` and `Response` types to resolve type conflicts.
 import * as express from 'express';
 import crypto from 'crypto';
 import { User } from '@supabase/supabase-js';
@@ -14,26 +13,17 @@ const dodo = new DodoPayments(DODO_SECRET_KEY);
 
 // --- CONTROLLER FUNCTIONS ---
 
-export const serveMockPaymentPage = (req: express.Request, res: express.Response) => {
-    const { sessionId } = req.query;
-    if (typeof sessionId !== 'string' || !mockSessions.has(sessionId)) {
-        return res.status(404).send('Session not found or has expired.');
-    }
-    const session = mockSessions.get(sessionId);
-    res.send(dodo.getPaymentPage(sessionId, session));
-};
-
 export const confirmMockPayment = async (req: express.Request, res: express.Response) => {
     const { sessionId } = req.body;
     if (typeof sessionId !== 'string' || !mockSessions.has(sessionId)) {
-        return res.status(404).send('Session not found or has expired.');
+        return res.status(404).json({ error: 'Session not found or has expired.' });
     }
     const session = mockSessions.get(sessionId);
 
     await dodo.simulateWebhook(sessionId, session.customer, session.line_items);
     mockSessions.delete(sessionId);
     
-    res.redirect(303, session.success_url);
+    res.json({ success: true, redirectUrl: session.success_url });
 };
 
 export const handleDodoWebhook = async (req: express.Request, res: express.Response) => {
@@ -128,12 +118,12 @@ export const createCheckoutSession = async (req: express.Request, res: express.R
             payment_method_types: ['card'],
             line_items: [{ price: priceId, quantity: 1 }],
             mode: priceId === 'dodo_price_hobby' ? 'payment' : 'subscription',
-            success_url: `${cleanSiteUrl}/#sdk?payment=success&plan=${plan}`,
-            cancel_url: `${cleanSiteUrl}/#sdk?payment=cancelled`,
+            success_url: `${cleanSiteUrl}/#api?payment=success&plan=${plan}`,
+            cancel_url: `${cleanSiteUrl}/#api?payment=cancelled`,
             customer: dodoCustomerId,
         });
 
-        res.send({ redirectUrl: session.url });
+        res.send({ sessionId: session.id });
     } catch (error: any) {
         res.status(500).send({ error: 'Internal server error.' });
     }

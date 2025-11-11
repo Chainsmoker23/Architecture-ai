@@ -4,12 +4,12 @@ import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
 
-type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
+type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
 
 interface DocsPageProps {
   onBack: () => void;
   onLaunch: () => void;
-  onNavigateToSdk: () => void;
+  onNavigateToApi: () => void;
   onNavigate: (page: Page) => void;
 }
 
@@ -54,7 +54,7 @@ const SectionSeparator = () => (
 );
 
 
-const DocsPage: React.FC<DocsPageProps> = ({ onBack, onLaunch, onNavigateToSdk, onNavigate }) => {
+const DocsPage: React.FC<DocsPageProps> = ({ onBack, onLaunch, onNavigateToApi, onNavigate }) => {
   const goodPrompt = `A 3-tier web application on AWS with a load balancer, multiple EC2 instances in an auto-scaling group, and an RDS database.`;
   const badPrompt = `web server, db, user`;
 
@@ -86,7 +86,7 @@ const DocsPage: React.FC<DocsPageProps> = ({ onBack, onLaunch, onNavigateToSdk, 
         </header>
 
         <main>
-            <section className="relative flex items-center justify-center overflow-hidden sdk-hero-bg py-20 pt-32 md:pt-40">
+            <section className="relative flex items-center justify-center overflow-hidden api-hero-bg py-20 pt-32 md:pt-40">
                 <div className="container mx-auto px-6 z-10 text-center">
                     <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
                         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
@@ -154,12 +154,12 @@ const DocsPage: React.FC<DocsPageProps> = ({ onBack, onLaunch, onNavigateToSdk, 
 
                             <SectionSeparator />
 
-                            <DocsSection id="api-access" title="API & SDK">
+                            <DocsSection id="api-access" title="API Access">
                                 <p>Want to automate diagram generation? CubeGen AI offers a simple REST API to integrate into your own applications and workflows.</p>
                                 <p>Generate diagrams from your CI/CD pipeline, build custom internal tools, or create automated documentation. Our API provides the flexibility you need.</p>
-                                <CodeBlock code={`curl 'https://api.cubegen.ai/v1/diagrams' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    "prompt": "${goodPrompt}"\n  }'`} />
-                                <button onClick={onNavigateToSdk} className="mt-4 bg-[#F9D7E3] text-[#A61E4D] font-bold py-2 px-6 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
-                                    View Full API Docs
+                                <CodeBlock code={`curl 'https://cubegen.ai/api/v1/diagrams' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    "prompt": "${goodPrompt}"\n  }'`} />
+                                <button onClick={onNavigateToApi} className="mt-4 bg-[#F9D7E3] text-[#A61E4D] font-bold py-2 px-6 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
+                                    View Full API Docs & Pricing
                                 </button>
                             </DocsSection>
                         </article>

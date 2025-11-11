@@ -1,11 +1,13 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import ApiKeyAnimation from './ApiKeyAnimation';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
+import { useAuth } from '../contexts/AuthContext';
+import { getUserApiKey, generateUserApiKey, revokeUserApiKey } from '../services/geminiService';
+import Loader from './Loader';
 
-type Page = 'contact' | 'about' | 'sdk' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
+type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
 
 interface ApiKeyPageProps {
   onBack: () => void;
@@ -13,31 +15,230 @@ interface ApiKeyPageProps {
   onNavigate: (page: Page) => void;
 }
 
-const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate }) => {
-    const steps = [
-        {
-            title: 'Visit Google AI Studio',
-            description: 'Navigate to the official Google AI Studio website to start the process.',
-            link: 'https://ai.google.dev/',
-            linkText: 'Go to AI Studio',
-            icon: IconType.Google,
-        },
-        {
-            title: 'Get API Key',
-            description: 'Look for a button labeled "Get API key" and click it. You may need to sign in with your Google account.',
-            icon: IconType.Sparkles,
-        },
-        {
-            title: 'Create a New Project',
-            description: 'Follow the on-screen instructions to create a new project. This will generate your unique API key.',
-            icon: IconType.FileCode,
-        },
-        {
-            title: 'Copy & Paste Your Key',
-            description: 'In CubeGen AI, open the Settings sidebar and paste your key into the designated field.',
-            icon: IconType.Gear,
-        },
-    ];
+// --- SUB-COMPONENTS for enhanced creativity ---
+
+const useWindowSize = () => {
+  const [size, setSize] = useState([0, 0]);
+  useEffect(() => {
+    function updateSize() {
+      setSize([window.innerWidth, window.innerHeight]);
+    }
+    window.addEventListener('resize', updateSize);
+    updateSize();
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+  return size;
+};
+
+const ParticleBackground = React.memo(() => {
+    const [width] = useWindowSize();
+    const particleCount = width < 768 ? 15 : 30; // Fewer particles on mobile
+    const particles = useMemo(() => Array.from({ length: particleCount }).map((_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        size: `${Math.random() * 3 + 1.5}px`,
+        delay: `${Math.random() * 30}s`,
+        duration: `${25 + Math.random() * 15}s`,
+        drift: Math.random() - 0.5,
+    })), [particleCount]);
+
+    return (
+        <div className="api-key-page-bg" aria-hidden="true">
+            {particles.map(p => (
+                <div key={p.id} className="api-key-particle" style={{
+                    left: p.left,
+                    width: p.size,
+                    height: p.size,
+                    animationDelay: p.delay,
+                    animationDuration: p.duration,
+                    '--drift-x': p.drift,
+                } as React.CSSProperties} />
+            ))}
+        </div>
+    );
+});
+
+const useUnscramble = (text: string, isEnabled: boolean) => {
+    const [displayedText, setDisplayedText] = useState('');
+    const chars = '!<>-_\\/[]{}—=+*^?#________';
+
+    useEffect(() => {
+        if (!text) return;
+        if (!isEnabled) {
+            setDisplayedText(text);
+            return;
+        }
+
+        let frame = 0;
+        const frameRate = 25; // ms
+        const totalDuration = 800;
+        const totalFrames = totalDuration / frameRate;
+
+        const intervalId = setInterval(() => {
+            frame++;
+            const progress = frame / totalFrames;
+            const revealCount = Math.floor(text.length * progress);
+            
+            let output = text.substring(0, revealCount);
+            for (let i = revealCount; i < text.length; i++) {
+                output += chars[Math.floor(Math.random() * chars.length)];
+            }
+            setDisplayedText(output);
+
+            if (frame >= totalFrames) {
+                setDisplayedText(text);
+                clearInterval(intervalId);
+            }
+        }, frameRate);
+
+        return () => clearInterval(intervalId);
+    }, [text, isEnabled]);
+
+    return displayedText;
+};
+
+
+const CredentialCard: React.FC<{
+    apiKey: string;
+    isRevealing: boolean;
+    onCopy: () => void;
+    isCopied: boolean;
+    onRevoke: () => void;
+}> = ({ apiKey, isRevealing, onCopy, isCopied, onRevoke }) => {
+    const cardRef = useRef<HTMLDivElement>(null);
+    const unscrambledKey = useUnscramble(isRevealing ? apiKey : `cg_sk_${'•'.repeat(20)}${apiKey.slice(-4)}`, isRevealing);
+    
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        const card = cardRef.current;
+        if (!card) return;
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+        card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+    };
+
+    return (
+        <motion.div
+            ref={cardRef}
+            key="key-view"
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="api-credential-card p-6 rounded-2xl relative overflow-hidden"
+            onMouseMove={handleMouseMove}
+        >
+            <div className="relative z-10">
+                <h2 className="text-2xl font-bold">Your Personal API Key</h2>
+                <p className="text-sm text-gray-500 mt-1">Use this key in the app to bypass shared limits.</p>
+                <div className="api-credential-display mt-4 flex items-center justify-between p-4 rounded-xl">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="api-status-indicator flex-shrink-0" />
+                        <span className="font-mono text-sm text-gray-700 truncate">
+                            {unscrambledKey}
+                        </span>
+                    </div>
+                    <button onClick={onCopy} className={`text-sm font-semibold px-3 py-1 rounded-md transition-all ${isCopied ? 'bg-green-100 text-green-700' : 'bg-pink-100 text-[#A61E4D] hover:bg-pink-200'}`}>
+                        {isCopied ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
+                <div className="mt-4 flex justify-end">
+                    <button onClick={onRevoke} className="flex items-center gap-1.5 text-sm font-semibold text-red-500 hover:text-red-700 transition-colors p-2 rounded-md hover:bg-red-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Revoke Key
+                    </button>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
+const ConfettiBurst: React.FC<{ isBursting: boolean }> = ({ isBursting }) => {
+    const colors = ['#f472b6', '#ec4899', '#d946ef', '#a855f7'];
+    const confetti = useMemo(() => {
+        return Array.from({ length: 30 }).map((_, i) => ({
+            id: i,
+            color: colors[i % colors.length],
+            left: `${Math.random() * 100}%`,
+            delay: `${Math.random() * 0.3}s`,
+            duration: `${1.5 + Math.random()}s`,
+        }));
+    }, []);
+
+    return (
+        <div className="absolute inset-0 pointer-events-none">
+            {isBursting && confetti.map(c => (
+                <div key={c.id} className="confetti" style={{
+                    '--bg': c.color,
+                    left: c.left,
+                    animationDelay: c.delay,
+                    animationDuration: c.duration,
+                } as React.CSSProperties} />
+            ))}
+        </div>
+    );
+};
+
+const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onNavigate }) => {
+    const { currentUser } = useAuth();
+    const [apiKey, setApiKey] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isKeyCopied, setIsKeyCopied] = useState(false);
+    const [isRevealing, setIsRevealing] = useState(false);
+    const [isBursting, setIsBursting] = useState(false);
+
+    const plan = currentUser?.user_metadata?.plan || 'free';
+    const isPremiumUser = ['pro', 'business'].includes(plan);
+
+    useEffect(() => {
+        if (isPremiumUser) {
+            setIsLoading(true);
+            getUserApiKey()
+                .then(setApiKey)
+                .catch(err => setError(err.message || 'Failed to fetch API key.'))
+                .finally(() => setIsLoading(false));
+        } else {
+            setIsLoading(false);
+        }
+    }, [isPremiumUser]);
+
+    const handleGenerateKey = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const newKey = await generateUserApiKey();
+            setApiKey(newKey);
+            setIsRevealing(true);
+            setIsBursting(true);
+            setTimeout(() => setIsRevealing(false), 2000);
+            setTimeout(() => setIsBursting(false), 2500);
+        } catch (err: any) {
+            setError(err.message || 'Failed to generate key.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRevokeKey = async () => {
+        if (window.confirm('Are you sure you want to revoke this key? It will immediately stop working and this action cannot be undone.')) {
+            setIsLoading(true);
+            setError(null);
+            try {
+                await revokeUserApiKey();
+                setApiKey(null);
+            } catch (err: any) {
+                setError(err.message || 'Failed to revoke key.');
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+    
+    const handleCopyKey = () => {
+        if (apiKey && !isRevealing) {
+            navigator.clipboard.writeText(apiKey);
+            setIsKeyCopied(true);
+            setTimeout(() => setIsKeyCopied(false), 2000);
+        }
+    };
 
   return (
     <div className="bg-white text-[#2B2B2B] overflow-x-hidden">
@@ -49,118 +250,66 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onLaunch, onNavigate })
         </header>
 
         <main>
-            {/* Hero Section */}
-            <section className="relative flex items-center justify-center overflow-hidden sdk-hero-bg py-20 pt-32 md:pt-40">
+            <section className="relative flex items-center justify-center overflow-hidden api-hero-bg py-20 pt-32 md:pt-40">
+                <ParticleBackground />
                 <div className="container mx-auto px-6 z-10 text-center">
                     <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
                         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
-                            Unlock <span className="animated-gradient-text text-transparent bg-clip-text">Pro</span> Capabilities
+                            Personal API Key
                         </h1>
                         <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-[#555555]">
-                            The "Bring Your Own Key" feature is available on our <b>Pro ($10/mo)</b> and <b>Business ($50/mo)</b> plans, allowing you to bypass shared usage limits and experience CubeGen AI without interruption.
+                            Generate a personal key to use within the CubeGen app and bypass shared usage limits.
                         </p>
                     </motion.div>
                 </div>
             </section>
 
-            {/* Why Use Your Own Key Section */}
-            <section className="py-24 bg-white">
-                <div className="container mx-auto px-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                        <motion.div
-                            initial={{ x: -30, opacity: 0 }}
-                            whileInView={{ x: 0, opacity: 1 }}
-                            viewport={{ once: true, amount: 0.5 }}
-                            transition={{ duration: 0.6, ease: 'easeOut' }}
-                            className="order-2 md:order-1"
-                        >
-                            <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">Unleash Your Architectural Vision</h2>
-                            <ul className="space-y-6 text-lg text-[#555555]">
-                                <li className="flex items-start">
-                                    <b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b>
-                                    <div>
-                                        <b className="text-black">Infinite Canvas:</b> Say goodbye to shared quotas. Design, iterate, and generate without interruption, ensuring your creativity is never capped.
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b>
-                                    <div>
-                                        <b className="text-black">First-Class Access:</b> Leverage your own key to tap directly into the latest and most powerful models from Google, putting you at the forefront of AI-driven design.
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <b className="text-[#D6336C] mr-3 mt-1 text-xl">&rarr;</b>
-                                    <div>
-                                        <b className="text-black">Built for Builders:</b> The perfect companion for professionals. Integrate with our SDK to automate documentation, power internal tools, and scale your design process.
-                                    </div>
-                                </li>
-                            </ul>
-                        </motion.div>
-                        <motion.div
-                            className="flex justify-center items-center order-1 md:order-2"
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            whileInView={{ scale: 1, opacity: 1 }}
-                            viewport={{ once: true, amount: 0.5 }}
-                            transition={{ duration: 0.6, ease: 'easeOut' }}
-                        >
-                            <ApiKeyAnimation />
-                        </motion.div>
-                    </div>
-                </div>
-            </section>
-
-            {/* How to get a key */}
-            <section className="py-24 sdk-hero-bg">
-                <div className="container mx-auto px-6">
-                    <h2 className="text-4xl font-bold text-center mb-12">How to Get Your Key in 4 Steps</h2>
-                    <div className="relative max-w-5xl mx-auto">
-                        {/* The connecting line */}
-                        <div className="hidden md:block absolute top-10 left-10 right-10 h-0.5 bg-pink-200" />
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-                            {steps.map((step, index) => (
-                                <motion.div
-                                    key={step.title}
-                                    initial={{ y: 20, opacity: 0 }}
-                                    whileInView={{ y: 0, opacity: 1 }}
-                                    viewport={{ once: true, amount: 0.5 }}
-                                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                                    className="text-center relative bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-pink-100 shadow-lg flex flex-col"
-                                >
-                                    <div className="flex-shrink-0 flex items-center justify-center h-20 w-20 mx-auto rounded-full bg-gradient-to-br from-white to-[#FFF0F5] border-2 border-[#F9D7E3] shadow-lg mb-4">
-                                        <ArchitectureIcon type={step.icon} className="w-10 h-10 text-[#D6336C]" />
-                                    </div>
-                                    <h3 className="text-lg font-bold mb-2">{step.title}</h3>
-                                    <p className="text-sm text-[#555555] mb-3 flex-grow">{step.description}</p>
-                                    {step.link && (
-                                        <a href={step.link} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-[#D6336C] hover:underline mt-auto">
-                                            {step.linkText} &rarr;
-                                        </a>
-                                    )}
-                                </motion.div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            {/* CTA Section */}
-            <section className="py-24 bg-white">
-                <div className="container mx-auto px-6 text-center">
-                    <motion.div initial={{ y: 20, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
-                    <h2 className="text-4xl md:text-5xl font-extrabold">Upgrade to Unlock Your Potential</h2>
-                    <p className="mt-4 text-lg text-[#555555]">Choose a Pro or Business plan to use your own API key and access unlimited generations.</p>
-                    <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
-                        <button onClick={() => onNavigate('sdk')}
-                            className="bg-[#F9D7E3] text-[#A61E4D] font-bold py-4 px-10 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-lg">
-                            View Pro Plans
-                        </button>
-                         <button onClick={onLaunch}
-                            className="shimmer-button text-[#A61E4D] font-bold py-4 px-10 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-lg">
-                            Launch App & Add Key
-                        </button>
-                    </div>
-                    </motion.div>
+            <section className="relative py-16 sm:py-24 bg-white">
+                <div className="container mx-auto px-6 max-w-2xl z-10">
+                    <AnimatePresence mode="wait">
+                        {isLoading ? (
+                             <motion.div key="loader" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex justify-center items-center h-64">
+                                <Loader />
+                             </motion.div>
+                        ) : !isPremiumUser ? (
+                            <motion.div key="upgrade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="api-credential-card p-8 rounded-2xl text-center">
+                                <ArchitectureIcon type={IconType.SecretsManager} className="w-16 h-16 text-gray-300 mx-auto opacity-50" />
+                                <h2 className="text-2xl font-bold mt-4">Personal Keys are a Pro Feature</h2>
+                                <p className="mt-2 text-gray-600">Upgrade to a Pro or Business plan to generate a key and bypass shared usage limits.</p>
+                                <button onClick={() => onNavigate('api')} className="mt-6 shimmer-button text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+                                    View Plans & Upgrade
+                                </button>
+                            </motion.div>
+                        ) : apiKey ? (
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-16">
+                                <CredentialCard 
+                                    apiKey={apiKey} 
+                                    isRevealing={isRevealing}
+                                    onCopy={handleCopyKey}
+                                    isCopied={isKeyCopied}
+                                    onRevoke={handleRevokeKey}
+                                />
+                            </motion.div>
+                        ) : (
+                             <motion.div key="generate-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                                <div className="text-center api-credential-card p-10 rounded-2xl border-dashed">
+                                    <ArchitectureIcon type={IconType.Api} className="w-16 h-16 text-gray-300 mx-auto" />
+                                    <h2 className="text-2xl font-bold mt-4">You don't have a personal key yet.</h2>
+                                    <p className="mt-2 text-gray-600 max-w-md mx-auto">Generate a key to use in the app's settings. This will give you unlimited generations and bypass any shared limits.</p>
+                                    <motion.button 
+                                      onClick={handleGenerateKey} 
+                                      className="mt-6 shimmer-button text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 relative"
+                                      whileHover={{ scale: 1.05 }}
+                                      whileTap={{ scale: 0.98 }}
+                                    >
+                                        Generate Your Personal Key
+                                        <ConfettiBurst isBursting={isBursting} />
+                                    </motion.button>
+                                </div>
+                             </motion.div>
+                        )}
+                    </AnimatePresence>
+                    {error && <p className="text-red-500 text-center mt-6">{error}</p>}
                 </div>
             </section>
         </main>

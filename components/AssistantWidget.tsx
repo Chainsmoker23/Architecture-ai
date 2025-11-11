@@ -44,92 +44,6 @@ const useTypewriter = (text: string, enabled: boolean, onComplete: () => void) =
 const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowing, size = 80 }) => {
   return (
     <div className="quantum-core-wrapper" style={{ '--size': `${size}px` } as React.CSSProperties}>
-      <style>{`
-        .quantum-core-wrapper {
-          width: var(--size, 80px);
-          height: var(--size, 80px);
-          perspective: 800px;
-          position: relative;
-          flex-shrink: 0;
-          transform-style: preserve-3d;
-        }
-        
-        .quantum-core-nucleus-container {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0; left: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transform-style: preserve-3d;
-        }
-
-        .quantum-core-container {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          top: 0; left: 0;
-          transform-style: preserve-3d;
-          animation: core-rotate 30s infinite linear;
-        }
-
-        @keyframes core-rotate {
-          from { transform: rotateY(0deg) rotateX(10deg); }
-          to   { transform: rotateY(360deg) rotateX(10deg); }
-        }
-
-        .quantum-core-nucleus {
-          position: relative;
-          width: 45%;
-          height: 45%;
-          border-radius: 50%;
-          background: radial-gradient(circle, #fff 0%, #fbcfe8 50%, #f472b6 100%);
-          box-shadow: 0 0 5px #fff, 0 0 10px #fbcfe8, 0 0 20px #f472b6, inset 0 0 5px #fff;
-          animation: nucleus-pulse 3s infinite ease-in-out;
-        }
-
-        @keyframes nucleus-pulse {
-          0%, 100% { transform: scale(1); filter: brightness(1); }
-          50% { transform: scale(1.15); filter: brightness(1.15); }
-        }
-
-        .quantum-core-ring {
-          position: absolute;
-          top: 0; left: 0;
-          width: 100%; height: 100%;
-          border-radius: 50%;
-          border: 4px solid rgba(50, 50, 50, 0.8);
-          box-shadow: 0 0 8px rgba(244, 114, 182, 0.3), inset 0 0 8px rgba(244, 114, 182, 0.2);
-          transform-style: preserve-3d;
-        }
-        
-        .ring-1 { transform: rotateX(70deg) rotateY(0deg); }
-        .ring-2 { transform: rotateX(70deg) rotateY(60deg); }
-        .ring-3 { transform: rotateX(70deg) rotateY(120deg); }
-        
-        /* Glowing state */
-        .quantum-core-container.glowing { animation-duration: 10s; }
-        .quantum-core-nucleus.glowing { animation: nucleus-pulse-fast 1.2s infinite ease-in-out; }
-
-        @keyframes nucleus-pulse-fast {
-          0%, 100% { 
-            transform: scale(1.2); 
-            filter: brightness(1.2); 
-            box-shadow: 0 0 8px #fff, 0 0 20px #fbcfe8, 0 0 30px #f472b6, inset 0 0 8px #fff; 
-          }
-          50% { 
-            transform: scale(1.35); 
-            filter: brightness(1.5); 
-            box-shadow: 0 0 12px #fff, 0 0 30px #fbcfe8, 0 0 45px #f472b6, inset 0 0 12px #fff;
-          }
-        }
-        
-        .glowing .quantum-core-ring {
-            border-color: rgba(244, 114, 182, 1);
-            box-shadow: 0 0 10px #f472b6, 0 0 20px #f472b6, inset 0 0 10px rgba(244, 114, 182, 0.5);
-        }
-      `}</style>
       <div className="quantum-core-nucleus-container">
         <div className={`quantum-core-nucleus ${isGlowing ? 'glowing' : ''}`}></div>
       </div>
@@ -189,7 +103,7 @@ const MessageContent: React.FC<{ message: Message, isTyping: boolean, onTypingCo
 const AssistantWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: "Hi! I'm Archie. Ask me for a prompt idea!" }
+    { role: 'model', text: "Hi! I'm Archie, your AI assistant. How can I help you design something today? You can ask me for a prompt idea!" }
   ]);
   const [userInput, setUserInput] = useState('');
   const [isAiActive, setIsAiActive] = useState(false);

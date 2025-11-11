@@ -3,7 +3,7 @@ import { select } from 'd3-selection';
 import { drag } from 'd3-drag';
 import { zoom, zoomIdentity, ZoomTransform } from 'd3-zoom';
 import 'd3-transition';
-import { DiagramData, Node, Link, Container } from '../types';
+import { DiagramData, ArchNode, Link, Container } from '../types';
 import ArchitectureIcon from './ArchitectureIcon';
 import ContextMenu from './ContextMenu';
 import { motion } from 'framer-motion';
@@ -36,7 +36,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: Node | Link | Container; } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: ArchNode | Link | Container; } | null>(null);
   
   const nodesById = useMemo(() => new Map(data.nodes.map(node => [node.id, node])), [data.nodes]);
 
@@ -237,7 +237,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     }
   }, [forwardedRef, setSelectedIds, data, fitScreenRef, isEditable, interactionMode, onTransformChange, onCanvasClick]);
 
-  const handleItemContextMenu = (e: React.MouseEvent, item: Node | Link | Container) => {
+  const handleItemContextMenu = (e: React.MouseEvent, item: ArchNode | Link | Container) => {
     e.preventDefault(); e.stopPropagation();
     if (isEditable && containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -245,7 +245,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     }
   };
   
-  const handleDeleteItem = (item: Node | Link | Container) => {
+  const handleDeleteItem = (item: ArchNode | Link | Container) => {
     const { id } = item;
     const newNodes = data.nodes.filter(n => n.id !== id);
     const newContainers = data.containers?.filter(c => c.id !== id);
@@ -449,7 +449,7 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
     );
 });
 
-const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Node) => void; isEditable: boolean; resizingNodeId: string | null; onNodeDoubleClick?: (nodeId: string) => void;} & DraggableProps>((props) => {
+const DiagramNode = memo<{ node: ArchNode; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: ArchNode) => void; isEditable: boolean; resizingNodeId: string | null; onNodeDoubleClick?: (nodeId: string) => void;} & DraggableProps>((props) => {
     const { node, isSelected, onSelect, onContextMenu, interactionMode, isEditable, resizingNodeId, onNodeDoubleClick } = props;
     const ref = useRef<SVGGElement>(null);
     const dataRef = useRef(props.data);
@@ -508,16 +508,15 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
     };
 
     const ResizeHandle: React.FC<{ handle: 'br' | 'bl' | 'tr' | 'tl' }> = ({ handle }) => {
-        const ref = useRef<SVGRectElement>(null);
+        const handleRef = useRef<SVGRectElement>(null);
         useEffect(() => {
-            if (!ref.current) return;
-            const selection = select(ref.current);
+            if (!handleRef.current) return;
+            const selection = select(handleRef.current);
             const dragBehavior = drag<SVGRectElement, unknown>()
                 .on('start', () => { dataRef.current = props.data; })
                 .on('drag', (event) => handleResize(event.dx, event.dy, handle))
                 .on('end', () => props.onDataChange(dataRef.current, false));
             selection.call(dragBehavior);
-// FIX: The cleanup function for useEffect must return `void`. This ensures no value is returned from the cleanup function.
             return () => { selection.on('.drag', null); };
         }, []);
 
@@ -530,7 +529,7 @@ const DiagramNode = memo<{ node: Node; isSelected: boolean; onSelect: (e: React.
           return { x, y };
         };
 
-        return <rect ref={ref} {...getCoords()} width={8} height={8} fill="var(--color-accent-text)" stroke="var(--color-node-bg)" strokeWidth={2} cursor={`${handle.includes('b') ? 's' : 'n'}${handle.includes('r') ? 'e' : 'w'}-resize`} />;
+        return <rect ref={handleRef} {...getCoords()} width={8} height={8} fill="var(--color-accent-text)" stroke="var(--color-node-bg)" strokeWidth={2} cursor={`${handle.includes('b') ? 's' : 'n'}${handle.includes('r') ? 'e' : 'w'}-resize`} />;
     };
     
     const isResizing = resizingNodeId === node.id;
