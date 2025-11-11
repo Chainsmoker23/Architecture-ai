@@ -1,6 +1,6 @@
 import * as express from 'express';
 import { GoogleGenAI, Type } from "@google/genai";
-import { authenticateUser } from '../userUtils';
+import { authenticateUser, incrementGenerationCount } from '../userUtils';
 import { getApiKeyForRequest } from '../services/apiKeyService';
 import { supabaseAdmin } from '../supabaseClient';
 import crypto from 'crypto';
@@ -186,9 +186,10 @@ const handleError = (res: express.Response, error: unknown, defaultMessage: stri
     if (errorMessage.includes("quota")) {
         return res.status(429).json({ error: 'SHARED_KEY_QUOTA_EXCEEDED' });
     }
-    if (errorMessage.includes("GENERATION_LIMIT_EXCEEDED")) {
-        return res.status(429).json({ error: 'GENERATION_LIMIT_EXCEEDED' });
-    }
+    // This is now handled by the controllers directly to include the generation count.
+    // if (errorMessage.includes("GENERATION_LIMIT_EXCEEDED")) {
+    //     return res.status(429).json({ error: 'GENERATION_LIMIT_EXCEEDED' });
+    // }
     return res.status(500).json({ error: errorMessage });
 };
 
@@ -213,8 +214,15 @@ export const handleGenerateDiagram = async (req: express.Request, res: express.R
             ]
         };
         const data = await getGeminiResponse(apiKey, fullPrompt, responseSchema);
-        res.json(data);
-    } catch (e) {
+
+        const newGenerationCount = await incrementGenerationCount(user);
+        
+        res.json({ diagram: data, newGenerationCount });
+    } catch (e: any) {
+        // Handle the specific "limit exceeded" error to pass back the final count.
+        if (e.message?.includes('GENERATION_LIMIT_EXCEEDED')) {
+            return res.status(429).json({ error: 'GENERATION_LIMIT_EXCEEDED', generationCount: e.generationCount });
+        }
         handleError(res, e);
     }
 };
@@ -237,8 +245,15 @@ export const handleGenerateNeuralNetwork = async (req: express.Request, res: exp
             ]
         };
         const data = await getGeminiResponse(apiKey, fullPrompt, neuralNetworkSchema);
-        res.json(data);
-    } catch (e) {
+        
+        const newGenerationCount = await incrementGenerationCount(user);
+        
+        res.json({ diagram: data, newGenerationCount });
+    } catch (e: any) {
+        // Handle the specific "limit exceeded" error to pass back the final count.
+        if (e.message?.includes('GENERATION_LIMIT_EXCEEDED')) {
+            return res.status(429).json({ error: 'GENERATION_LIMIT_EXCEEDED', generationCount: e.generationCount });
+        }
         handleError(res, e);
     }
 };

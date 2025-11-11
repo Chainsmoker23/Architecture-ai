@@ -27,7 +27,11 @@ const fetchFromApi = async (endpoint: string, body?: object, method: 'POST' | 'G
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
-        throw new Error(errorData.error || `An unknown error occurred on the server.`);
+        // Create a new Error object and attach the full data payload to it.
+        // This allows components to access richer error details like 'generationCount'.
+        const error = new Error(errorData.error || `An unknown error occurred on the server.`);
+        (error as any).data = errorData;
+        throw error;
     }
 
     // Handle responses that might not have a body (like DELETE)
@@ -38,9 +42,10 @@ const fetchFromApi = async (endpoint: string, body?: object, method: 'POST' | 'G
     return {}; // Return empty object for non-json responses
 };
 
-export const generateDiagramData = async (prompt: string, userApiKey?: string): Promise<DiagramData> => {
+export const generateDiagramData = async (prompt: string, userApiKey?: string): Promise<{ diagram: DiagramData; newGenerationCount: number | null; }> => {
   try {
-    const parsedData = await fetchFromApi('/generate-diagram', { prompt, userApiKey });
+    const responseData = await fetchFromApi('/generate-diagram', { prompt, userApiKey });
+    const parsedData = responseData.diagram;
     
     // Sanitize node and container data to prevent rendering issues from invalid values
     (parsedData.nodes || []).forEach((node: ArchNode) => {
@@ -80,7 +85,7 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
         container.height = isFinite(container.height) && container.height > 20 ? container.height : 500;
     });
 
-    return parsedData as DiagramData;
+    return { diagram: parsedData as DiagramData, newGenerationCount: responseData.newGenerationCount };
   } catch (error) {
     console.error("Error fetching diagram data from backend:", String(error));
     // Re-throw to be caught by the component
@@ -88,9 +93,10 @@ export const generateDiagramData = async (prompt: string, userApiKey?: string): 
   }
 };
 
-export const generateNeuralNetworkData = async (prompt: string, userApiKey?: string): Promise<DiagramData> => {
+export const generateNeuralNetworkData = async (prompt: string, userApiKey?: string): Promise<{ diagram: DiagramData; newGenerationCount: number | null; }> => {
     try {
-        const parsedData = await fetchFromApi('/generate-neural-network', { prompt, userApiKey });
+        const responseData = await fetchFromApi('/generate-neural-network', { prompt, userApiKey });
+        const parsedData = responseData.diagram;
 
         // Add dummy geometric properties to satisfy the DiagramData type; these will be calculated by the canvas.
         (parsedData.nodes || []).forEach((node: ArchNode) => {
@@ -99,11 +105,13 @@ export const generateNeuralNetworkData = async (prompt: string, userApiKey?: str
             node.width = node.type === 'neuron' ? 40 : 100;
             node.height = node.type === 'neuron' ? 40 : 20;
         });
-
-        return {
+        
+        const diagram = {
             ...parsedData,
             architectureType: 'Neural Network',
         } as DiagramData;
+
+        return { diagram, newGenerationCount: responseData.newGenerationCount };
     } catch (error) {
         console.error("Error fetching neural network data from backend:", String(error));
         throw error;

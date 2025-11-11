@@ -14,6 +14,7 @@ interface AuthContextType {
     signOut: () => void;
     pollForPlanUpdate: (expectedPlan: string) => Promise<void>;
     refreshUser: () => Promise<void>;
+    updateCurrentUserMetadata: (newMetadata: object) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,6 +116,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
     
+    const updateCurrentUserMetadata = (newMetadata: object) => {
+        if (currentUser) {
+            const updatedUser = {
+                ...currentUser,
+                user_metadata: {
+                    ...currentUser.user_metadata,
+                    ...newMetadata
+                }
+            };
+            setCurrentUser(updatedUser);
+        }
+    };
+
     const signInWithGoogle = async () => {
         const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
         if (error) throw error;
@@ -159,6 +173,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signOut,
         pollForPlanUpdate,
         refreshUser,
+        updateCurrentUserMetadata,
     };
 
     return (

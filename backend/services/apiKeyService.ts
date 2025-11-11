@@ -1,5 +1,5 @@
 import { User } from '@supabase/supabase-js';
-import { checkAndIncrementGenerationCount } from '../userUtils';
+import { canUserGenerate } from '../userUtils';
 import { getCachedConfig } from '../controllers/adminController';
 
 interface ApiKeyOptions {
@@ -34,12 +34,15 @@ export const getApiKeyForRequest = async (user: User, userProvidedKey?: string, 
         return sharedKey;
     }
 
-    // Priority 3: Free/Hobbyist users on the shared key, subject to limits.
-    // This block is only entered if no userProvidedKey exists and the user is not Pro/Business.
+    // Priority 3: Free/Hobbyist users on the shared key, subject to a pre-check.
     if (options.checkLimits) {
-        const { allowed, error: limitError } = await checkAndIncrementGenerationCount(user);
+        const { allowed, error: limitError, generationCount } = await canUserGenerate(user);
         if (!allowed) {
-            throw new Error(limitError); // This will be 'GENERATION_LIMIT_EXCEEDED'
+            // Throw a custom error object that includes the current generation count.
+            // This allows the controller to send this data back to the frontend for UI synchronization.
+            const error = new Error(limitError);
+            (error as any).generationCount = generationCount;
+            throw error;
         }
     }
 

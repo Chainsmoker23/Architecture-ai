@@ -23,7 +23,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
   const [diagramData, setDiagramData] = useState<DiagramData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser, refreshUser } = useAuth();
+  const { currentUser, refreshUser, updateCurrentUserMetadata } = useAuth();
 
   const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
   const [userApiKey, setUserApiKey] = useState<string | null>(() => {
@@ -174,19 +174,28 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
 
     try {
       const apiKeyToUse = keyOverride || userApiKey;
-      const data = await generateNeuralNetworkData(prompt, apiKeyToUse || undefined);
-      if (currentUser) {
-          await refreshUser();
+      const { diagram, newGenerationCount } = await generateNeuralNetworkData(prompt, apiKeyToUse || undefined);
+
+      if (currentUser && newGenerationCount !== null && newGenerationCount !== undefined) {
+        updateCurrentUserMetadata({ generation_count: newGenerationCount });
+      } else if (currentUser) {
+        await refreshUser();
       }
-      setDiagramData(data);
-    } catch (err) {
+      
+      setDiagramData(diagram);
+    } catch (err: any) {
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      if (errorMessage.includes('GENERATION_LIMIT_EXCEEDED')) {
+
+      if (err.data && err.message.includes('GENERATION_LIMIT_EXCEEDED')) {
           const userPlan = currentUser?.user_metadata?.plan || 'free';
           const limit = userPlan === 'hobbyist' ? 50 : 30;
           const planName = String(userPlan).charAt(0).toUpperCase() + String(userPlan).slice(1);
           setError(`You've used all ${limit} generations for your ${planName} plan. Please upgrade to continue.`);
+          // Live update the UI with the correct count from the backend
+          if (typeof err.data.generationCount === 'number') {
+              updateCurrentUserMetadata({ generation_count: err.data.generationCount });
+          }
       } else if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
           setShowApiKeyModal(true);
           setError(null);
@@ -197,7 +206,7 @@ const NeuralNetworkPage: React.FC<NeuralNetworkPageProps> = ({ onNavigate }) => 
     } finally {
       setIsLoading(false);
     }
-  }, [prompt, userApiKey, currentUser, refreshUser]);
+  }, [prompt, userApiKey, currentUser, refreshUser, updateCurrentUserMetadata]);
 
   const handleSaveAndRetryApiKey = (key: string) => {
     setUserApiKey(key);

@@ -39,7 +39,7 @@ const pageItemVariants: Variants = {
 
 
 const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNavigate }) => {
-  const { currentUser, refreshUser } = useAuth();
+  const { currentUser, refreshUser, updateCurrentUserMetadata } = useAuth();
   const [prompt, setPrompt] = useState<string>(EXAMPLE_PROMPT);
   const [promptIndex, setPromptIndex] = useState(0);
 
@@ -277,23 +277,30 @@ const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNav
 
     try {
       const apiKeyToUse = keyOverride || userApiKey;
-      const data = await generateDiagramData(prompt, apiKeyToUse || undefined);
+      const { diagram, newGenerationCount } = await generateDiagramData(prompt, apiKeyToUse || undefined);
       
-      if (currentUser) {
+      if (currentUser && newGenerationCount !== null && newGenerationCount !== undefined) {
+        updateCurrentUserMetadata({ generation_count: newGenerationCount });
+      } else if (currentUser) {
         await refreshUser();
       }
 
-      setHistory([data]);
+      setHistory([diagram]);
       setHistoryIndex(0);
       setTimeout(() => handleFitToScreen(), 100);
-    } catch (err) {
+    } catch (err: any) {
       console.error(String(err));
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      if (errorMessage.includes('GENERATION_LIMIT_EXCEEDED')) {
+      
+      if (err.data && err.message.includes('GENERATION_LIMIT_EXCEEDED')) {
           const userPlan = currentUser?.user_metadata?.plan || 'free';
           const limit = userPlan === 'hobbyist' ? 50 : 30;
           const planName = String(userPlan).charAt(0).toUpperCase() + String(userPlan).slice(1);
           setError(`You've used all ${limit} generations for your ${planName} plan. Please upgrade to continue.`);
+          // Live update the UI with the correct count from the backend
+          if (typeof err.data.generationCount === 'number') {
+              updateCurrentUserMetadata({ generation_count: err.data.generationCount });
+          }
       } else if (errorMessage.includes('SHARED_KEY_QUOTA_EXCEEDED')) {
           const userPlan = currentUser?.user_metadata?.plan;
           const isPremiumUser = userPlan && ['pro', 'business'].includes(String(userPlan).toLowerCase());
@@ -313,7 +320,7 @@ const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNav
     } finally {
       setIsLoading(false);
     }
-  }, [prompt, userApiKey, currentUser, refreshUser]);
+  }, [prompt, userApiKey, currentUser, refreshUser, updateCurrentUserMetadata]);
   
   const handleExplain = useCallback(async (keyOverride?: string) => {
     if (!diagramData) return;
@@ -539,7 +546,7 @@ const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNav
               )}
 
               {error && <div className="absolute bottom-4 left-4 bg-red-500/90 text-white p-3 rounded-xl text-sm shadow-lg">{error}</div>}
-            </section>
+            </motion.section>
 
             <AnimatePresence>
                 {isPropertiesPanelOpen && (
