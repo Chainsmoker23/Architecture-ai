@@ -4,6 +4,9 @@ import { useTheme } from '../contexts/ThemeProvider';
 import { useAuth } from '../contexts/AuthContext';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
+import UserPlansPanel from './UserPlansPanel';
+import { FREE_GENERATION_LIMIT, HOBBYIST_GENERATION_LIMIT } from './constants';
+
 
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
 
@@ -17,7 +20,7 @@ interface SettingsSidebarProps {
 const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserApiKey, onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { currentUser, signOut } = useAuth();
+  const { currentUser, signOut, refreshUser } = useAuth();
  
   const [isEditing, setIsEditing] = useState(!userApiKey);
   const [editingKey, setEditingKey] = useState(userApiKey || '');
@@ -40,8 +43,8 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
 
   const plan = currentUser?.user_metadata?.plan || 'free';
   const isLimitedUser = ['free', 'hobbyist'].includes(plan);
-  const isPremiumUser = ['pro', 'business'].includes(plan);
-  const generationLimit = plan === 'hobbyist' ? 50 : 30;
+  const isPremiumUser = ['pro'].includes(plan);
+  const generationLimit = plan === 'hobbyist' ? HOBBYIST_GENERATION_LIMIT : FREE_GENERATION_LIMIT;
   const generationCount = currentUser?.user_metadata?.generation_count || 0;
   const generationsRemaining = generationLimit - generationCount;
   const usagePercentage = Math.min((generationCount / generationLimit) * 100, 100);
@@ -192,6 +195,14 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                   </div>
 
                   <div className="w-full h-px bg-[var(--color-border)] opacity-50" />
+                  
+                  {currentUser && (
+                    <UserPlansPanel 
+                        plan={plan}
+                        refreshUser={refreshUser}
+                        isOpen={isOpen}
+                    />
+                  )}
                   
                   {isLimitedUser && (
                      <div>

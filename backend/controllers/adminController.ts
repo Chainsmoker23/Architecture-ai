@@ -1,6 +1,7 @@
 import * as express from 'express';
 import * as jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '../supabaseClient';
+import { User } from '@supabase/supabase-js';
 
 const CONFIG_TABLE = '_app_config';
 
@@ -27,6 +28,13 @@ const fetchConfigFromDatabase = async (): Promise<Partial<AppConfig>> => {
 
     if (error) {
         console.error('Error fetching config from database:', error);
+        // Don't throw, just return empty. The system should fall back to .env
+        return {};
+    }
+
+    // Add a check for null data to prevent crashes if the table exists but is empty
+    // or if the query unexpectedly returns null.
+    if (!data) {
         return {};
     }
 
@@ -43,9 +51,23 @@ const fetchConfigFromDatabase = async (): Promise<Partial<AppConfig>> => {
 export const getCachedConfig = async (): Promise<AppConfig> => {
     const now = Date.now();
     if (!cachedConfig || (now - cacheLastUpdated > CACHE_TTL)) {
-        console.log('[Config Cache] Cache stale or empty, fetching from database...');
+        console.log('[Config Cache] Cache stale or empty, refreshing from database...');
         const dbConfig = await fetchConfigFromDatabase();
         
+        // Helper to log the source of the configuration
+        const logSource = (key: string, dbValue: any, envValue: any) => {
+            if (dbValue) {
+                console.log(`[Config Cache] '${key}' loaded from database.`);
+            } else if (envValue) {
+                console.log(`[Config Cache] '${key}' loaded from .env fallback.`);
+            } else {
+                console.warn(`[Config Cache] WARN: '${key}' is not set in the database or .env file.`);
+            }
+        };
+
+        logSource('dodo_secret_key', dbConfig.dodo_secret_key, process.env.DODO_SECRET_KEY);
+        logSource('dodo_webhook_secret', dbConfig.dodo_webhook_secret, process.env.DODO_WEBHOOK_SECRET);
+
         // Merge with environment variable fallbacks
         cachedConfig = {
             gemini_api_key: dbConfig.gemini_api_key || process.env.VITE_API_KEY || null,
@@ -147,5 +169,65 @@ export const updateAdminConfig = async (req: express.Request, res: express.Respo
         // Pass the specific database error back to the client for better debugging.
         const detail = error.details || error.message || 'An unknown database error occurred.';
         res.status(500).json({ error: `Failed to update the configuration. Database error: ${detail}` });
+    }
+};
+
+/**
+ * Controller to get a list of users and their payment history for the admin panel.
+ */
+export const getAdminUsers = async (req: express.Request, res: express.Response) => {
+    const { email } = req.query;
+
+    try {
+        // 1. Fetch all users from Supabase Auth
+        const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+        if (usersError) throw usersError;
+
+        // 2. Filter users by email if a search term is provided
+        const filteredUsers = email
+            ? users.filter(u => u.email?.toLowerCase().includes((email as string).toLowerCase()))
+            : users;
+
+        // 3. Get all subscriptions from our public table
+        const { data: subscriptions, error: subsError } = await supabaseAdmin
+            .from('subscriptions')
+            .select('*');
+        if (subsError) throw subsError;
+
+        // 4. Map subscriptions to users for efficient lookup
+        const subscriptionsByUserId = (subscriptions || []).reduce((acc, sub) => {
+            if (!acc[sub.user_id]) {
+                acc[sub.user_id] = [];
+            }
+            acc[sub.user_id].push(sub);
+            return acc;
+        }, {} as Record<string, any[]>);
+
+        // 5. Combine the data into a single response payload
+        const responsePayload = filteredUsers.map(user => {
+            const userSubscriptions = subscriptionsByUserId[user.id] || [];
+            // Sort subscriptions by creation date, newest first
+            userSubscriptions.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            return {
+                id: user.id,
+                email: user.email,
+                // Use the latest subscription to determine the current plan and status for at-a-glance view
+                currentPlan: userSubscriptions[0]?.plan_name || user.user_metadata?.plan || 'free',
+                currentStatus: userSubscriptions[0]?.status || 'n/a',
+                createdAt: user.created_at,
+                // Include the full history for the detailed view
+                subscriptions: userSubscriptions,
+            };
+        });
+        
+        // Sort the final payload by user creation date
+        responsePayload.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        res.json(responsePayload);
+
+    } catch (error: any) {
+        console.error('Error fetching admin user data:', error);
+        res.status(500).json({ error: 'Failed to retrieve user data.' });
     }
 };

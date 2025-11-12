@@ -12,6 +12,7 @@ if (result.error) {
   console.error(`[Startup Error] Could not load .env file. Ensure it exists in the project root.`);
   throw result.error;
 }
+console.log('[Startup] .env file loaded successfully.');
 
 // Validate that all required variables are present.
 const requiredEnvVars = [
@@ -31,6 +32,12 @@ if (missingVars.length > 0) {
   console.error(`[Startup Error] Please ensure they are set in the .env file at the project root.`);
   process.exit(1);
 }
+console.log('[Startup] All required environment variables are present.');
+
+// --- Dodo Payments Key Logging ---
+// Log the presence of Dodo keys to help with debugging setup issues.
+console.log(`[Startup] DODO_SECRET_KEY loaded: ${process.env.DODO_SECRET_KEY ? 'Yes' : 'No'}`);
+console.log(`[Startup] DODO_WEBHOOK_SECRET loaded: ${process.env.DODO_WEBHOOK_SECRET ? 'Yes' : 'No'}`);
 // --- END CONFIGURATION ---
 
 
@@ -70,9 +77,9 @@ const corsOptions: cors.CorsOptions = {
 // Apply CORS middleware to all incoming requests.
 app.use(cors(corsOptions));
 
-// This middleware is for parsing JSON bodies. It's good practice to have it globally.
-app.use(express.json());
-
+// The global express.json() middleware has been removed from here.
+// It is now applied selectively to routes in `routes.ts` to allow
+// the webhook route to receive the raw request body for signature verification.
 
 // --- API Routes ---
 // Mount all API routes under the /api prefix.

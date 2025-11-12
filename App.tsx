@@ -15,6 +15,7 @@ import GeneralArchitecturePage from './components/GeneralArchitecturePage';
 import AdminPage from './components/AdminPage';
 import AdminLoginPage from './components/AdminLoginPage';
 import Loader from './components/Loader';
+import PaymentStatusPage from './components/PaymentStatusPage'; // Import the new component
 import { useAuth } from './contexts/AuthContext';
 import { useAdminAuth } from './contexts/AdminAuthContext';
 
@@ -48,10 +49,12 @@ const App: React.FC = () => {
   }, []);
 
   const onNavigate = useCallback((targetPage: Page | string) => {
-    const currentHashPage = window.location.hash.substring(1).split('?')[0];
-    if (currentHashPage !== targetPage) {
+    const newHash = `#${targetPage}`;
+    // Only navigate if the target hash is different from the current one.
+    // This handles clearing query parameters correctly, e.g., from '#api?payment=success' to '#api'.
+    if (window.location.hash !== newHash) {
         window.scrollTo(0, 0);
-        window.location.hash = targetPage;
+        window.location.hash = newHash;
     }
   }, []);
 
@@ -101,6 +104,11 @@ const App: React.FC = () => {
   }
   
   // --- Page rendering logic ---
+  const hashParams = new URLSearchParams(hash.split('?')[1]);
+  if (page.page === 'api' && hashParams.get('payment') === 'success') {
+    return <PaymentStatusPage onNavigate={onNavigate} />;
+  }
+  
   if (page.page === 'landing') {
     return <LandingPage onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }

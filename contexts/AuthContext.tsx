@@ -12,7 +12,7 @@ interface AuthContextType {
     signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
     signInWithEmail: (email: string, password: string) => Promise<void>;
     signOut: () => void;
-    pollForPlanUpdate: (expectedPlan: string) => Promise<void>;
+    pollForPlanUpdate: (expectedPlan: string) => Promise<boolean>;
     refreshUser: () => Promise<void>;
     updateCurrentUserMetadata: (newMetadata: object) => void;
 }
@@ -82,29 +82,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
     }, []);
 
-    const pollForPlanUpdate = async (expectedPlan: string) => {
+    const pollForPlanUpdate = async (expectedPlan: string): Promise<boolean> => {
         const MAX_RETRIES = 6;
         const RETRY_DELAY = 1000; // 1 second
+        console.log(`[Auth] Starting poll for plan update to '${expectedPlan}'...`);
     
         for (let i = 0; i < MAX_RETRIES; i++) {
-            const { data: { user }, error } = await supabase.auth.getUser();
+            console.log(`[Auth] Polling attempt ${i + 1}/${MAX_RETRIES}...`);
+            
+            const { data, error } = await supabase.auth.refreshSession();
     
             if (error) {
-                console.error("Error fetching user during poll:", error);
-                break; 
+                console.error("[Auth] Error refreshing session during poll:", error);
+                break;
             }
     
-            if (user && user.user_metadata?.plan === expectedPlan) {
-                console.log(`Plan updated to ${expectedPlan}!`);
+            const user = data.user;
+            const currentPlan = user?.user_metadata?.plan || 'free';
+    
+            if (user && currentPlan === expectedPlan) {
+                console.log(`[Auth] Success! Plan updated to '${expectedPlan}'.`);
                 setCurrentUser(user);
-                return;
+                return true; // Return success
+            } else {
+                 console.log(`[Auth] Plan is still '${currentPlan}'. Waiting ${RETRY_DELAY}ms...`);
             }
     
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         }
     
-        console.warn(`User plan did not update to ${expectedPlan} after ${MAX_RETRIES} retries. Falling back to refreshSession.`);
-        supabase.auth.refreshSession();
+        console.warn(`[Auth] User plan did not update to '${expectedPlan}' after ${MAX_RETRIES} retries.`);
+        await supabase.auth.refreshSession();
+        return false; // Return failure
     };
 
     const refreshUser = async () => {
@@ -117,16 +126,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     const updateCurrentUserMetadata = (newMetadata: object) => {
-        if (currentUser) {
-            const updatedUser = {
-                ...currentUser,
+        setCurrentUser(prevUser => {
+            if (!prevUser) {
+                return null;
+            }
+            return {
+                ...prevUser,
                 user_metadata: {
-                    ...currentUser.user_metadata,
+                    ...prevUser.user_metadata,
                     ...newMetadata
                 }
             };
-            setCurrentUser(updatedUser);
-        }
+        });
     };
 
     const signInWithGoogle = async () => {

@@ -2,8 +2,6 @@ import * as express from 'express';
 import { GoogleGenAI, Type } from "@google/genai";
 import { authenticateUser, incrementGenerationCount } from '../userUtils';
 import { getApiKeyForRequest } from '../services/apiKeyService';
-import { supabaseAdmin } from '../supabaseClient';
-import crypto from 'crypto';
 
 // --- SCHEMAS & PROMPTS ---
 
@@ -275,71 +273,5 @@ export const handleExplainArchitecture = async (req: express.Request, res: expre
         res.json({ explanation });
     } catch (e) {
         handleError(res, e);
-    }
-};
-
-
-// --- API KEY MANAGEMENT CONTROLLERS ---
-
-export const handleGetApiKey = async (req: express.Request, res: express.Response) => {
-    const user = await authenticateUser(req);
-    if (!user) {
-        return res.status(401).json({ error: 'Unauthorized.' });
-    }
-    try {
-        // This refers to the personal API key for *external* API use, not the in-app key.
-        const apiKey = user.app_metadata?.personal_api_key || null;
-        res.json({ apiKey });
-    } catch (e) {
-        handleError(res, e, 'Failed to retrieve API key.');
-    }
-};
-
-export const handleGenerateApiKey = async (req: express.Request, res: express.Response) => {
-    const user = await authenticateUser(req);
-    if (!user) {
-        return res.status(401).json({ error: 'Unauthorized.' });
-    }
-
-    const plan = user.user_metadata?.plan || 'free';
-    if (!['pro', 'business'].includes(plan)) {
-        return res.status(403).json({ error: 'Forbidden: API key generation is a premium feature.' });
-    }
-
-    try {
-        const newKey = `cg_sk_${crypto.randomBytes(20).toString('hex')}`;
-        
-        const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
-            user.id,
-            { app_metadata: { ...user.app_metadata, personal_api_key: newKey } }
-        );
-
-        if (error || !data.user) {
-            throw error || new Error('Failed to update user with new key.');
-        }
-
-        res.status(201).json({ apiKey: newKey });
-    } catch (e) {
-        handleError(res, e, 'Failed to generate API key.');
-    }
-};
-
-export const handleRevokeApiKey = async (req: express.Request, res: express.Response) => {
-    const user = await authenticateUser(req);
-    if (!user) {
-        return res.status(401).json({ error: 'Unauthorized.' });
-    }
-
-    try {
-        const { error } = await supabaseAdmin.auth.admin.updateUserById(
-            user.id,
-            { app_metadata: { ...user.app_metadata, personal_api_key: null } }
-        );
-        
-        if (error) throw error;
-
-        res.status(204).send(); // No content
-    } catch (e) {
-        handleError(res, e, 'Failed to revoke API key.');
     }
 };

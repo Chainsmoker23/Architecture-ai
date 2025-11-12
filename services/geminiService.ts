@@ -138,7 +138,26 @@ export const chatWithAssistant = async (history: Content[], userApiKey?: string)
   }
 };
 
-// --- API Key Management Services ---
+// --- User Plan & API Key Management Services ---
+
+export const getActiveUserPlans = async (): Promise<any[]> => {
+    try {
+        const { plans } = await fetchFromApi('/user/active-plans', undefined, 'GET');
+        return plans || [];
+    } catch (error) {
+        console.error("Error fetching user's active plans:", String(error));
+        throw error;
+    }
+};
+
+export const switchUserPlan = async (subscriptionId: string): Promise<void> => {
+    try {
+        await fetchFromApi('/user/switch-plan', { subscriptionId }, 'POST');
+    } catch (error) {
+        console.error("Error switching user plan:", String(error));
+        throw error;
+    }
+};
 
 export const getUserApiKey = async (): Promise<string | null> => {
     try {
@@ -206,6 +225,16 @@ export const updateAdminConfig = async (config: any, adminToken: string): Promis
         await fetchFromApi('/admin/config', { config }, 'POST', adminToken);
     } catch (error) {
         console.error("Error updating admin config:", String(error));
+        throw error;
+    }
+};
+
+export const getAdminUsers = async (adminToken: string, email?: string): Promise<any[]> => {
+    try {
+        const endpoint = email ? `/admin/users?email=${encodeURIComponent(email)}` : '/admin/users';
+        return await fetchFromApi(endpoint, undefined, 'GET', adminToken);
+    } catch (error) {
+        console.error("Error fetching admin users:", String(error));
         throw error;
     }
 };

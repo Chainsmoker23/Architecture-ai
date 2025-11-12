@@ -31,22 +31,43 @@ export const authenticateUser = async (req: express.Request): Promise<User | nul
 
 /**
  * Checks if a user can generate content based on their plan and usage, without modifying their count.
+ * This is now the source of truth for permissions.
  * @param user The authenticated Supabase User object.
  * @returns An object indicating if the generation is allowed and the user's current count.
  */
 export const canUserGenerate = async (user: User): Promise<{ allowed: boolean; error?: string, generationCount: number }> => {
-    // Re-fetch user to get the absolute latest metadata before checking to prevent stale data issues.
-    const { data: { user: freshUser }, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(user.id);
+    // 1. Check for an active subscription in the new `subscriptions` table. This is the highest priority.
+    const { data: activeSubscription, error: subError } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
 
+    if (subError) {
+        console.error(`[Permissions] Database error while checking subscriptions for user ${user.id}:`, subError);
+        throw new Error('Could not verify user subscription status.');
+    }
+    
+    // If an active subscription exists, they have unlimited generations.
+    if (activeSubscription) {
+        return { allowed: true, generationCount: user.user_metadata?.generation_count || 0 };
+    }
+
+    // 2. If no active subscription, fall back to checking free/hobbyist generation counts.
+    // This requires fetching the latest user data to prevent stale metadata issues.
+    const { data: { user: freshUser }, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(user.id);
     if (fetchError || !freshUser) {
-        console.error(`[Backend] Failed to re-fetch user ${user.id} before checking limits:`, fetchError);
+        console.error(`[Permissions] Failed to re-fetch user ${user.id} before checking limits:`, fetchError);
         throw new Error('Could not verify user generation status.');
     }
 
     const plan = freshUser.user_metadata?.plan || 'free';
     const generationCount = freshUser.user_metadata?.generation_count || 0;
     
-    if (plan === 'pro' || plan === 'business') {
+    // "Pro" should have been caught by the subscription check, but as a safeguard:
+    if (plan === 'pro') {
+        console.warn(`[Permissions] User ${user.id} has plan '${plan}' but no active subscription record was found. Granting access as a safeguard.`);
         return { allowed: true, generationCount };
     }
 
@@ -59,14 +80,22 @@ export const canUserGenerate = async (user: User): Promise<{ allowed: boolean; e
     return { allowed: true, generationCount };
 };
 
+
 /**
  * Increments the generation count for a non-premium user.
  * @param user The authenticated Supabase User object.
  * @returns The new generation count, or null if the user is premium.
  */
 export const incrementGenerationCount = async (user: User): Promise<number | null> => {
-    const plan = user.user_metadata?.plan || 'free';
-    if (plan === 'pro' || plan === 'business') {
+    // Re-check for an active subscription before incrementing.
+    const { data: activeSubscription } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+        
+    if (activeSubscription) {
         return null; // Premium users don't have their count incremented.
     }
     
