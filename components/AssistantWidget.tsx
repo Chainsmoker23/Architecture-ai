@@ -2,44 +2,12 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { chatWithAssistant } from '../services/geminiService';
 import type { Content } from '@google/genai';
+import MagicalText from './MagicalText';
 
 interface Message {
   role: 'user' | 'model';
   text: string;
 }
-
-// Custom hook for typewriter effect
-const useTypewriter = (text: string, enabled: boolean, onComplete: () => void) => {
-    const [displayedText, setDisplayedText] = useState('');
-    const onCompleteRef = useRef(onComplete);
-
-    useEffect(() => {
-        onCompleteRef.current = onComplete;
-    }, [onComplete]);
-
-    useEffect(() => {
-        if (enabled && text) {
-            setDisplayedText('');
-            let i = 0;
-            const intervalId = setInterval(() => {
-                setDisplayedText(text.substring(0, i + 1));
-                i++;
-                if (i >= text.length) {
-                    clearInterval(intervalId);
-                    if (onCompleteRef.current) {
-                      onCompleteRef.current();
-                    }
-                }
-            }, 30); // Typing speed
-
-            return () => clearInterval(intervalId);
-        } else {
-            setDisplayedText(text);
-        }
-    }, [text, enabled]);
-
-    return displayedText;
-};
 
 const QuantumCore: React.FC<{ isGlowing: boolean; size?: number }> = ({ isGlowing, size = 80 }) => {
   return (
@@ -92,12 +60,25 @@ const PromptDisplay: React.FC<{ text: string }> = ({ text }) => {
 };
 
 const MessageContent: React.FC<{ message: Message, isTyping: boolean, onTypingComplete: () => void }> = ({ message, isTyping, onTypingComplete }) => {
-    const typedText = useTypewriter(message.text, isTyping, onTypingComplete);
-    
-    if (message.role === 'model') {
-        return <PromptDisplay text={typedText} />;
+    if (message.role === 'user') {
+        return <p className="text-sm whitespace-pre-wrap">{message.text}</p>;
     }
-    return <p className="text-sm whitespace-pre-wrap">{message.text}</p>;
+    
+    // It's a model message
+    if (isTyping) {
+        return (
+            <div className="text-sm text-inherit whitespace-pre-wrap">
+                <MagicalText text={message.text} onAnimationComplete={onTypingComplete} />
+            </div>
+        );
+    } else {
+        // For previous messages, render statically but with the gradient for consistency.
+        return (
+            <div className="magical-text-gradient text-sm whitespace-pre-wrap">
+                <PromptDisplay text={message.text} />
+            </div>
+        );
+    }
 };
 
 const AssistantWidget: React.FC = () => {

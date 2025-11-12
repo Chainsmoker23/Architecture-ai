@@ -556,6 +556,22 @@
           border-color: rgba(244, 114, 182, 1);
           box-shadow: 0 0 10px #f472b6, 0 0 20px #f472b6, inset 0 0 10px rgba(244, 114, 182, 0.5);
       }
+      
+      /* --- Magical Text for Assistant --- */
+      @keyframes magical-text-flow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+      }
+      .magical-text-gradient {
+          background: linear-gradient(to right, #f472b6, #a78bfa, #f472b6);
+          background-size: 200% auto;
+          color: transparent;
+          -webkit-background-clip: text;
+          background-clip: text;
+          animation: magical-text-flow 3s linear infinite;
+          text-shadow: 0 0 5px rgba(236, 72, 153, 0.3), 0 0 10px rgba(139, 92, 246, 0.2);
+      }
 
     </style>
   <script type="importmap">
