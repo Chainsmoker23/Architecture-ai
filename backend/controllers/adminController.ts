@@ -10,6 +10,8 @@ interface AppConfig {
     dodo_secret_key: string | null;
     dodo_webhook_secret: string | null;
     site_url: string | null;
+    dodo_hobbyist_product_id: string | null;
+    dodo_pro_product_id: string | null;
 }
 
 // In-memory cache for the config object to reduce DB lookups.
@@ -67,6 +69,8 @@ export const getCachedConfig = async (): Promise<AppConfig> => {
 
         logSource('dodo_secret_key', dbConfig.dodo_secret_key, process.env.DODO_SECRET_KEY);
         logSource('dodo_webhook_secret', dbConfig.dodo_webhook_secret, process.env.DODO_WEBHOOK_SECRET);
+        logSource('dodo_hobbyist_product_id', dbConfig.dodo_hobbyist_product_id, process.env.VITE_DODO_HOBBYIST_PRODUCT_ID);
+        logSource('dodo_pro_product_id', dbConfig.dodo_pro_product_id, process.env.VITE_DODO_PRO_PRODUCT_ID);
 
         // Merge with environment variable fallbacks
         cachedConfig = {
@@ -74,6 +78,8 @@ export const getCachedConfig = async (): Promise<AppConfig> => {
             dodo_secret_key: dbConfig.dodo_secret_key || process.env.DODO_SECRET_KEY || null,
             dodo_webhook_secret: dbConfig.dodo_webhook_secret || process.env.DODO_WEBHOOK_SECRET || null,
             site_url: dbConfig.site_url || process.env.SITE_URL || null,
+            dodo_hobbyist_product_id: dbConfig.dodo_hobbyist_product_id || process.env.VITE_DODO_HOBBYIST_PRODUCT_ID || null,
+            dodo_pro_product_id: dbConfig.dodo_pro_product_id || process.env.VITE_DODO_PRO_PRODUCT_ID || null,
         };
         cacheLastUpdated = now;
     }
@@ -185,7 +191,7 @@ export const getAdminUsers = async (req: express.Request, res: express.Response)
 
         // 2. Filter users by email if a search term is provided
         const filteredUsers = email
-            ? users.filter(u => u.email?.toLowerCase().includes((email as string).toLowerCase()))
+            ? users.filter((u: User) => u.email?.toLowerCase().includes((email as string).toLowerCase()))
             : users;
 
         // 3. Get all subscriptions from our public table

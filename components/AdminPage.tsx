@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getAdminConfig, updateAdminConfig } from '../services/geminiService';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import Logo from './Logo';
@@ -82,7 +82,9 @@ const ConfigPanel: React.FC = () => {
         gemini_api_key: '',
         dodo_secret_key: '',
         dodo_webhook_secret: '',
-        site_url: ''
+        site_url: '',
+        dodo_hobbyist_product_id: '',
+        dodo_pro_product_id: '',
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -155,6 +157,8 @@ const ConfigPanel: React.FC = () => {
                 <InputField name="gemini_api_key" label="Shared Gemini API Key" value={config.gemini_api_key || ''} onChange={handleInputChange} />
                 <InputField name="dodo_secret_key" label="Dodo Payments Secret Key" value={config.dodo_secret_key || ''} onChange={handleInputChange} />
                 <InputField name="dodo_webhook_secret" label="Dodo Payments Webhook Secret" value={config.dodo_webhook_secret || ''} onChange={handleInputChange} />
+                <InputField name="dodo_hobbyist_product_id" label="Dodo Hobbyist Product ID" value={config.dodo_hobbyist_product_id || ''} onChange={handleInputChange} isText={true} />
+                <InputField name="dodo_pro_product_id" label="Dodo Pro Product ID" value={config.dodo_pro_product_id || ''} onChange={handleInputChange} isText={true} />
                 <InputField name="site_url" label="Site URL" value={config.site_url || ''} onChange={handleInputChange} isText={true} />
             </div>
 

@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getUserApiKey, generateUserApiKey, revokeUserApiKey } from '../services/geminiService';
 import Loader from './Loader';
 
-type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
+type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'sdk';
 
 interface ApiKeyPageProps {
   onBack: () => void;
@@ -127,7 +127,7 @@ const CredentialCard: React.FC<{
         >
             <div className="relative z-10">
                 <h2 className="text-2xl font-bold">Your Personal API Key</h2>
-                <p className="text-sm text-gray-500 mt-1">Use this key in the app to bypass shared limits.</p>
+                <p className="text-sm text-gray-500 mt-1">This key grants programmatic access to the CubeGen AI API.</p>
                 <div className="api-credential-display mt-4 flex items-center justify-between p-4 rounded-xl">
                     <div className="flex items-center gap-3 min-w-0">
                         <div className="api-status-indicator flex-shrink-0" />
@@ -175,6 +175,89 @@ const ConfettiBurst: React.FC<{ isBursting: boolean }> = ({ isBursting }) => {
         </div>
     );
 };
+
+const IDECodeBlock: React.FC<{ apiKey: string }> = ({ apiKey }) => {
+    const [activeTab, setActiveTab] = useState('curl');
+    
+    const codeSnippets = {
+        curl: `curl 'https://cubegen.ai/api/v1/diagrams/generate' \\
+  -X POST \\
+  -H 'Authorization: Bearer ${apiKey}' \\
+  -H 'Content-Type: application/json' \\
+  --data-raw '{
+    "prompt": "A simple 3-tier web app on AWS"
+  }'`,
+        javascript: `const apiKey = '${apiKey}';
+const promptText = 'A simple 3-tier web app on AWS';
+
+async function generateDiagram() {
+  try {
+    const response = await fetch('https://cubegen.ai/api/v1/diagrams/generate', {
+      method: 'POST',
+      headers: {
+        'Authorization': \`Bearer \${apiKey}\`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt: promptText }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'API request failed');
+    }
+
+    const { diagram } = await response.json();
+    console.log('Generated Diagram:', diagram);
+    return diagram;
+
+  } catch (error) {
+    console.error('Error generating diagram:', error);
+  }
+}
+
+generateDiagram();`
+    };
+
+    const highlightSyntax = (code: string, lang: 'curl' | 'javascript') => {
+        let highlightedCode = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        
+        if (lang === 'curl') {
+            return highlightedCode
+                .replace(/'([^']*)'/g, `<span class="token string">'$1'</span>`)
+                .replace(/"([^"]*)"/g, `<span class="token string">"$1"</span>`)
+                .replace(/\b(curl|POST|GET|Authorization|Bearer|Content-Type|application\/json)\b/g, `<span class="token keyword">${'$&'}</span>`)
+                .replace(/(-X|-H|--data-raw)/g, `<span class="token property-access">${'$&'}</span>`);
+        }
+        // Javascript
+        return highlightedCode
+            .replace(/'([^']*)'/g, `<span class="token string">'$1'</span>`)
+            .replace(/\b(const|let|async|function|try|catch|await|new|return|if|throw|Error)\b/g, `<span class="token keyword">${'$&'}</span>`)
+            .replace(/(\.json\(\)|\.log|\.error|\.stringify|ok|message)/g, `<span class="token property-access">${'$&'}</span>`)
+            .replace(/\b(fetch|console|JSON)\b/g, `<span class="token function">${'$&'}</span>`)
+            .replace(/(\(|\{|\}|\[|\]|,|:)/g, `<span class="token punctuation">${'$&'}</span>`)
+            .replace(/(\/\/.*)/g, `<span class="token comment">${'$&'}</span>`);
+    };
+
+    return (
+        <div className="api-ide-block mt-12">
+            <div className="api-ide-header">
+                <div className="ide-controls">
+                    <div className="ide-control-dot bg-red-500"></div>
+                    <div className="ide-control-dot bg-yellow-500"></div>
+                    <div className="ide-control-dot bg-green-500"></div>
+                </div>
+                <div className="ide-tabs">
+                     <button onClick={() => setActiveTab('curl')} className={`ide-tab ${activeTab === 'curl' ? 'active' : ''}`}>cURL</button>
+                     <button onClick={() => setActiveTab('javascript')} className={`ide-tab ${activeTab === 'javascript' ? 'active' : ''}`}>JavaScript</button>
+                </div>
+            </div>
+            <pre>
+                <code dangerouslySetInnerHTML={{ __html: highlightSyntax(codeSnippets[activeTab as 'curl' | 'javascript'], activeTab as 'curl' | 'javascript') }} />
+            </pre>
+        </div>
+    );
+};
+
 
 const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onNavigate }) => {
     const { currentUser } = useAuth();
@@ -233,7 +316,7 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onNavigate }) => {
     };
     
     const handleCopyKey = () => {
-        if (apiKey && !isRevealing) {
+        if (apiKey) {
             navigator.clipboard.writeText(apiKey);
             setIsKeyCopied(true);
             setTimeout(() => setIsKeyCopied(false), 2000);
@@ -255,10 +338,10 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onNavigate }) => {
                 <div className="container mx-auto px-6 z-10 text-center">
                     <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
                         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
-                            Personal API Key
+                            Developer API Keys
                         </h1>
                         <p className="mt-6 max-w-3xl mx-auto text-lg md:text-xl text-[#555555]">
-                            Generate a personal key to use within the CubeGen app and bypass shared usage limits.
+                            Integrate CubeGen AI into your own applications, scripts, and CI/CD pipelines with a personal access key.
                         </p>
                     </motion.div>
                 </div>
@@ -274,8 +357,8 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onNavigate }) => {
                         ) : !isPremiumUser ? (
                             <motion.div key="upgrade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="api-credential-card p-8 rounded-2xl text-center">
                                 <ArchitectureIcon type={IconType.SecretsManager} className="w-16 h-16 text-gray-300 mx-auto opacity-50" />
-                                <h2 className="text-2xl font-bold mt-4">Personal Keys are a Pro Feature</h2>
-                                <p className="mt-2 text-gray-600">Upgrade to a Pro or Business plan to generate a key and bypass shared usage limits.</p>
+                                <h2 className="text-2xl font-bold mt-4">Developer Keys are a Pro Feature</h2>
+                                <p className="mt-2 text-gray-600">Upgrade to a Pro or Business plan to generate a key for programmatic access.</p>
                                 <button onClick={() => onNavigate('api')} className="mt-6 shimmer-button text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
                                     View Plans & Upgrade
                                 </button>
@@ -289,13 +372,20 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onNavigate }) => {
                                     isCopied={isKeyCopied}
                                     onRevoke={handleRevokeKey}
                                 />
+                                <div className="p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded-r-lg">
+                                    <h4 className="font-bold">Two Ways to Use Keys</h4>
+                                    <p className="text-sm mt-1">
+                                        This key is for our Public API. To bypass generation limits <strong>within this web app</strong>, add your personal Google Gemini key in the <strong className="font-semibold">Settings sidebar</strong>.
+                                    </p>
+                                </div>
+                                <IDECodeBlock apiKey={apiKey} />
                             </motion.div>
                         ) : (
                              <motion.div key="generate-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                                 <div className="text-center api-credential-card p-10 rounded-2xl border-dashed">
                                     <ArchitectureIcon type={IconType.Api} className="w-16 h-16 text-gray-300 mx-auto" />
                                     <h2 className="text-2xl font-bold mt-4">You don't have a personal key yet.</h2>
-                                    <p className="mt-2 text-gray-600 max-w-md mx-auto">Generate a key to use in the app's settings. This will give you unlimited generations and bypass any shared limits.</p>
+                                    <p className="mt-2 text-gray-600 max-w-md mx-auto">Generate a key to integrate CubeGen AI with your own applications and tools.</p>
                                     <motion.button 
                                       onClick={handleGenerateKey} 
                                       className="mt-6 shimmer-button text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 relative"

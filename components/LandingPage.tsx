@@ -12,7 +12,7 @@ import Logo from './Logo';
 
 interface LandingPageProps {
   onLaunch: () => void;
-  onNavigate: (page: 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'careers' | 'research') => void;
+  onNavigate: (page: 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'careers' | 'research' | 'sdk') => void;
 }
 
 const containerVariants: Variants = {
@@ -41,7 +41,8 @@ const Header: React.FC<LandingPageProps & { isScrolled: boolean }> = ({ onLaunch
         </div>
         <nav className="hidden md:flex items-center space-x-8">
           <button onClick={() => onNavigate('about')} className={navItemClass}>About</button>
-          <button onClick={() => onNavigate('api')} className={navItemClass}>API</button>
+          <button onClick={() => onNavigate('api')} className={navItemClass}>API & Pricing</button>
+          <button onClick={() => onNavigate('apiKey')} className={navItemClass}>API Keys</button>
           <button onClick={() => onNavigate('research')} className={navItemClass}>Research</button>
           <button onClick={() => onNavigate('docs')} className={navItemClass}>Docs</button>
           <button onClick={() => onNavigate('careers')} className={navItemClass}>Careers</button>
@@ -236,8 +237,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
                   Bring your own API key to bypass shared limits and unlock the full, unrestricted power of CubeGen AI. Perfect for power users, teams, and automated workflows.
                 </p>
                 <div className="flex items-center gap-4">
-                  <button onClick={() => onNavigate('apiKey')} className="bg-[#F9D7E3] text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
-                    Learn about API Keys
+                  <button onClick={() => onNavigate('sdk')} className="bg-[#F9D7E3] text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
+                    Learn How
                   </button>
                 </div>
               </motion.div>
@@ -282,7 +283,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLaunch, onNavigate }) => {
                 ))}
               </div>
             </div>
-        </motion.section>
+        </section>
 
         {/* CTA Section */}
         <motion.section className="py-24 hero-gradient-bg">

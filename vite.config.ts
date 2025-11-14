@@ -18,6 +18,8 @@ export default defineConfig(({ mode }) => {
       'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
       'process.env.VITE_DODO_PUBLISHABLE_KEY': JSON.stringify(env.VITE_DODO_PUBLISHABLE_KEY),
       'process.env.VITE_API_KEY': JSON.stringify(env.VITE_API_KEY),
+      'process.env.VITE_DODO_HOBBYIST_PRODUCT_ID': JSON.stringify(env.VITE_DODO_HOBBYIST_PRODUCT_ID),
+      'process.env.VITE_DODO_PRO_PRODUCT_ID': JSON.stringify(env.VITE_DODO_PRO_PRODUCT_ID),
     },
     server: {
       proxy: {

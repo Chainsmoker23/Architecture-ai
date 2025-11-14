@@ -24,6 +24,7 @@
     <meta property="twitter:description" content="Generate professional software architecture diagrams instantly from a single prompt with CubeGen AI.">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
       body {
@@ -597,61 +598,11 @@
     "dotenv": "https://aistudiocdn.com/dotenv@^17.2.3",
     "path": "https://aistudiocdn.com/path@^0.12.7",
     "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
-    "jsonwebtoken": "https://aistudiocdn.com/jsonwebtoken@^9.0.2"
+    "jsonwebtoken": "https://aistudiocdn.com/jsonwebtoken@^9.0.2",
+    "dodopayments": "https://aistudiocdn.com/dodopayments@^2.4.6"
   }
 }
 </script>
-    
-    <script>
-      // Mock Dodo Payments SDK
-      // This simulates the external Dodo.js script for a complete end-to-end test flow.
-      window.Dodo = function(publishableKey) {
-        console.log('Mock Dodo SDK initialized with key:', publishableKey);
-        if (!publishableKey) {
-          console.error('Dodo SDK Mock: Publishable key is missing.');
-        }
-        return {
-          redirectToCheckout: async function(options) {
-            console.log('Mock Dodo SDK: redirectToCheckout called with session ID:', options.sessionId);
-            if (!options.sessionId) {
-              const error = { message: 'Session ID is required for checkout.' };
-              console.error('Mock Dodo SDK Error:', error.message);
-              return { error };
-            }
-
-            try {
-              // In a real SDK, this would redirect to a Dodo-hosted page.
-              // Here, we directly call our backend's mock confirmation endpoint
-              // to simulate a successful payment and trigger the webhook flow.
-              const response = await fetch('/api/confirm-payment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId: options.sessionId }),
-              });
-
-              const data = await response.json();
-
-              if (!response.ok) {
-                throw new Error(data.error || 'Failed to confirm mock payment.');
-              }
-
-              if (data.success && data.redirectUrl) {
-                console.log('Mock Dodo SDK: Payment confirmation successful. Redirecting to:', data.redirectUrl);
-                window.location.href = data.redirectUrl;
-                return {}; // Success, no error
-              } else {
-                throw new Error('Invalid response from mock payment confirmation.');
-              }
-            } catch (err) {
-              const error = { message: err instanceof Error ? err.message : 'An unknown error occurred during mock payment.' };
-              console.error('Mock Dodo SDK Error:', error.message);
-              return { error };
-            }
-          }
-        };
-      };
-    </script>
-    
     <!-- Structured Data (JSON-LD) for SEO -->
     <script type="application/ld+json">
     {

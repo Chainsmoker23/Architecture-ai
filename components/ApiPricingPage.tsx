@@ -7,30 +7,25 @@ import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
 import { supabase } from '../supabaseClient';
 import { FREE_GENERATION_LIMIT, HOBBYIST_GENERATION_LIMIT } from './constants';
-import Logo from './Logo';
+import PricingTableOne from './billingsdk/PricingTableOne';
 
-type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth';
+type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth' | 'sdk';
 
 interface ApiPricingPageProps {
   onBack: () => void;
   onNavigate: (page: Page) => void;
 }
 
-// Fictional Dodo SDK types for TypeScript
-declare function Dodo(publishableKey: string): {
-    redirectToCheckout: (options: { sessionId: string }) => Promise<{ error?: { message: string } }>;
-};
-
 const highlightSyntax = (code: string) => {
-  const highlighted = code
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/'([^']*)'/g, `<span class="token string">'${'$1'}'</span>`)
-    .replace(/"([^"]*)"/g, `<span class="token string">"${'$1'}"</span>`)
-    .replace(/\b(const|let|import|from|await|new|return)\b/g, `<span class="token keyword">${'$&'}</span>`)
-    .replace(/(\bCubeGenAI|generateDiagram\b)/g, `<span class="token function">${'$&'}</span>`)
-    .replace(/(\(|\{|\}|\[|\]|\.)/g, `<span class="token punctuation">${'$&'}</span>`)
-    .replace(/(\/\/.*)/g, `<span class="token comment">${'$&'}</span>`);
-  return { __html: highlighted };
+  let highlightedCode = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return { __html: highlightedCode
+      .replace(/'([^']*)'/g, `<span class="token string">'$1'</span>`)
+      .replace(/\b(const|let|async|function|try|catch|await|new|return|if|throw|Error)\b/g, `<span class="token keyword">${'$&'}</span>`)
+      .replace(/(\.json\(\)|\.log|\.error|\.stringify|ok|message)/g, `<span class="token property-access">${'$&'}</span>`)
+      .replace(/\b(fetch|console|JSON)\b/g, `<span class="token function">${'$&'}</span>`)
+      .replace(/(\(|\{|\}|\[|\]|,|:)/g, `<span class="token punctuation">${'$&'}</span>`)
+      .replace(/(\/\/.*)/g, `<span class="token comment">${'$&'}</span>`)
+  };
 };
 
 const CodeBlock: React.FC<{ code: string }> = ({ code }) => (
@@ -39,65 +34,37 @@ const CodeBlock: React.FC<{ code: string }> = ({ code }) => (
     </pre>
 );
 
-const CheckoutRedirector: React.FC<{ sessionId: string, onRedirectError: (message: string) => void }> = ({ sessionId, onRedirectError }) => {
-    
-    useEffect(() => {
-        const redirectToDodo = async () => {
-            // Checks are moved to handlePlanClick for earlier feedback.
-            // We assume if we get here, the SDK is ready.
-            const dodoPublishableKey = process.env.VITE_DODO_PUBLISHABLE_KEY!;
-            const dodo = Dodo(dodoPublishableKey);
-            const { error } = await dodo.redirectToCheckout({ sessionId });
-            if (error) {
-                onRedirectError(error.message || "An unknown error occurred during the redirect.");
-            }
-        };
-
-        // Adding a small delay to allow the user to read the message.
-        const timer = setTimeout(redirectToDodo, 1500);
-
-        return () => clearTimeout(timer);
-    }, [sessionId, onRedirectError]);
-
-    return (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center z-50">
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="text-center p-8"
-            >
-                <div className="flex items-center justify-center gap-2 mb-4">
-                    <Logo className="h-10 w-10 text-[#D6336C]" />
-                    <h3 className="text-2xl font-bold">Cube<span className="text-[#D6336C]">Gen</span> AI</h3>
-                </div>
-                 <div className="flex items-center justify-center gap-2 text-gray-500 font-medium">
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Redirecting you to our secure payment partner...</span>
-                 </div>
-            </motion.div>
-        </div>
-    );
-};
-
-
 const ApiPricingPage: React.FC<ApiPricingPageProps> = ({ onBack, onNavigate }) => {
     const { currentUser } = useAuth();
-    const userPlan = currentUser?.user_metadata?.plan || 'free';
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-    const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
-    const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
+    const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
-    const codeExample = `// The CubeGenAI SDK is currently for internal demonstration.
-// Public API access is on our roadmap!
+    const codeExample = `// Example: Using fetch to call the CubeGen AI API.
+// Public API access is a Pro feature.
 
-// Pro users can generate a personal key in their dashboard
-// and add it to the app settings to get unlimited generations.
+const apiKey = 'YOUR_API_KEY'; // Get this from your dashboard
+const prompt = 'A serverless API on GCP using Cloud Functions and Firestore.';
 
-console.log('Building the future of automated design!');
+fetch('https://cubegen.ai/api/v1/diagrams/generate', {
+  method: 'POST',
+  headers: {
+    'Authorization': \`Bearer \${apiKey}\`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ prompt }),
+})
+.then(res => {
+  if (!res.ok) {
+    throw new Error('Network response was not ok');
+  }
+  return res.json();
+})
+.then(data => {
+  console.log('Generated Diagram:', data.diagram);
+})
+.catch(error => {
+  console.error('Error:', error);
+});
 `;
     
     useEffect(() => {
@@ -113,24 +80,66 @@ console.log('Building the future of automated design!');
     }, []);
 
 
-    const handlePlanClick = async (plan: any) => {
-        // 1. Check if user is logged in.
+    const getPlans = () => {
+        return [
+          {
+            id: 'free',
+            title: 'Free',
+            description: 'Perfect for getting started and occasional use.',
+            currency: '$',
+            monthlyPrice: '0',
+            buttonText: 'Sign Up for Free',
+            highlight: false,
+            features: [
+              { name: `${FREE_GENERATION_LIMIT} diagram generations per month`, icon: 'check', iconColor: 'text-green-500' },
+              { name: 'Standard icon set', icon: 'check', iconColor: 'text-blue-500' },
+              { name: 'Community support', icon: 'check', iconColor: 'text-orange-500' },
+            ]
+          },
+          {
+            id: 'one_time',
+            title: 'Hobbyist',
+            description: 'A one-time purchase for extra generations.',
+            currency: '$',
+            monthlyPrice: '3',
+            buttonText: 'Buy for $3',
+            highlight: false,
+            features: [
+              { name: `${HOBBYIST_GENERATION_LIMIT} total diagram generations`, icon: 'check', iconColor: 'text-green-500' },
+              { name: 'Standard icon set', icon: 'check', iconColor: 'text-blue-500' },
+              { name: 'Perfect for small projects', icon: 'check', iconColor: 'text-orange-500' },
+            ]
+          },
+          {
+            id: 'subscription',
+            title: 'Pro',
+            description: 'Full Pro access with ongoing updates and support.',
+            currency: '$',
+            monthlyPrice: '10',
+            buttonText: 'Subscribe for $10/mo',
+            highlight: true,
+            features: [
+              { name: 'Unlimited diagram generations', icon: 'check', iconColor: 'text-green-500' },
+              { name: 'Generate a personal API key', icon: 'check', iconColor: 'text-blue-500' },
+              { name: 'Use your own key in-app', icon: 'check', iconColor: 'text-orange-500' },
+              { name: 'Priority support', icon: 'check', iconColor: 'text-purple-500' },
+            ]
+          }
+        ];
+    };
+
+    const handlePlanSelect = async (planId: string) => {
+        if (planId === 'free') {
+            if (!currentUser) onNavigate('auth');
+            return;
+        }
+
         if (!currentUser) {
             onNavigate('auth');
             return;
         }
 
-        // 2. Check if SDK and keys are ready before doing anything else.
-        if (typeof Dodo === 'undefined') {
-            setToast({ message: "Payment SDK is not loaded. Please wait a moment or check your connection.", type: 'error' });
-            return;
-        }
-        if (!process.env.VITE_DODO_PUBLISHABLE_KEY) {
-            setToast({ message: "Payment system is not configured. (Missing Publishable Key)", type: 'error' });
-            return;
-        }
-
-        setLoadingPriceId(plan.productId);
+        setLoadingPlan(planId);
         setToast(null);
 
         try {
@@ -139,100 +148,52 @@ console.log('Building the future of automated design!');
                 throw new Error('You must be logged in to purchase a plan.');
             }
 
-            const response = await fetch('/api/create-checkout-session', {
+            const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.access_token}`,
                 },
-                body: JSON.stringify({ 
-                    productId: plan.productId,
-                    planName: plan.name.toLowerCase(),
-                    mode: plan.mode
-                }),
+                body: JSON.stringify({ plan: planId }),
             });
 
-            const data = await response.json();
+            // Defensively get the raw text of the response first for robust error handling
+            const responseText = await response.text();
+            console.log('[Checkout] Raw server response:', responseText);
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to create checkout session.');
+                // Try to parse a structured error from the response, with a fallback.
+                let errorMessage = 'Failed to create checkout session.';
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    errorMessage = responseText.length < 100 ? responseText : errorMessage;
+                }
+                throw new Error(errorMessage);
             }
-            
-            if (!data.sessionId) {
-              throw new Error("Could not retrieve a checkout session ID.");
-            }
-            
-            setCheckoutSessionId(data.sessionId);
 
+            // Now, parse the successful response
+            const data = JSON.parse(responseText);
+            console.log('[Checkout] Parsed server response:', data);
+            
+            if (data.success && data.checkout_url) {
+                // Perform a direct browser redirect instead of using an SDK
+                window.location.href = data.checkout_url;
+            } else {
+                // This handles the specific case of a 200 OK response that's missing the expected data
+                throw new Error(data.error || 'Server responded successfully but did not provide a checkout URL.');
+            }
         } catch (error: any) {
-            console.error('Error creating checkout session:', error.message);
-            setToast({ message: `Error: ${error.message}`, type: 'error' });
-        } finally {
-            setLoadingPriceId(null);
+            console.error('Error in handlePlanSelect:', error);
+            setToast({ message: error.message, type: 'error' });
+            setLoadingPlan(null); // Ensure loading state is reset on any error
         }
     };
 
-    const plans = [
-        {
-            name: 'Free',
-            price: '$0',
-            freq: 'per month',
-            productId: null,
-            mode: null,
-            features: [
-                `${FREE_GENERATION_LIMIT} diagram generations per month`,
-                'Standard icon set',
-                'Community support',
-                'Perfect for getting started',
-            ],
-            cta: 'Sign Up for Free',
-            isFeatured: false,
-        },
-        {
-            name: 'Hobbyist',
-            price: '$3',
-            freq: 'one-time',
-            productId: 'pdt_hobby_123', // <-- REPLACE with your actual Dodo Product ID
-            mode: 'payment',
-            features: [
-              `${HOBBYIST_GENERATION_LIMIT} diagram generations`,
-              'Standard icon set',
-              'Perfect for small projects',
-              'Community support',
-            ],
-            cta: 'Get Started',
-            isFeatured: false,
-        },
-        {
-            name: 'Pro',
-            price: '$10',
-            freq: 'per month',
-            productId: 'pdt_pro_456', // <-- REPLACE with your actual Dodo Product ID
-            mode: 'subscription',
-            features: [
-              'Unlimited diagram generations',
-              'Generate a personal API key',
-              'Use your own key in-app',
-              'Priority support',
-            ],
-            cta: 'Go Pro',
-            isFeatured: true,
-        },
-    ];
 
     return (
         <div className="bg-white text-[#2B2B2B] overflow-x-hidden">
-            <AnimatePresence>
-                {checkoutSessionId && (
-                    <CheckoutRedirector 
-                        sessionId={checkoutSessionId} 
-                        onRedirectError={(message) => {
-                            setToast({ message, type: 'error' });
-                            setCheckoutSessionId(null);
-                        }}
-                    />
-                )}
-            </AnimatePresence>
             <AnimatePresence>
                 {toast && <Toast message={toast.message} onDismiss={() => setToast(null)} />}
             </AnimatePresence>
@@ -258,72 +219,13 @@ console.log('Building the future of automated design!');
                 </section>
                 
                  <section id="pricing" className="py-24 bg-gradient-to-b from-white to-[#FFF0F5]">
-                    <div className="container mx-auto px-6">
-                        <h2 className="text-4xl font-bold text-center mb-4">Plans for Every Scale</h2>
-                        <p className="text-lg text-[#555555] max-w-2xl mx-auto text-center mb-12">
-                            From solo developers to enterprise teams, choose a plan that fits your needs.
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-start justify-center">
-                           {plans.map((plan) => {
-                               const planNameLower = plan.name.toLowerCase();
-                               const isCurrentPlan = userPlan && userPlan === planNameLower;
-                               const isDowngrade = (userPlan === 'pro' && (planNameLower === 'hobbyist' || planNameLower === 'free')) || (userPlan === 'hobbyist' && planNameLower === 'free');
-
-                               let buttonText = plan.cta;
-                               if (isCurrentPlan) buttonText = "Current Plan";
-                               if (isDowngrade) buttonText = "Included";
-                               if (!currentUser && planNameLower !== 'free') buttonText = "Sign In to Purchase";
-
-                               return (
-                                <motion.div
-                                    key={plan.name}
-                                    className={`relative p-8 rounded-2xl border transition-all duration-300 ${
-                                        isCurrentPlan
-                                            ? 'bg-white border-2 border-[#D6336C] shadow-2xl scale-105'
-                                            : plan.isFeatured
-                                            ? 'bg-white shadow-2xl border-[#D6336C] md:-translate-y-4'
-                                            : 'bg-white/70 shadow-lg border-pink-100'
-                                    }`}
-                                >
-                                    {isCurrentPlan && (
-                                        <div className="absolute top-0 right-4 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
-                                            Current Plan
-                                        </div>
-                                    )}
-                                    <h3 className="text-xl font-bold">{plan.name}</h3>
-                                    <p className="mt-2"><span className="text-4xl font-extrabold">{plan.price}</span><span className="text-gray-500"> / {plan.freq}</span></p>
-                                    <ul className="mt-6 space-y-3 text-sm text-[#555555]">
-                                        {plan.features.map(f => <li key={f} className="flex items-center gap-2"><svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>{f}</li>)}
-                                    </ul>
-                                    <button
-                                        onClick={() => {
-                                            if (planNameLower === 'free') {
-                                                if (!currentUser) onNavigate('auth');
-                                            } else {
-                                                handlePlanClick(plan);
-                                            }
-                                        }}
-                                        disabled={loadingPriceId === plan.productId || isCurrentPlan || isDowngrade || (planNameLower === 'free' && !!currentUser)}
-                                        className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed ${
-                                            isCurrentPlan || (planNameLower === 'free' && !!currentUser)
-                                            ? 'bg-gray-200 text-gray-500 cursor-default' 
-                                            : (plan.isFeatured ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg')
-                                        }`}
-                                    >
-                                        {loadingPriceId !== null && loadingPriceId === plan.productId
-                                            ? (
-                                                <>
-                                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                                    Processing...
-                                                </>
-                                            ) 
-                                            : buttonText
-                                        }
-                                    </button>
-                                </motion.div>
-                           )})}
-                        </div>
-                    </div>
+                    <PricingTableOne
+                        title="Plans for Every Scale"
+                        description="From solo developers to enterprise teams, choose a plan that fits your needs."
+                        onPlanSelect={handlePlanSelect}
+                        plans={getPlans()}
+                        loadingPlan={loadingPlan}
+                    />
                 </section>
 
                  <section className="py-24 bg-white">

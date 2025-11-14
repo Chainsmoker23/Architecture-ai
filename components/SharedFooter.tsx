@@ -10,7 +10,7 @@ interface SharedFooterProps {
 }
 
 const SharedFooter: React.FC<SharedFooterProps> = ({ onNavigate, activePage }) => {
-    const validPages: (Page)[] = ['about', 'api', 'research', 'docs', 'careers', 'contact', 'privacy', 'terms'];
+    const validPages: (Page)[] = ['about', 'api', 'apiKey', 'research', 'docs', 'careers', 'contact', 'privacy', 'terms'];
 
     return (
       <footer className="bg-gradient-to-t from-white to-[#FFF0F5]">
@@ -34,7 +34,7 @@ const SharedFooter: React.FC<SharedFooterProps> = ({ onNavigate, activePage }) =
                       }}
                       className={`font-medium transition-colors capitalize ${activePage === page ? 'text-[#D6336C]' : 'text-[#555] hover:text-[#2B2B2B]'}`}
                     >
-                        {page === 'api' ? 'API & Pricing' : page}
+                        {page === 'api' ? 'API & Pricing' : (page === 'apiKey' ? 'API Keys' : page)}
                     </a>
                 ))}
             </div>

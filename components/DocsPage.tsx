@@ -4,7 +4,7 @@ import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import SharedFooter from './SharedFooter';
 
-type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research';
+type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'sdk';
 
 interface DocsPageProps {
   onBack: () => void;
@@ -19,7 +19,7 @@ const highlightSyntax = (code: string) => {
     .replace(/'([^']*)'/g, `<span class="token string">'${'$1'}'</span>`)
     .replace(/"([^"]*)"/g, `<span class="token string">"${'$1'}"</span>`)
     .replace(/\b(curl|POST|GET|Authorization|Bearer|Content-Type|application\/json)\b/g, `<span class="token keyword">${'$&'}</span>`)
-    .replace(/(-X|-H|-d)/g, `<span class="token property-access">${'$&'}</span>`);
+    .replace(/(-X|-H|-d|--data-raw)/g, `<span class="token property-access">${'$&'}</span>`);
   return { __html: highlighted };
 };
 
@@ -157,7 +157,13 @@ const DocsPage: React.FC<DocsPageProps> = ({ onBack, onLaunch, onNavigateToApi, 
                             <DocsSection id="api-access" title="API Access">
                                 <p>Want to automate diagram generation? CubeGen AI offers a simple REST API to integrate into your own applications and workflows.</p>
                                 <p>Generate diagrams from your CI/CD pipeline, build custom internal tools, or create automated documentation. Our API provides the flexibility you need.</p>
-                                <CodeBlock code={`curl 'https://cubegen.ai/api/v1/diagrams' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    "prompt": "${goodPrompt}"\n  }'`} />
+                                <CodeBlock code={`curl 'https://cubegen.ai/api/v1/diagrams/generate' \\
+  -X POST \\
+  -H 'Authorization: Bearer YOUR_API_KEY' \\
+  -H 'Content-Type: application/json' \\
+  --data-raw '{
+    "prompt": "${goodPrompt}"
+  }'`} />
                                 <button onClick={onNavigateToApi} className="mt-4 bg-[#F9D7E3] text-[#A61E4D] font-bold py-2 px-6 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
                                     View Full API Docs & Pricing
                                 </button>

@@ -159,6 +159,27 @@ export const switchUserPlan = async (subscriptionId: string): Promise<void> => {
     }
 };
 
+export const createBillingPortalSession = async (): Promise<string> => {
+    try {
+        const { url } = await fetchFromApi('/user/billing-portal-session', {}, 'POST');
+        if (!url) throw new Error("Could not retrieve billing portal URL.");
+        return url;
+    } catch (error) {
+        console.error("Error creating billing portal session:", String(error));
+        throw error;
+    }
+};
+
+export const cancelSubscription = async (subscriptionId: string): Promise<void> => {
+    try {
+        await fetchFromApi('/user/cancel-subscription', { subscriptionId }, 'POST');
+    } catch (error) {
+        console.error("Error canceling subscription:", String(error));
+        throw error;
+    }
+};
+
+
 export const getUserApiKey = async (): Promise<string | null> => {
     try {
         const { apiKey } = await fetchFromApi('/user/api-key', undefined, 'GET');

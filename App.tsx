@@ -16,10 +16,11 @@ import AdminPage from './components/AdminPage';
 import AdminLoginPage from './components/AdminLoginPage';
 import Loader from './components/Loader';
 import PaymentStatusPage from './components/PaymentStatusPage'; // Import the new component
+import SdkPage from './components/SdkPage';
 import { useAuth } from './contexts/AuthContext';
 import { useAdminAuth } from './contexts/AdminAuthContext';
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'admin' | 'adminLogin';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'admin' | 'adminLogin' | 'sdk';
 
 const getPageFromHash = (): { page: Page; subpage?: string } => {
   const hash = window.location.hash.substring(1).split('?')[0];
@@ -27,7 +28,7 @@ const getPageFromHash = (): { page: Page; subpage?: string } => {
     return { page: 'landing' };
   }
   const [mainPage, subpage] = hash.split('/');
-  const validPages: Page[] = ['landing', 'auth', 'app', 'contact', 'about', 'api', 'apiKey', 'privacy', 'terms', 'docs', 'neuralNetwork', 'careers', 'research', 'admin', 'adminLogin'];
+  const validPages: Page[] = ['landing', 'auth', 'app', 'contact', 'about', 'api', 'apiKey', 'privacy', 'terms', 'docs', 'neuralNetwork', 'careers', 'research', 'admin', 'adminLogin', 'sdk'];
   if (validPages.includes(mainPage as Page)) {
     return { page: mainPage as Page, subpage };
   }
@@ -150,6 +151,9 @@ const App: React.FC = () => {
   }
   if (page.page === 'research') {
     return <ResearchPage onBack={() => onNavigate('landing')} onNavigate={onNavigate} />;
+  }
+  if (page.page === 'sdk') {
+    return <SdkPage onBack={() => onNavigate('landing')} onLaunch={() => onNavigate(currentUser ? 'app' : 'auth')} onNavigate={onNavigate} />;
   }
   if (page.page === 'app') {
     return <GeneralArchitecturePage onNavigate={onNavigate} />;

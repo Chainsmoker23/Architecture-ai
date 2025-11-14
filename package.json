@@ -28,7 +28,8 @@
     "dotenv": "^17.2.3",
     "path": "^0.12.7",
     "crypto": "^1.0.1",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "dodopayments": "^2.4.6"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

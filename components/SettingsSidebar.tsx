@@ -5,10 +5,11 @@ import { useAuth } from '../contexts/AuthContext';
 import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import UserPlansPanel from './UserPlansPanel';
+import BillingPanel from './BillingPanel'; // Import the new component
 import { FREE_GENERATION_LIMIT, HOBBYIST_GENERATION_LIMIT } from './constants';
 
 
-type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research';
+type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'sdk';
 
 
 interface SettingsSidebarProps {
@@ -197,11 +198,18 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                   <div className="w-full h-px bg-[var(--color-border)] opacity-50" />
                   
                   {currentUser && (
-                    <UserPlansPanel 
-                        plan={plan}
-                        refreshUser={refreshUser}
-                        isOpen={isOpen}
-                    />
+                    <>
+                      <UserPlansPanel 
+                          plan={plan}
+                          refreshUser={refreshUser}
+                          isOpen={isOpen}
+                      />
+                      <BillingPanel
+                          isPremiumUser={isPremiumUser}
+                          refreshUser={refreshUser}
+                          isOpen={isOpen}
+                      />
+                    </>
                   )}
                   
                   {isLimitedUser && (
@@ -249,7 +257,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                     <>
                     <div className="w-full h-px bg-[var(--color-border)] opacity-50" />
                     <div>
-                        <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Personal Key</h3>
+                        <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">In-App Personal Key</h3>
                         <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-input)]">
                           <AnimatePresence mode="wait">
                             {userApiKey && !isEditing ? (
@@ -280,7 +288,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                                 exit="exit"
                               >
                                 <p className="text-sm text-[var(--color-text-secondary)] mb-2">
-                                  {userApiKey ? 'Update your key or clear to use the shared key.' : 'Add your own key to bypass usage limits.'}
+                                  {userApiKey ? 'Update your key or clear to use the shared key.' : 'Add your own Google Gemini key to bypass usage limits within this app.'}
                                 </p>
                                 <div>
                                   <input
@@ -315,36 +323,6 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                 </div>
                 
                 <div className="mt-auto pt-6">
-                  <div className="mb-4">
-                    <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Developer</h3>
-                    {isPremiumUser ? (
-                      <button
-                        onClick={() => { onNavigate('apiKey'); setIsOpen(false); }}
-                        className="developer-button w-full flex items-center justify-start gap-3 p-3 rounded-xl text-left relative"
-                      >
-                        <div className="z-10 flex items-center gap-3">
-                            <ArchitectureIcon type={IconType.Api} className="w-6 h-6 text-[var(--color-accent-text)]" />
-                            <div>
-                                <span className="font-semibold text-sm text-[var(--color-text-primary)]">API Keys</span>
-                                <span className="block text-xs text-[var(--color-text-secondary)]">Manage & integrate</span>
-                            </div>
-                        </div>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => { onNavigate('api'); setIsOpen(false); }}
-                        className="developer-button w-full flex items-center justify-start gap-3 p-3 rounded-xl text-left relative"
-                      >
-                        <div className="z-10 flex items-center gap-3">
-                            <ArchitectureIcon type={IconType.Api} className="w-6 h-6 text-[var(--color-text-secondary)]" />
-                            <div>
-                                <span className="font-semibold text-sm text-[var(--color-text-primary)]">API Access</span>
-                                <span className="block text-xs text-[var(--color-text-secondary)]">Upgrade to Pro</span>
-                            </div>
-                        </div>
-                      </button>
-                    )}
-                  </div>
                   <div className="border-t border-[var(--color-border)] pt-4">
                     {currentUser && (
                       <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-500 py-2.5 px-3 rounded-lg hover:bg-red-500/10 transition-colors">
