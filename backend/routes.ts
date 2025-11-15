@@ -1,5 +1,4 @@
 import * as express from 'express';
-// FIX: Renamed imported controller functions to avoid potential conflicts and ensure correct module resolution.
 import { 
     handleGenerateDiagram,
     handleGenerateNeuralNetwork, 
@@ -11,11 +10,16 @@ import {
     handleDodoWebhook
 } from './controllers/paymentController';
 import { 
+    handleVerifyPaymentStatus,
+    handleRecoverByPaymentId
+} from './controllers/recoverController';
+import { 
     getAdminConfig, 
     updateAdminConfig, 
     handleAdminLogin,
     handleAdminLogout,
-    getAdminUsers
+    getAdminUsers,
+    handleAdminUpdateUserPlan
 } from './controllers/adminController';
 import { 
     handleGetApiKey,
@@ -23,7 +27,6 @@ import {
     handleRevokeApiKey,
     handleGetActivePlans,
     handleSwitchPlan,
-    handleCreateBillingPortalSession,
     handleCancelSubscription
 } from './controllers/userController';
 import { isAdmin } from './middleware/authMiddleware';
@@ -48,6 +51,12 @@ router.post('/dodo-webhook', express.raw({ type: 'application/json' }), handleDo
 // Endpoint for the frontend to create a new checkout session
 router.post('/checkout', express.json(), createCheckoutSession);
 
+// Endpoint for the frontend to manually verify payment status as a fallback
+router.post('/verify-payment-status', express.json(), handleVerifyPaymentStatus);
+
+// Recovery endpoint for users affected by old redirect URLs. This ensures the route is correctly registered.
+router.post('/recover-by-payment-id', express.json(), handleRecoverByPaymentId);
+
 
 // --- GEMINI API PROXY ROUTES (for internal app use) ---
 
@@ -62,7 +71,6 @@ router.post('/user/api-key', express.json(), handleGenerateApiKey);
 router.delete('/user/api-key', handleRevokeApiKey);
 router.get('/user/active-plans', handleGetActivePlans);
 router.post('/user/switch-plan', express.json(), handleSwitchPlan);
-router.post('/user/billing-portal-session', express.json(), handleCreateBillingPortalSession);
 router.post('/user/cancel-subscription', express.json(), handleCancelSubscription);
 
 
@@ -72,6 +80,7 @@ router.post('/admin/logout', express.json(), handleAdminLogout);
 router.get('/admin/config', isAdmin, getAdminConfig);
 router.post('/admin/config', express.json(), isAdmin, updateAdminConfig);
 router.get('/admin/users', isAdmin, getAdminUsers);
+router.post('/admin/users/:userId/update-plan', express.json(), isAdmin, handleAdminUpdateUserPlan);
 
 // Mount the v1 router with its specific middleware
 // It needs express.json() for body parsing and apiKeyAuth for authentication.

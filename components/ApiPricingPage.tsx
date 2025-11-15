@@ -6,7 +6,7 @@ import SharedFooter from './SharedFooter';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from './Toast';
 import { supabase } from '../supabaseClient';
-import { FREE_GENERATION_LIMIT, HOBBYIST_GENERATION_LIMIT } from './constants';
+import { FREE_GENERATION_LIMIT } from './constants';
 import PricingTableOne from './billingsdk/PricingTableOne';
 
 type Page = 'contact' | 'about' | 'api' | 'privacy' | 'terms' | 'docs' | 'apiKey' | 'careers' | 'research' | 'auth' | 'sdk';
@@ -19,7 +19,7 @@ interface ApiPricingPageProps {
 const highlightSyntax = (code: string) => {
   let highlightedCode = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return { __html: highlightedCode
-      .replace(/'([^']*)'/g, `<span class="token string">'$1'</span>`)
+      .replace(/'([^']*)'/g, `<span class="token string">'${'$1'}'</span>`)
       .replace(/\b(const|let|async|function|try|catch|await|new|return|if|throw|Error)\b/g, `<span class="token keyword">${'$&'}</span>`)
       .replace(/(\.json\(\)|\.log|\.error|\.stringify|ok|message)/g, `<span class="token property-access">${'$&'}</span>`)
       .replace(/\b(fetch|console|JSON)\b/g, `<span class="token function">${'$&'}</span>`)
@@ -38,6 +38,7 @@ const ApiPricingPage: React.FC<ApiPricingPageProps> = ({ onBack, onNavigate }) =
     const { currentUser } = useAuth();
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+    const isTestMode = process.env.DODO_MODE === 'test';
 
     const codeExample = `// Example: Using fetch to call the CubeGen AI API.
 // Public API access is a Pro feature.
@@ -91,7 +92,7 @@ fetch('https://cubegen.ai/api/v1/diagrams/generate', {
             buttonText: 'Sign Up for Free',
             highlight: false,
             features: [
-              { name: `${FREE_GENERATION_LIMIT} diagram generations per month`, icon: 'check', iconColor: 'text-green-500' },
+              { name: `${FREE_GENERATION_LIMIT} generation credits per month`, icon: 'check', iconColor: 'text-green-500' },
               { name: 'Standard icon set', icon: 'check', iconColor: 'text-blue-500' },
               { name: 'Community support', icon: 'check', iconColor: 'text-orange-500' },
             ]
@@ -99,15 +100,15 @@ fetch('https://cubegen.ai/api/v1/diagrams/generate', {
           {
             id: 'one_time',
             title: 'Hobbyist',
-            description: 'A one-time purchase for extra generations.',
+            description: 'A one-time credit pack for your next project.',
             currency: '$',
             monthlyPrice: '3',
             buttonText: 'Buy for $3',
             highlight: false,
             features: [
-              { name: `${HOBBYIST_GENERATION_LIMIT} total diagram generations`, icon: 'check', iconColor: 'text-green-500' },
-              { name: 'Standard icon set', icon: 'check', iconColor: 'text-blue-500' },
-              { name: 'Perfect for small projects', icon: 'check', iconColor: 'text-orange-500' },
+              { name: 'A block of 50 generation credits', icon: 'check', iconColor: 'text-green-500' },
+              { name: 'Credits never expire', icon: 'check', iconColor: 'text-blue-500' },
+              { name: 'Re-purchase anytime to add more', icon: 'check', iconColor: 'text-orange-500' },
             ]
           },
           {
@@ -219,6 +220,23 @@ fetch('https://cubegen.ai/api/v1/diagrams/generate', {
                 </section>
                 
                  <section id="pricing" className="py-24 bg-gradient-to-b from-white to-[#FFF0F5]">
+                    {isTestMode && (
+                        <motion.div 
+                            initial={{ y: -20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            className="container mx-auto px-6 mb-8 -mt-8"
+                        >
+                            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-r-lg shadow-md">
+                                <h3 className="font-bold flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                    Test Mode Active
+                                </h3>
+                                <p className="text-sm mt-1">Dodo Payments is currently in test mode. No real payments will be processed.</p>
+                            </div>
+                        </motion.div>
+                    )}
                     <PricingTableOne
                         title="Plans for Every Scale"
                         description="From solo developers to enterprise teams, choose a plan that fits your needs."

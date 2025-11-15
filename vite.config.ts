@@ -11,15 +11,16 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     // The define option allows us to replace global variables at build time.
     // We are creating a process.env object on the client-side that mirrors
-    // the VITE_ prefixed variables from our .env file. This makes configuration
-    // access consistent and robust.
+    // the VITE_ prefixed variables from our .env file.
     define: {
       'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
       'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
-      'process.env.VITE_DODO_PUBLISHABLE_KEY': JSON.stringify(env.VITE_DODO_PUBLISHABLE_KEY),
       'process.env.VITE_API_KEY': JSON.stringify(env.VITE_API_KEY),
-      'process.env.VITE_DODO_HOBBYIST_PRODUCT_ID': JSON.stringify(env.VITE_DODO_HOBBYIST_PRODUCT_ID),
-      'process.env.VITE_DODO_PRO_PRODUCT_ID': JSON.stringify(env.VITE_DODO_PRO_PRODUCT_ID),
+      
+      // Dodo Payments Mode-Switching Logic
+      'process.env.DODO_MODE': JSON.stringify(env.DODO_MODE),
+      'process.env.VITE_DODO_PUBLISHABLE_KEY': JSON.stringify(env.VITE_DODO_PUBLISHABLE_KEY),
+      'process.env.VITE_DODO_PUBLISHABLE_KEY_TEST': JSON.stringify(env.VITE_DODO_PUBLISHABLE_KEY_TEST),
     },
     server: {
       proxy: {

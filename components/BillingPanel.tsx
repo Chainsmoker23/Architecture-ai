@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getActiveUserPlans, createBillingPortalSession, cancelSubscription } from '../services/geminiService';
+import { getActiveUserPlans, cancelSubscription } from '../services/geminiService';
 
 interface BillingPanelProps {
   isPremiumUser: boolean;
@@ -10,7 +10,6 @@ interface BillingPanelProps {
 const BillingPanel: React.FC<BillingPanelProps> = ({ isPremiumUser, refreshUser, isOpen }) => {
     const [activeSubs, setActiveSubs] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isManaging, setIsManaging] = useState(false);
     const [isCancelling, setIsCancelling] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -35,20 +34,8 @@ const BillingPanel: React.FC<BillingPanelProps> = ({ isPremiumUser, refreshUser,
         fetchSubs();
     }, [isOpen, isPremiumUser]);
 
-    const handleManageBilling = async () => {
-        setIsManaging(true);
-        setError(null);
-        try {
-            const portalUrl = await createBillingPortalSession();
-            window.location.href = portalUrl;
-        } catch (err: any) {
-            setError(err.message || "Could not open billing portal.");
-            setIsManaging(false); // Only set to false on error, success redirects.
-        }
-    };
-
     const handleCancel = async (subId: string, planName: string) => {
-        if (window.confirm(`Are you sure you want to cancel your '${planName}' plan? Your access will remain until the end of the current billing period.`)) {
+        if (window.confirm(`Are you sure you want to cancel your '${planName}' plan? This action is immediate and cannot be undone.`)) {
             setIsCancelling(subId);
             setError(null);
             try {
@@ -94,15 +81,6 @@ const BillingPanel: React.FC<BillingPanelProps> = ({ isPremiumUser, refreshUser,
                                 </div>
                             </div>
                         ))}
-                        <div className="pt-3 mt-3 border-t border-[var(--color-border)]">
-                             <button
-                                onClick={handleManageBilling}
-                                disabled={isManaging}
-                                className="w-full bg-[var(--color-button-bg)] text-[var(--color-text-secondary)] text-sm font-semibold py-2 px-3 rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors disabled:opacity-50"
-                            >
-                                {isManaging ? 'Opening...' : 'Manage Billing'}
-                            </button>
-                        </div>
                     </div>
                 )}
             </div>

@@ -1,0 +1,19 @@
+
+{
+  "short_name": "CubeGen",
+  "name": "CubeGen AI",
+  "description": "Generate professional software architecture diagrams instantly from a single prompt.",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDE2MCAxODQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0iI0Q2MzM2QyIgZmlsbC1ydWxlPSJub256ZXJvIj48cGF0aCBkPSJNNzkuOTk4IDIxLjZMRS44OTggNjcuNXY5M2w3OC4xIDQ1LjkgNzguMS00NS45di05M0w3OS45OTggMjEuNnptMCAxMS42MDNsNjguNyA0MC41MDJ2ODIuNzlsLTY4LjcgNDAuNTAzLTY4LjctNDAuNTAydi04Mi43OUw3OS45OTggMzMuMjAzem0wIDExLjYwM2wtMjAuNSAxMi4wMDF2MjEuMmwyMC41IDEyIDIwLjUtMTJ2LTIxLjJsLTIwLjUtMTIuMDAxem0wIDExLjYwMmwxMC44IDYuM3YxMC42bC0xMC44IDYuMy0xMC44LTYuM3YtMTAuNmwxMC44LTYuM3oiLz48cGF0aCBkPSJNNzkuOTk4IDQ0LjgwNUwyMS4yOTggNzguNjA3vjY1LjYwM2w1OC43IDM0LjQwMiA1OC43LTM0LjQwMlY3OC42MDdMNzkuOTk4IDQ0LjgwNXptMCAxMS42MDNsNDkuMyAyOC45MDJ2NTQuMDAybC00OS4zIDI4LjkwMi00OS4zLTI4LjkwMlY4NS4zMWw0OS4zLTI4LjkwMnoiLz48cGF0aCBkPSJNNzkuOTk4IDY4LjAxbC0zOS45IDIzLjR2NDIuNGwzOS45IDIzLjQgMzkuOS0yMy40di00Mi40bC0zOS45LTIzLjR6bTAgMTEuNjAzbDMwLjUgMTcuOXYzMC43OTlsLTMwLjUgMTcuOS0zMC41LTE3LjlWOTcuNTEzbDMwLjUtMTcuOXoiLz48L2c+PC9zdmc+",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#FFF0F5",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#D6336C"
+}

@@ -138,6 +138,31 @@ export const chatWithAssistant = async (history: Content[], userApiKey?: string)
   }
 };
 
+// --- Payment & Plan Services ---
+
+export const verifyPaymentStatus = async (subscriptionId: string): Promise<{ success: boolean, message?: string }> => {
+    try {
+        // This can return a 202 "not yet confirmed" status, which is not an error.
+        const result = await fetchFromApi('/verify-payment-status', { subscriptionId }, 'POST');
+        return result;
+    } catch (error) {
+        console.error("Error verifying payment status via API call:", String(error));
+        // Treat an API error (like 500) as a failure.
+        return { success: false, message: (error as Error).message };
+    }
+};
+
+export const recoverPaymentByPaymentId = async (paymentId: string): Promise<{ success: boolean, message?: string }> => {
+    try {
+        const result = await fetchFromApi('/recover-by-payment-id', { paymentId }, 'POST');
+        return result;
+    } catch (error) {
+        console.error("Error recovering payment via payment ID:", String(error));
+        return { success: false, message: (error as Error).message };
+    }
+};
+
+
 // --- User Plan & API Key Management Services ---
 
 export const getActiveUserPlans = async (): Promise<any[]> => {
@@ -155,17 +180,6 @@ export const switchUserPlan = async (subscriptionId: string): Promise<void> => {
         await fetchFromApi('/user/switch-plan', { subscriptionId }, 'POST');
     } catch (error) {
         console.error("Error switching user plan:", String(error));
-        throw error;
-    }
-};
-
-export const createBillingPortalSession = async (): Promise<string> => {
-    try {
-        const { url } = await fetchFromApi('/user/billing-portal-session', {}, 'POST');
-        if (!url) throw new Error("Could not retrieve billing portal URL.");
-        return url;
-    } catch (error) {
-        console.error("Error creating billing portal session:", String(error));
         throw error;
     }
 };
@@ -256,6 +270,15 @@ export const getAdminUsers = async (adminToken: string, email?: string): Promise
         return await fetchFromApi(endpoint, undefined, 'GET', adminToken);
     } catch (error) {
         console.error("Error fetching admin users:", String(error));
+        throw error;
+    }
+};
+
+export const adminUpdateUserPlan = async (userId: string, newPlan: string, adminToken: string): Promise<void> => {
+    try {
+        await fetchFromApi(`/admin/users/${userId}/update-plan`, { newPlan }, 'POST', adminToken);
+    } catch (error) {
+        console.error("Error updating user plan via admin service:", String(error));
         throw error;
     }
 };

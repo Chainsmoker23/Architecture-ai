@@ -59,17 +59,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     useEffect(() => {
-        // On initial load, get the session and synchronize the user.
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        // On initial load, refresh the session to get the latest user data from the server.
+        // This is crucial for reflecting backend changes (like admin plan updates) when the user reloads.
+        supabase.auth.refreshSession().then(({ data: { session } }) => {
             syncUserSession(session);
         });
         
-        // Then, listen for any subsequent auth events.
+        // Then, listen for any subsequent auth events during the session.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'USER_UPDATED') {
                 setCurrentUser(session?.user ?? null);
             } 
             else if (event === 'SIGNED_IN') {
+                // syncUserSession handles avatar logic for new sign-ins
                 await syncUserSession(session);
             } 
             else if (event === 'SIGNED_OUT') {

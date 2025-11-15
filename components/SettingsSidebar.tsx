@@ -6,7 +6,7 @@ import ArchitectureIcon from './ArchitectureIcon';
 import { IconType } from '../types';
 import UserPlansPanel from './UserPlansPanel';
 import BillingPanel from './BillingPanel'; // Import the new component
-import { FREE_GENERATION_LIMIT, HOBBYIST_GENERATION_LIMIT } from './constants';
+import { FREE_GENERATION_LIMIT } from './constants';
 
 
 type Page = 'landing' | 'auth' | 'app' | 'contact' | 'about' | 'api' | 'apiKey' | 'privacy' | 'terms' | 'docs' | 'neuralNetwork' | 'careers' | 'research' | 'sdk';
@@ -43,12 +43,30 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
   }, []);
 
   const plan = currentUser?.user_metadata?.plan || 'free';
-  const isLimitedUser = ['free', 'hobbyist'].includes(plan);
   const isPremiumUser = ['pro'].includes(plan);
-  const generationLimit = plan === 'hobbyist' ? HOBBYIST_GENERATION_LIMIT : FREE_GENERATION_LIMIT;
-  const generationCount = currentUser?.user_metadata?.generation_count || 0;
-  const generationsRemaining = generationLimit - generationCount;
-  const usagePercentage = Math.min((generationCount / generationLimit) * 100, 100);
+  
+  // NEW: Generation balance logic
+  const generationBalance = currentUser?.user_metadata?.generation_balance;
+  let usageDisplay;
+  if (plan === 'pro') {
+      usageDisplay = <p className="text-sm font-semibold text-green-600">Unlimited Generations</p>;
+  } else if (plan === 'hobbyist') {
+      usageDisplay = <p className="text-sm font-semibold">{generationBalance ?? 0} <span className="text-[var(--color-text-secondary)] font-normal">credits remaining</span></p>;
+  } else { // free
+      const balance = generationBalance ?? FREE_GENERATION_LIMIT;
+      const usagePercentage = Math.max(0, (balance / FREE_GENERATION_LIMIT) * 100);
+      usageDisplay = (
+          <>
+              <div className="flex justify-between items-center mb-1">
+                  <p className="text-sm text-[var(--color-text-secondary)]">Generations Remaining</p>
+                  <p className="text-sm font-semibold">{balance} / {FREE_GENERATION_LIMIT}</p>
+              </div>
+              <div className="w-full bg-[var(--color-bg)] rounded-full h-2.5 border border-[var(--color-border)] overflow-hidden">
+                  <div className="bg-gradient-to-r from-[var(--color-accent)] to-pink-400 h-2 rounded-full" style={{ width: `${usagePercentage}%` }}></div>
+              </div>
+          </>
+      );
+  }
  
   useEffect(() => {
     setIsEditing(!userApiKey);
@@ -212,26 +230,20 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ userApiKey, setUserAp
                     </>
                   )}
                   
-                  {isLimitedUser && (
-                     <div>
-                        <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Usage</h3>
-                        <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-input)]">
-                          <div className="flex justify-between items-center mb-1">
-                            <p className="text-sm text-[var(--color-text-secondary)]">Generations Remaining</p>
-                            <p className="text-sm font-semibold">{generationsRemaining > 0 ? generationsRemaining : 0} / {generationLimit}</p>
-                          </div>
-                          <div className="w-full bg-[var(--color-bg)] rounded-full h-2.5 border border-[var(--color-border)] overflow-hidden">
-                            <div className="bg-gradient-to-r from-[var(--color-accent)] to-pink-400 h-2 rounded-full" style={{ width: `${100 - usagePercentage}%` }}></div>
-                          </div>
-                           <button 
-                                onClick={() => { onNavigate('api'); setIsOpen(false); }}
-                                className="w-full mt-4 bg-[var(--color-accent)] text-[var(--color-accent-text-strong)] text-sm font-semibold py-2 px-3 rounded-lg hover:opacity-90 transition-opacity"
-                           >
-                                Upgrade to Pro
-                           </button>
-                        </div>
-                    </div>
-                  )}
+                  <div>
+                      <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Usage</h3>
+                      <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-input)]">
+                          {usageDisplay}
+                          {plan !== 'pro' && (
+                             <button 
+                                  onClick={() => { onNavigate('api'); setIsOpen(false); }}
+                                  className="w-full mt-4 bg-[var(--color-accent)] text-[var(--color-accent-text-strong)] text-sm font-semibold py-2 px-3 rounded-lg hover:opacity-90 transition-opacity"
+                             >
+                                  {plan === 'free' ? 'Upgrade Plan' : 'Add More Credits'}
+                             </button>
+                          )}
+                      </div>
+                  </div>
                   
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">Modelers</h3>

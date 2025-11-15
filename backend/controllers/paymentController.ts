@@ -4,167 +4,87 @@ import { getDodoClient } from '../dodo-payments';
 import { authenticateUser } from '../userUtils';
 import { getCachedConfig } from './adminController';
 import crypto from 'crypto';
+import { activatePlanAndUpdateUser } from '../paymentUtils';
+
 
 // --- HELPER: Centralized Webhook Processing Logic ---
 const processWebhookEvent = async (event: any) => {
     console.log(`[Webhook Processor] Processing event type: ${event.type}`);
-
-    const updateUserPrimaryPlan = async (userId: string) => {
-        const { data: subscriptions, error } = await supabaseAdmin
-            .from('subscriptions')
-            .select('plan_name')
-            .eq('user_id', userId)
-            .eq('status', 'active');
-
-        if (error) {
-            console.error(`[Webhook] Error fetching active subs for user ${userId} after update:`, error);
-            return;
-        }
-
-        let newPrimaryPlan = 'free';
-        if (subscriptions && subscriptions.length > 0) {
-            // Determine the "best" plan. Pro is better than Hobbyist.
-            if (subscriptions.some(s => s.plan_name === 'pro')) {
-                newPrimaryPlan = 'pro';
-            } else if (subscriptions.some(s => s.plan_name === 'hobbyist')) {
-                newPrimaryPlan = 'hobbyist';
-            }
-        }
-        
-        const { data: { user: oldUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
-
-        const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(
-            userId,
-            { user_metadata: { ...oldUser?.user_metadata, plan: newPrimaryPlan } }
-        );
-
-        if (updateUserError) {
-            console.error(`[Webhook] Failed to update user's primary plan to '${newPrimaryPlan}':`, updateUserError);
-        } else {
-            console.log(`[Webhook] Updated user ${userId} primary plan to '${newPrimaryPlan}'.`);
-        }
-    };
+    const dodoObject = event.data.object;
 
     switch (event.type) {
         case 'payment.succeeded':
-            const session = event.data.object;
-            const metadata = session.metadata || {};
-            const dodoCustomerId = session.customer; // This is the Customer ID from Dodo.
-            const { user_id: userId, plan_name: planName, subscription_id: ourPendingSubId, mode } = metadata;
+            const metadata = dodoObject.metadata || {};
+            const { user_id: userId, subscription_id: ourPendingSubId, plan_name: planName } = metadata;
 
-            // CRITICAL: Save or update the customer mapping now that we have the official ID.
-            if (userId && dodoCustomerId) {
-                const { error: upsertError } = await supabaseAdmin
-                    .from('customers')
-                    .upsert({ id: userId, dodo_customer_id: dodoCustomerId });
-
-                if (upsertError) {
-                    console.error(`[Webhook] Failed to upsert customer mapping for user ${userId}:`, upsertError);
-                } else {
-                    console.log(`[Webhook] Customer mapping for user ${userId} to dodo customer ${dodoCustomerId} confirmed.`);
-                }
-            } else {
-                console.warn(`[Webhook] 'payment.succeeded' event missing userId or dodoCustomerId, cannot update mapping.`);
-            }
-
-            if (!userId || !planName || !ourPendingSubId) {
-                console.error(`[Webhook] 'payment.succeeded' is missing required data: userId, planName, or subscription_id.`);
+            if (!userId || !ourPendingSubId) {
+                console.error(`[Webhook] 'payment.succeeded' is missing required metadata: userId or our subscription_id.`);
                 return { success: false, message: 'Webhook Error: Missing required metadata.' };
             }
-
-            // Handle one-time purchase (Hobbyist)
-            if (mode === 'payment') {
-                const { error: updateError } = await supabaseAdmin
-                    .from('subscriptions')
-                    .update({ status: 'active' }) // No dodo_subscription_id needed
-                    .eq('id', ourPendingSubId)
-                    .eq('user_id', userId);
-
-                if (updateError) {
-                    console.error(`[Webhook] DB Error activating one-time purchase ${ourPendingSubId}:`, updateError);
-                    return { success: false, message: 'Database error during one-time purchase activation.' };
-                }
+            
+            // Fetch our internal subscription record
+            const { data: pendingSub, error: subFetchError } = await supabaseAdmin
+                .from('subscriptions')
+                .select('*')
+                .eq('id', ourPendingSubId)
+                .single();
+            
+            if (subFetchError || !pendingSub) {
+                console.error(`[Webhook] Could not find pending subscription record ${ourPendingSubId}.`);
+                return { success: false, message: 'Internal subscription record not found.' };
+            }
+            
+            // Distinguish between one-time and subscription payments
+            if (planName === 'hobbyist') {
+                // This is a one-time purchase. The payment success is sufficient.
+                // We'll store the Dodo Payment ID for reference.
+                const referenceId = dodoObject.id; // e.g., 'pay_...' or 'pi_...'
+                const subToActivate = { ...pendingSub, dodo_subscription_id: referenceId };
                 
-                const { data: { user: oldUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
+                await activatePlanAndUpdateUser(userId, subToActivate);
+                console.log(`[Webhook] Successfully processed ONE-TIME payment for hobbyist plan for user ${userId}.`);
 
-                // Update user metadata for Hobbyist plan (sets generation limit)
-                const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(
-                    userId,
-                    { user_metadata: { ...oldUser?.user_metadata, plan: 'hobbyist', generation_count: 0 } }
-                );
-
-                if (updateUserError) {
-                    console.error(`[Webhook] Failed to update user metadata for Hobbyist plan:`, updateUserError);
-                }
-                
-                console.log(`[Webhook] Successfully processed one-time payment for user ${userId}. Plan: 'hobbyist'`);
-            } 
-            // Handle subscription purchase (Pro)
-            else if (mode === 'subscription') {
-                const dodoSubscriptionId = session.subscription;
+            } else if (planName === 'pro') {
+                // This is a recurring subscription. We expect a subscription ID from Dodo.
+                const dodoSubscriptionId = dodoObject.subscription;
                 if (!dodoSubscriptionId) {
-                    console.error(`[Webhook] 'payment.succeeded' for a subscription is missing the subscription ID.`);
-                    return { success: false, message: 'Webhook Error: Missing subscription ID for subscription payment.' };
+                    console.error(`[Webhook] CRITICAL: 'payment.succeeded' for 'pro' plan is missing the 'subscription' field in its payload. Cannot activate plan. Dodo Object:`, dodoObject);
+                    // Don't activate, as we can't manage this subscription later (e.g., for cancellation).
+                    return { success: false, message: 'Pro plan activation failed: missing subscription ID from payment provider.' };
                 }
-
-                const { error: updateSubError } = await supabaseAdmin
-                    .from('subscriptions')
-                    .update({
-                        status: 'active',
-                        dodo_subscription_id: dodoSubscriptionId,
-                    })
-                    .eq('id', ourPendingSubId)
-                    .eq('user_id', userId);
                 
-                if (updateSubError) {
-                    console.error(`[Webhook] DB Error updating subscription ${ourPendingSubId}:`, updateSubError);
-                    return { success: false, message: 'Database error during subscription activation.' };
-                }
-
-                // This will correctly set the user's primary plan to 'pro'
-                await updateUserPrimaryPlan(userId);
-                console.log(`[Webhook] Successfully processed subscription payment for user ${userId}. Plan: 'pro'`);
+                const subToActivate = { ...pendingSub, dodo_subscription_id: dodoSubscriptionId };
+                await activatePlanAndUpdateUser(userId, subToActivate);
+                console.log(`[Webhook] Successfully processed initial SUBSCRIPTION payment for pro plan for user ${userId}.`);
             } else {
-                 console.warn(`[Webhook] 'payment.succeeded' received without a valid 'mode' in metadata.`);
+                console.warn(`[Webhook] 'payment.succeeded' event had an unhandled plan_name in metadata: '${planName}'`);
             }
             break;
 
         case 'subscription.cancelled':
-            const subscription = event.data.object;
-            const dodoSubIdToCancel = subscription.id;
-            
-            const { data: cancelledSub, error: cancelError } = await supabaseAdmin
-                .from('subscriptions')
-                .update({ status: 'cancelled' })
-                .eq('dodo_subscription_id', dodoSubIdToCancel)
-                .select('user_id')
-                .single();
-
+             const { data: cancelledSub, error: cancelError } = await supabaseAdmin.from('subscriptions').update({ status: 'cancelled' }).eq('dodo_subscription_id', dodoObject.id).select('user_id').single();
             if (cancelError) {
-                console.error(`[Webhook] DB Error cancelling subscription ${dodoSubIdToCancel}:`, cancelError);
-                return { success: false, message: 'Database error during subscription cancellation.' };
+                console.error(`[Webhook] DB Error cancelling subscription ${dodoObject.id}:`, cancelError);
+                return; // Stop processing if we can't update our DB record
             }
 
             if (cancelledSub) {
-                await updateUserPrimaryPlan(cancelledSub.user_id);
-                console.log(`[Webhook] Successfully processed 'subscription.cancelled' for Dodo sub ${dodoSubIdToCancel}.`);
+                 const { data: otherActiveSubs } = await supabaseAdmin.from('subscriptions').select('plan_name').eq('user_id', cancelledSub.user_id).eq('status', 'active');
+                 
+                 // If there are no other active subscriptions, downgrade the user to free.
+                 if (!otherActiveSubs || otherActiveSubs.length === 0) {
+                     const { data: { user: oldUser } } = await supabaseAdmin.auth.admin.getUserById(cancelledSub.user_id);
+                     const newMetadata = { ...oldUser?.user_metadata, plan: 'free', generation_balance: 0 }; // Reset balance
+                     await supabaseAdmin.auth.admin.updateUserById(cancelledSub.user_id, { user_metadata: newMetadata });
+                     console.log(`[Webhook] User ${cancelledSub.user_id} reverted to 'free' plan with 0 credits after subscription cancellation.`);
+                 } else {
+                     console.log(`[Webhook] User ${cancelledSub.user_id} has other active plans, not downgrading to free.`);
+                 }
             }
             break;
 
         case 'payment.failed':
-            const payment = event.data.object;
-            const dodoSubIdFailed = payment.subscription;
-            
-            const { error: failError } = await supabaseAdmin
-                .from('subscriptions')
-                .update({ status: 'past_due' })
-                .eq('dodo_subscription_id', dodoSubIdFailed);
-
-            if (failError) {
-                console.error(`[Webhook] DB Error marking subscription as past_due ${dodoSubIdFailed}:`, failError);
-                return { success: false, message: 'Database error during payment failure handling.' };
-            }
-            console.log(`[Webhook] Successfully processed 'payment.failed' for Dodo sub ${dodoSubIdFailed}.`);
+            await supabaseAdmin.from('subscriptions').update({ status: 'past_due' }).eq('dodo_subscription_id', dodoObject.subscription);
             break;
 
         default:
@@ -183,137 +103,82 @@ export const handleDodoWebhook = async (req: express.Request, res: express.Respo
     }
 
     try {
-        const dodo = await getDodoClient();
-        const config = await getCachedConfig();
-        
-        if (!config.dodo_webhook_secret) {
-            return res.status(500).send('Webhook Error: Server not configured for payments.');
-        }
+        const { dodo_webhook_secret } = await getCachedConfig();
+        if (!dodo_webhook_secret) throw new Error('Server not configured for payments.');
 
-        const event = dodo.webhooks.constructEvent(req.body, signature, config.dodo_webhook_secret);
-        await processWebhookEvent(event);
-        res.status(200).send({ received: true });
+        const hmac = crypto.createHmac('sha256', dodo_webhook_secret);
+        hmac.update(req.body);
+        const computedSignature = hmac.digest('hex');
+
+        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(computedSignature))) {
+            return res.status(400).send('Webhook Error: Signature verification failed.');
+        }
+        
+        await processWebhookEvent(JSON.parse(req.body.toString()));
+        res.status(200).json({ received: true });
+
     } catch (err: any) {
-        console.error('[Payment Controller] Webhook error:', err.message);
+        console.error('[Payment Controller] Webhook processing error:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 };
 
 export const createCheckoutSession = async (req: express.Request, res: express.Response) => {
     const user = await authenticateUser(req);
-    if (!user) {
-        return res.status(401).send({ success: false, error: 'Unauthorized.' });
-    }
+    if (!user) return res.status(401).json({ error: 'Unauthorized.' });
 
     const { plan: planId } = req.body;
-    if (!planId) {
-        return res.status(400).json({ success: false, error: 'Missing parameter: plan is required.' });
-    }
+    if (!planId) return res.status(400).json({ error: 'Missing parameter: plan is required.' });
 
     try {
         const config = await getCachedConfig();
-        
-        const { hobbyistProductId, proProductId } = {
-            hobbyistProductId: config.dodo_hobbyist_product_id,
-            proProductId: config.dodo_pro_product_id,
-        };
-    
-        if (planId === 'one_time' && !hobbyistProductId) throw new Error("Hobbyist product ID is not configured on the server.");
-        if (planId === 'subscription' && !proProductId) throw new Error("Pro product ID is not configured on the server.");
-
         const planName = planId === 'one_time' ? 'hobbyist' : 'pro';
+        
+        // CRITICAL FIX: Differentiate between one-time payments and recurring subscriptions.
+        // This ensures Dodo treats each product type correctly.
         const mode = planId === 'one_time' ? 'payment' : 'subscription';
-        const productId = planId === 'one_time' ? hobbyistProductId! : proProductId!;
         
-        const { data: newSubscription, error: insertError } = await supabaseAdmin
-            .from('subscriptions')
-            .insert({ user_id: user.id, plan_name: planName, status: 'pending' })
-            .select('id').single();
-    
-        if (insertError || !newSubscription) {
-            console.error("[Payment Controller] Error creating pending subscription record:", insertError);
-            throw new Error('Failed to create a pending purchase record.');
+        const productId = planId === 'one_time' ? config.dodo_hobbyist_product_id : config.dodo_pro_product_id;
+
+        if (!productId) throw new Error(`${planName} product ID is not configured on the server.`);
+
+        // Create a pending record in our database to track this checkout attempt.
+        const { data: newSubscription, error: insertError } = await supabaseAdmin.from('subscriptions').insert({ user_id: user.id, plan_name: planName, status: 'pending' }).select('id').single();
+        if (insertError) {
+            console.error(`[Checkout] CRITICAL: Failed to insert pending subscription for user ${user.id}`, insertError);
+            throw insertError;
         }
+        console.log(`[Checkout] Created pending subscription record ${newSubscription.id} for user ${user.id}.`);
         
-        console.log(`[Payment Controller] Created pending record ${newSubscription.id} for user ${user.id}.`);
-
-        const { data: customerData } = await supabaseAdmin
-            .from('customers').select('dodo_customer_id').eq('id', user.id).single();
-
+        const { data: customerData } = await supabaseAdmin.from('customers').select('dodo_customer_id').eq('id', user.id).single();
         const dodo = await getDodoClient();
         const cleanSiteUrl = (config.site_url || '').replace(/\/$/, '');
         
+        // After any successful payment, redirect the user to the main app page where they can use their new benefits.
+        const returnUrlHash = 'app';
+
         const sessionPayload: any = {
             mode,
             product_cart: [{ product_id: productId, quantity: 1 }],
-            return_url: `${cleanSiteUrl}/#api?payment=success&plan=${planName}`,
+            return_url: `${cleanSiteUrl}/#${returnUrlHash}?payment=success&plan=${planName}&sub_id=${newSubscription.id}`,
             cancel_url: `${cleanSiteUrl}/#api?payment=cancelled`,
             billing_address_collection: 'required',
             metadata: { user_id: user.id, plan_name: planName, subscription_id: newSubscription.id, mode },
+            customer: customerData?.dodo_customer_id || { email: user.email, name: user.user_metadata?.full_name || user.email?.split('@')[0] },
         };
+
+        const session = await dodo.checkoutSessions.create(sessionPayload);
         
-        if (customerData?.dodo_customer_id) {
-            sessionPayload.customer = customerData.dodo_customer_id;
-        } else {
-            if (!user.email) throw new Error('User email is required to create a billing customer.');
-            const fallbackName = user.email.split('@')[0];
-            sessionPayload.customer = {
-                email: user.email,
-                name: user.user_metadata?.full_name || fallbackName,
-            };
-        }
+        // Store the temporary session ID in the existing dodo_subscription_id column.
+        // It will be overwritten by the permanent ID upon successful payment confirmation.
+        await supabaseAdmin.from('subscriptions').update({ dodo_subscription_id: session.session_id }).eq('id', newSubscription.id);
 
-        let session;
-        try {
-            console.log('[Payment Controller] Attempting to create Dodo session with payload:', JSON.stringify(sessionPayload, null, 2));
-            session = await dodo.checkoutSessions.create(sessionPayload);
-        } catch (dodoError: any) {
-            console.error('[Payment Controller] Dodo SDK Error (Attempt 1):', dodoError);
+        if (!session.checkout_url) throw new Error('Payment provider did not return a valid checkout URL.');
 
-            if (customerData?.dodo_customer_id && dodoError.message && dodoError.message.toLowerCase().includes('customer')) {
-                console.warn(`[Payment Controller] Possible invalid customer ID '${customerData.dodo_customer_id}'. Retrying as a new customer.`);
-                delete sessionPayload.customer;
-                const fallbackName = user.email ? user.email.split('@')[0] : 'Valued Customer';
-                sessionPayload.customer = {
-                    email: user.email!,
-                    name: user.user_metadata?.full_name || fallbackName,
-                };
-                
-                console.log('[Payment Controller] Retrying Dodo session creation with new customer details:', JSON.stringify(sessionPayload, null, 2));
-                session = await dodo.checkoutSessions.create(sessionPayload);
-            } else {
-                throw dodoError;
-            }
-        }
-        
-        console.log('[Payment Controller] Dodo session created successfully.');
-        console.log('[Payment Controller] Full session object received:', JSON.stringify(session, null, 2));
-
-        if (!session || !session.checkout_url) {
-            console.error('[Payment Controller] CRITICAL: Dodo session was created but is missing the `checkout_url`.');
-            throw new Error('Payment provider did not return a valid checkout URL. Please check server logs.');
-        }
-
-        console.log('[Payment Controller] Sending success response to client.');
         res.status(200).json({ success: true, checkout_url: session.checkout_url });
 
     } catch (error: any) {
         console.error(`[Payment Controller] Error in createCheckoutSession:`, error);
-        
-        let clientErrorMessage = 'An internal server error occurred while creating the checkout session.';
-        
-        if (error.message) {
-            if (error.message.includes('Product') && error.message.includes('does not exist')) {
-                clientErrorMessage = `Payment processing error: A configured Product ID is invalid. Please verify settings in the Admin Panel.`;
-            } else if (error.message.includes('API key')) {
-                 clientErrorMessage = 'Payment provider API key is invalid. Please check server configuration.';
-            } else if (error.message.toLowerCase().includes('customer')) {
-                clientErrorMessage = 'There was an issue with the customer billing profile. Please try again or contact support.';
-            } else {
-                clientErrorMessage = error.message;
-            }
-        }
-        
-        res.status(500).json({ success: false, error: clientErrorMessage });
+        res.status(500).json({ error: error.message || 'An internal server error occurred.' });
     }
 };

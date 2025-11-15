@@ -359,9 +359,9 @@ const ApiKeyPage: React.FC<ApiKeyPageProps> = ({ onBack, onNavigate }) => {
                                 <ArchitectureIcon type={IconType.SecretsManager} className="w-16 h-16 text-gray-300 mx-auto opacity-50" />
                                 <h2 className="text-2xl font-bold mt-4">Developer Keys are a Pro Feature</h2>
                                 <p className="mt-2 text-gray-600">Upgrade to a Pro or Business plan to generate a key for programmatic access.</p>
-                                <button onClick={() => onNavigate('api')} className="mt-6 shimmer-button text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+                                <a href="#api" className="mt-6 shimmer-button text-[#A61E4D] font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 inline-block">
                                     View Plans & Upgrade
-                                </button>
+                                </a>
                             </motion.div>
                         ) : apiKey ? (
                             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-16">

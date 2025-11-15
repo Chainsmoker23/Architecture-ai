@@ -48,23 +48,41 @@ const PricingTableOne: React.FC<PricingTableOneProps> = ({ title, description, o
                 {plans.map((plan) => {
                     const planId = plan.id === 'one_time' ? 'hobbyist' : (plan.id === 'subscription' ? 'pro' : 'free');
                     const isCurrentPlan = userPlan === planId;
-                    
+
+                    // A plan is only visually marked as "current" if it's not the stackable hobbyist plan.
+                    const isHighlightedAsCurrent = isCurrentPlan && planId !== 'hobbyist';
+                    const isHobbyistRepurchase = isCurrentPlan && planId === 'hobbyist';
+
                     let buttonText = plan.buttonText;
-                    if (isCurrentPlan) buttonText = "Current Plan";
-                    if (!currentUser && plan.id !== 'free') buttonText = "Sign In to Purchase";
+                    let isButtonDisabled = loadingPlan === plan.id;
+
+                    if (isCurrentPlan) {
+                        if (planId === 'hobbyist') {
+                            buttonText = 'Add 50 Credits';
+                            // Hobbyist is never disabled just for being the current plan.
+                        } else {
+                            buttonText = 'Current Plan';
+                            isButtonDisabled = true; // Disable Pro/Free if current.
+                        }
+                    } else if (!currentUser && plan.id !== 'free') {
+                        buttonText = "Sign In to Purchase";
+                    } else if (currentUser && planId === 'free') {
+                        // A logged-in user can't select the free plan.
+                        isButtonDisabled = true;
+                    }
 
                     return (
                         <motion.div
                             key={plan.id}
                             className={`relative p-8 rounded-2xl border transition-all duration-300 flex flex-col h-full ${
-                                isCurrentPlan
+                                isHighlightedAsCurrent
                                     ? 'bg-white border-2 border-[#D6336C] shadow-2xl scale-105'
                                     : plan.highlight
                                     ? 'bg-white shadow-2xl border-[#D6336C] md:-translate-y-4'
                                     : 'bg-white/70 shadow-lg border-pink-100'
                             }`}
                         >
-                            {isCurrentPlan && (
+                            {isHighlightedAsCurrent && (
                                 <div className="absolute top-0 right-4 -translate-y-1/2 bg-gradient-to-r from-[#E91E63] to-[#F06292] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
                                     Current Plan
                                 </div>
@@ -81,11 +99,11 @@ const PricingTableOne: React.FC<PricingTableOneProps> = ({ title, description, o
                             
                             <button
                                 onClick={() => onPlanSelect(plan.id)}
-                                disabled={loadingPlan === plan.id || isCurrentPlan || (plan.id === 'free' && !!currentUser)}
+                                disabled={isButtonDisabled}
                                 className={`mt-8 w-full font-bold py-3 px-6 rounded-full transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed ${
-                                    isCurrentPlan || (plan.id === 'free' && !!currentUser)
+                                    isButtonDisabled
                                     ? 'bg-gray-200 text-gray-500 cursor-default' 
-                                    : (plan.highlight ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg')
+                                    : (plan.highlight || isHobbyistRepurchase ? 'shimmer-button text-[#A61E4D]' : 'bg-[#F9D7E3] text-[#A61E4D] hover:shadow-lg')
                                 }`}
                             >
                                 {loadingPlan === plan.id

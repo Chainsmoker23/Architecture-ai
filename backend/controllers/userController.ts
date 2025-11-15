@@ -143,43 +143,6 @@ export const handleSwitchPlan = async (req: express.Request, res: express.Respon
     }
 };
 
-export const handleCreateBillingPortalSession = async (req: express.Request, res: express.Response) => {
-    const user = await authenticateUser(req);
-    if (!user) {
-        return res.status(401).json({ error: 'Unauthorized.' });
-    }
-
-    try {
-        const { data: customer, error: customerError } = await supabaseAdmin
-            .from('customers')
-            .select('dodo_customer_id')
-            .eq('id', user.id)
-            .single();
-            
-        if (customerError || !customer || !customer.dodo_customer_id) {
-            return res.status(404).json({ error: 'Billing customer not found for this user.' });
-        }
-        
-        const config = await getCachedConfig();
-        if (!config.site_url) {
-            return res.status(500).json({ error: 'Billing system is not configured correctly.' });
-        }
-        
-        const dodo = await getDodoClient();
-        const cleanSiteUrl = config.site_url.replace(/\/$/, '');
-
-        const portalSession = await dodo.billingPortal.sessions.create({
-            customer: customer.dodo_customer_id,
-            return_url: `${cleanSiteUrl}/#api`,
-        });
-
-        res.json({ url: portalSession.url });
-
-    } catch (e) {
-        handleError(res, e, 'Failed to create billing portal session.');
-    }
-};
-
 export const handleCancelSubscription = async (req: express.Request, res: express.Response) => {
     const user = await authenticateUser(req);
     if (!user) {
@@ -213,10 +176,14 @@ export const handleCancelSubscription = async (req: express.Request, res: expres
         }
         
         const dodo = await getDodoClient();
-        await dodo.subscriptions.del(subscription.dodo_subscription_id);
+        
+        // Correct Method: Update the subscription to cancel at the end of the period.
+        await dodo.subscriptions.update(subscription.dodo_subscription_id, {
+            cancel_at_next_billing_date: true,
+        });
 
-        // The webhook (`subscription.cancelled`) will handle updating the status in our DB.
-        res.status(200).json({ message: 'Subscription cancellation initiated successfully.' });
+        // The webhook (`subscription.cancelled`) will handle updating the final status in our DB.
+        res.status(200).json({ message: 'Your subscription has been scheduled to cancel at the end of the current billing period.' });
 
     } catch(e) {
         handleError(res, e, 'Failed to cancel subscription.');
