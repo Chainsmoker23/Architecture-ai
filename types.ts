@@ -12,6 +12,8 @@ export interface ArchNode {
   animationOrder?: number;
   shape?: 'rectangle' | 'ellipse' | 'diamond';
   layer?: number;
+  customIcon?: string | null;
+  customIconSize?: number;
 }
 
 export interface Link {

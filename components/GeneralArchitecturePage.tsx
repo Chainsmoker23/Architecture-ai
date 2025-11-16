@@ -412,7 +412,6 @@ const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNav
           canRedo={historyIndex < history.length - 1}
           onExplain={handleExplain}
           isExplaining={isExplaining}
-          onExport={handleExport}
         />
       );
     }
@@ -540,6 +539,7 @@ const GeneralArchitecturePage: React.FC<GeneralArchitecturePageProps> = ({ onNav
                       onDataChange={handleDiagramUpdate} 
                       selectedIds={selectedIds}
                       setSelectedIds={setSelectedIds}
+                      isEditable={false}
                     />
                   </div>
                 </motion.div>

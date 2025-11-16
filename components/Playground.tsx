@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiagramData, Node, Link, Container, IconType } from '../types';
+import { DiagramData, ArchNode, Link, Container, IconType } from '../types';
 import DiagramCanvas, { InteractionMode } from './DiagramCanvas';
 import PropertiesSidebar from './PropertiesSidebar';
 import PlaygroundToolbar from './PlaygroundToolbar';
@@ -10,6 +10,7 @@ import { zoomIdentity, ZoomTransform } from 'd3-zoom';
 import AssistantWidget from './AssistantWidget';
 import MobileWarning from './MobileWarning';
 import Toast from './Toast';
+import AddNodePanel from './AddNodePanel';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -25,20 +26,24 @@ interface PlaygroundProps {
     canRedo: boolean;
     onExplain: () => void;
     isExplaining: boolean;
-    onExport: (format: 'png' | 'html' | 'json') => void;
 }
 
+type HandleType = 'top' | 'right' | 'bottom' | 'left';
+
 const Playground: React.FC<PlaygroundProps> = (props) => {
-    const { data, onDataChange, onExit, selectedIds, setSelectedIds } = props;
+    const { data, onDataChange, onExit, selectedIds, setSelectedIds, canUndo, canRedo, onUndo, onRedo, onExplain, isExplaining } = props;
 
     const [interactionMode, setInteractionMode] = useState<InteractionMode>('select');
-    const [linkSourceNodeId, setLinkSourceNodeId] = useState<string | null>(null);
     const [actionBarPosition, setActionBarPosition] = useState<{ x: number; y: number } | null>(null);
     const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
     const [showMobileWarning, setShowMobileWarning] = useState(false);
     const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     
+    // State for the new drag-to-connect feature
+    const [linkingState, setLinkingState] = useState<{ sourceNodeId: string; startPos: { x: number, y: number } } | null>(null);
+    const [previewLinkTarget, setPreviewLinkTarget] = useState<{ x: number; y: number; targetNodeId?: string } | null>(null);
+
     const isPropertiesPanelOpen = selectedIds.length > 0;
 
     const svgRef = useRef<SVGSVGElement>(null);
@@ -46,18 +51,43 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     const fitScreenRef = useRef<(() => void) | null>(null);
 
     const handleUndo = useCallback(() => {
-      if (props.canUndo) {
-        props.onUndo();
+      if (canUndo) {
+        onUndo();
         setToastMessage('Action undone');
       }
-    }, [props.canUndo, props.onUndo]);
+    }, [canUndo, onUndo]);
 
     const handleRedo = useCallback(() => {
-      if (props.canRedo) {
-        props.onRedo();
+      if (canRedo) {
+        onRedo();
         setToastMessage('Action redone');
       }
-    }, [props.canRedo, props.onRedo]);
+    }, [canRedo, onRedo]);
+
+    const handleAddContainer = () => {
+        if (!canvasContainerRef.current) return;
+        const canvasRect = canvasContainerRef.current.getBoundingClientRect();
+        
+        // Calculate center of the current view
+        const [viewX, viewY] = viewTransform.invert([canvasRect.width / 2, canvasRect.height / 2]);
+
+        const newContainer: Container = {
+            id: nanoid(),
+            label: 'New Tier',
+            type: 'tier',
+            x: viewX - 200, // Center it
+            y: viewY - 150,
+            width: 400,
+            height: 300,
+            childNodeIds: [],
+        };
+        const newContainers = [...(data.containers || []), newContainer];
+        const newData = { ...data, containers: newContainers };
+        onDataChange(newData);
+        setSelectedIds([newContainer.id]);
+        setToastMessage('Container added');
+    };
+
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -76,6 +106,15 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
             } else if (isRedo) {
                 e.preventDefault();
                 handleRedo();
+            } else if (e.key.toLowerCase() === 'v') {
+                e.preventDefault();
+                handleSetInteractionMode('select');
+            } else if (e.key.toLowerCase() === 'n') {
+                e.preventDefault();
+                setInteractionMode(prev => prev === 'addNode' ? 'select' : 'addNode');
+            } else if (e.key.toLowerCase() === 'b') {
+                e.preventDefault();
+                handleAddContainer();
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -89,7 +128,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
     }, []);
     
     const nodesAndContainersById = useMemo(() => {
-        const map = new Map<string, Node | Container | Link>();
+        const map = new Map<string, ArchNode | Container | Link>();
         data.nodes.forEach(node => map.set(node.id, node));
         (data.containers || []).forEach(container => map.set(container.id, container));
         (data.links || []).forEach(link => map.set(link.id, link));
@@ -124,30 +163,10 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
 
     const handleSetInteractionMode = (mode: InteractionMode) => {
         setInteractionMode(mode);
-        setLinkSourceNodeId(null);
         setSelectedIds([]);
         setResizingNodeId(null);
     };
     
-    const handleNodeClick = (nodeId: string) => {
-        if (interactionMode === 'connect') {
-            if (!linkSourceNodeId) {
-                setLinkSourceNodeId(nodeId);
-            } else if (linkSourceNodeId !== nodeId) {
-                const newLink: Link = {
-                    id: `link-${nanoid()}`,
-                    source: linkSourceNodeId,
-                    target: nodeId,
-                    style: 'solid',
-                };
-                const newData = { ...data, links: [...data.links, newLink] };
-                onDataChange(newData);
-                setLinkSourceNodeId(null);
-                setInteractionMode('select');
-            }
-        }
-    };
-
     const handleNodeDoubleClick = useCallback((nodeId: string) => {
         setInteractionMode('select');
         setResizingNodeId(prevId => (prevId === nodeId ? null : nodeId));
@@ -156,7 +175,7 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         }
     }, [resizingNodeId, setSelectedIds]);
 
-    const handleCanvasClick = () => {
+    const handleCanvasClick = (event?: PointerEvent) => {
         setSelectedIds([]);
         setResizingNodeId(null);
     };
@@ -166,9 +185,9 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         return nodesAndContainersById.get(selectedIds[0]) || null;
     }, [data, selectedIds, nodesAndContainersById]);
 
-    const handlePropertyChange = (itemId: string, newProps: Partial<Node> | Partial<Container> | Partial<Link>) => {
+    const handlePropertyChange = (itemId: string, newProps: Partial<ArchNode> | Partial<Container> | Partial<Link>) => {
         if (!data) return;
-        const newNodes = data.nodes.map(n => n.id === itemId ? { ...n, ...(newProps as Partial<Node>) } : n);
+        const newNodes = data.nodes.map(n => n.id === itemId ? { ...n, ...(newProps as Partial<ArchNode>) } : n);
         const newContainers = data.containers?.map(c => c.id === itemId ? { ...c, ...(newProps as Partial<Container>) } : c);
         const newLinks = data.links.map(l => l.id === itemId ? { ...l, ...(newProps as Partial<Link>) } : l);
         onDataChange({ ...data, nodes: newNodes, containers: newContainers, links: newLinks });
@@ -206,114 +225,318 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedIds, handleDeleteSelected]);
-    
-    const handleDuplicateSelected = () => {
+
+    const handleDuplicateSelected = useCallback(() => {
         if (selectedIds.length === 0) return;
-        const offset = 30;
-        const idMap = new Map<string, string>();
-        const newNodes: Node[] = [];
-        const newLinks: Link[] = [];
-        const newSelectedIds: string[] = [];
-
         const selectedNodes = data.nodes.filter(n => selectedIds.includes(n.id));
+        if (selectedNodes.length === 0) return;
+
+        const newNodes = selectedNodes.map(node => ({
+            ...node,
+            id: nanoid(),
+            x: node.x + 30,
+            y: node.y + 30,
+        }));
         
-        selectedNodes.forEach(node => {
-            const newNodeId = `${node.type}-${nanoid()}`;
-            idMap.set(node.id, newNodeId);
-            newSelectedIds.push(newNodeId);
-            newNodes.push({
-                ...node,
-                id: newNodeId,
-                x: node.x + offset,
-                y: node.y + offset,
-            });
-        });
+        const allNewNodes = [...data.nodes, ...newNodes];
+        onDataChange({ ...data, nodes: allNewNodes });
+        setSelectedIds(newNodes.map(n => n.id)); // Select the new duplicated nodes
 
-        const selectedIdsSet = new Set(selectedIds);
-        data.links.forEach(link => {
-            const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-            const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+    }, [data, onDataChange, selectedIds, setSelectedIds]);
 
-            if (selectedIdsSet.has(sourceId) && selectedIdsSet.has(targetId)) {
-                const newLinkId = `link-${nanoid()}`;
-                newLinks.push({
-                    ...link,
-                    id: newLinkId,
-                    source: idMap.get(sourceId)!,
-                    target: idMap.get(targetId)!,
-                });
+     const onAddNode = (type: IconType) => {
+        if (!canvasContainerRef.current) return;
+        const canvasRect = canvasContainerRef.current.getBoundingClientRect();
+        
+        const [viewX, viewY] = viewTransform.invert([canvasRect.width / 2, canvasRect.height / 2]);
+
+        const newNode: ArchNode = {
+            id: nanoid(),
+            label: type.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            type: type,
+            x: viewX,
+            y: viewY,
+            width: 150,
+            height: 80,
+        };
+        const newData = { ...data, nodes: [...data.nodes, newNode] };
+        onDataChange(newData);
+        setInteractionMode('select');
+        setSelectedIds([newNode.id]);
+    };
+
+    const handleLinkStart = useCallback((sourceNodeId: string, startPos: { x: number, y: number }) => {
+        setLinkingState({ sourceNodeId, startPos });
+    }, []);
+
+    const handleLinkEnd = useCallback((targetNodeId?: string) => {
+        if (linkingState && targetNodeId && linkingState.sourceNodeId !== targetNodeId) {
+            const newLink: Link = {
+                id: nanoid(),
+                source: linkingState.sourceNodeId,
+                target: targetNodeId,
+            };
+            onDataChange({ ...data, links: [...data.links, newLink] });
+        }
+        setLinkingState(null);
+        setPreviewLinkTarget(null);
+    }, [linkingState, data, onDataChange]);
+
+    const handleLinkMove = useCallback((e: MouseEvent) => {
+        if (!linkingState || !canvasContainerRef.current) return;
+        const canvasRect = canvasContainerRef.current.getBoundingClientRect();
+        const [x, y] = viewTransform.invert([e.clientX - canvasRect.left, e.clientY - canvasRect.top]);
+        
+        let targetNodeId: string | undefined = undefined;
+        if (e.target instanceof SVGElement) {
+            const parentGroup = e.target.closest('g.diagram-node');
+            if (parentGroup) {
+                 targetNodeId = Array.from(parentGroup.classList).find(c => c.startsWith('node-id-'))?.replace('node-id-', '');
+            }
+        }
+        
+        setPreviewLinkTarget({ x, y, targetNodeId });
+    }, [linkingState, viewTransform]);
+
+    useEffect(() => {
+        if (linkingState) {
+            const handleMouseUp = (e: MouseEvent) => {
+                let targetNodeId: string | undefined;
+                // Check if the mouse is released over a node
+                if (e.target instanceof SVGElement) {
+                    const parentGroup = e.target.closest('g.diagram-node');
+                    if (parentGroup) {
+                        targetNodeId = Array.from(parentGroup.classList).find(c => c.startsWith('node-id-'))?.replace('node-id-', '');
+                    }
+                }
+                handleLinkEnd(targetNodeId);
+            };
+
+            window.addEventListener('mousemove', handleLinkMove);
+            window.addEventListener('mouseup', handleMouseUp);
+    
+            return () => {
+                window.removeEventListener('mousemove', handleLinkMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+            };
+        }
+    }, [linkingState, handleLinkMove, handleLinkEnd]);
+
+    const downloadBlob = (blob: Blob, filename: string) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleExport = async (format: 'png' | 'json' | 'html') => {
+        if (!data) return;
+        const filename = data.title.replace(/[\s/]/g, '_').toLowerCase();
+
+        if (format === 'json') {
+            const dataStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            downloadBlob(blob, `${filename}.json`);
+            return;
+        }
+
+        const svgElement = svgRef.current;
+        if (!svgElement) {
+            setToastMessage("Export failed: SVG element not found.");
+            return;
+        }
+
+        const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
+
+        const originalElements = Array.from(svgElement.querySelectorAll('*'));
+        originalElements.unshift(svgElement);
+        const clonedElements = Array.from(svgClone.querySelectorAll('*'));
+        clonedElements.unshift(svgClone);
+
+        originalElements.forEach((sourceEl, index) => {
+            const targetEl = clonedElements[index] as SVGElement;
+            if (targetEl && targetEl.style) {
+                const computedStyle = window.getComputedStyle(sourceEl);
+                let cssText = '';
+                for (let i = 0; i < computedStyle.length; i++) {
+                    const prop = computedStyle[i];
+                    cssText += `${prop}: ${computedStyle.getPropertyValue(prop)};`;
+                }
+                targetEl.style.cssText = cssText;
             }
         });
 
-        onDataChange({ 
-            ...data, 
-            nodes: [...data.nodes, ...newNodes],
-            links: [...data.links, ...newLinks],
-        });
-        setSelectedIds(newSelectedIds);
-    };
-    
-    return (
-        <div className="w-screen h-screen bg-[var(--color-bg)] flex flex-col md:flex-row overflow-hidden">
-            <PlaygroundToolbar
-                interactionMode={interactionMode}
-                onSetInteractionMode={handleSetInteractionMode}
-                onFitToScreen={handleFitToScreen}
-                {...props}
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-            />
+        const contentGroup = svgElement.querySelector('#diagram-content');
+        if (!contentGroup) {
+            setToastMessage("Export failed: Diagram content not found.");
+            return;
+        }
+        const bbox = (contentGroup as SVGGraphicsElement).getBBox();
 
-            <main className="flex-1 flex flex-col relative">
+        const padding = 20;
+        const exportWidth = Math.round(bbox.width + padding * 2);
+        const exportHeight = Math.round(bbox.height + padding * 2);
+
+        svgClone.setAttribute('width', `${exportWidth}`);
+        svgClone.setAttribute('height', `${exportHeight}`);
+        svgClone.setAttribute('viewBox', `0 0 ${exportWidth} ${exportHeight}`);
+
+        const exportRoot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        const rootStyle = getComputedStyle(document.documentElement);
+        const bgColor = rootStyle.getPropertyValue('--color-canvas-bg').trim() || '#FFF9FB';
+        bgRect.setAttribute('width', '100%');
+        bgRect.setAttribute('height', '100%');
+        bgRect.setAttribute('fill', bgColor);
+        exportRoot.appendChild(bgRect);
+
+        const clonedContentGroup = svgClone.querySelector('#diagram-content');
+        if (clonedContentGroup instanceof globalThis.Element) {
+            clonedContentGroup.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
+            exportRoot.appendChild(clonedContentGroup);
+        }
+
+        const clonedDefs = svgClone.querySelector<SVGDefsElement>('defs');
+        if (clonedDefs) {
+            exportRoot.insertBefore(clonedDefs, exportRoot.firstChild);
+        }
+
+        while (svgClone.firstChild) {
+          svgClone.removeChild(svgClone.firstChild);
+        }
+        svgClone.appendChild(exportRoot);
+
+        const serializer = new XMLSerializer();
+        let svgString = serializer.serializeToString(svgClone);
+        svgString = svgString.replace(/xmlns:xlink="http:\/\/www.w3.org\/1999\/xlink"/g, '');
+
+        if (format === 'html') {
+            const htmlString = `...`; // Same as GeneralArchitecturePage
+            const blob = new Blob([htmlString], { type: 'text/html' });
+            downloadBlob(blob, `${filename}.html`);
+            return;
+        }
+
+        if (format === 'png') {
+            const canvas = document.createElement('canvas');
+            const scale = 2;
+            canvas.width = exportWidth * scale;
+            canvas.height = exportHeight * scale;
+            const ctx = canvas.getContext('2d');
+
+            if (!ctx) {
+                setToastMessage("Export failed: Could not create canvas context.");
+                return;
+            }
+            ctx.scale(scale, scale);
+
+            const img = new Image();
+            const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        downloadBlob(blob, `${filename}.png`);
+                    } else {
+                        setToastMessage("Export failed: Canvas returned empty blob for png.");
+                    }
+                }, 'image/png');
+            };
+
+            img.onerror = () => {
+                setToastMessage("Export failed: The generated SVG could not be loaded as an image.");
+            };
+
+            img.src = svgUrl;
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-[var(--color-bg)] flex flex-col md:flex-row z-30">
+            <AnimatePresence>
+              {toastMessage && (
+                <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+                {showMobileWarning && (
+                    <MobileWarning onDismiss={() => setShowMobileWarning(false)} />
+                )}
+            </AnimatePresence>
+
+            <div className="order-2 md:order-1 h-full flex flex-col md:flex-row">
+                 <PlaygroundToolbar
+                    interactionMode={interactionMode}
+                    onSetInteractionMode={handleSetInteractionMode}
+                    onAddContainer={handleAddContainer}
+                    onFitToScreen={handleFitToScreen}
+                    onUndo={handleUndo}
+                    onRedo={handleRedo}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
+                    onExplain={onExplain}
+                    isExplaining={isExplaining}
+                    onExport={handleExport}
+                 />
                 <AnimatePresence>
-                  {toastMessage && (
-                    <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
-                  )}
+                {interactionMode === 'addNode' && (
+                     <motion.div 
+                        initial={{ x: '-100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '-100%' }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                        className="fixed bottom-0 left-0 right-0 z-20 md:relative md:bottom-auto md:left-auto md:right-auto"
+                     >
+                        <AddNodePanel onSelectNodeType={onAddNode} onClose={() => setInteractionMode('select')} />
+                     </motion.div>
+                 )}
                 </AnimatePresence>
-                <header className="flex justify-between items-center p-3 border-b border-[var(--color-border)] bg-[var(--color-panel-bg)]">
-                    <h1 className="text-lg font-semibold truncate pr-4">{data.title}</h1>
-                    <button onClick={onExit} className="px-3 py-2 bg-[var(--color-button-bg)] text-sm font-medium text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-button-bg-hover)] transition-colors flex items-center flex-shrink-0">
-                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                        <span className="hidden md:inline">Exit Playground</span>
-                    </button>
-                </header>
-                <div ref={canvasContainerRef} className="flex-1 relative pb-20 md:pb-0">
-                     <DiagramCanvas
-                        forwardedRef={svgRef}
-                        fitScreenRef={fitScreenRef}
-                        data={data}
-                        onDataChange={onDataChange}
-                        selectedIds={selectedIds}
-                        setSelectedIds={setSelectedIds}
-                        isEditable={true}
-                        interactionMode={interactionMode}
-                        onInteractionNodeClick={handleNodeClick}
-                        onTransformChange={setViewTransform}
-                        resizingNodeId={resizingNodeId}
-                        onNodeDoubleClick={handleNodeDoubleClick}
-                        onCanvasClick={handleCanvasClick}
-                    />
-                    <AnimatePresence>
-                        {actionBarPosition && (
-                            <ContextualActionBar 
-                                position={actionBarPosition}
-                                onDelete={handleDeleteSelected}
-                                onDuplicate={handleDuplicateSelected}
-                                selectedCount={selectedIds.length}
-                            />
-                        )}
-                    </AnimatePresence>
-                </div>
-            </main>
+            </div>
             
+            <main className="order-1 md:order-2 flex-1 flex flex-col relative" ref={canvasContainerRef}>
+                <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start pointer-events-none">
+                    <button onClick={onExit} className="bg-[var(--color-panel-bg)] text-[var(--color-text-primary)] font-semibold py-2 px-4 rounded-full shadow-lg border border-[var(--color-border)] pointer-events-auto hover:bg-[var(--color-button-bg-hover)] transition-colors">
+                        &larr; Exit Playground
+                    </button>
+                    {actionBarPosition && selectedIds.length > 0 && (
+                        <ContextualActionBar position={actionBarPosition} onDelete={handleDeleteSelected} onDuplicate={handleDuplicateSelected} selectedCount={selectedIds.length} />
+                    )}
+                </div>
+                <DiagramCanvas
+                    forwardedRef={svgRef}
+                    fitScreenRef={fitScreenRef}
+                    data={data}
+                    onDataChange={onDataChange}
+                    selectedIds={selectedIds}
+                    setSelectedIds={setSelectedIds}
+                    isEditable={true}
+                    interactionMode={interactionMode}
+                    onTransformChange={setViewTransform}
+                    resizingNodeId={resizingNodeId}
+                    onNodeDoubleClick={handleNodeDoubleClick}
+                    onCanvasClick={handleCanvasClick}
+                    onLinkStart={handleLinkStart}
+                    linkingState={linkingState}
+                    previewLinkTarget={previewLinkTarget}
+                />
+            </main>
+
             <AnimatePresence>
                 {isPropertiesPanelOpen && (
-                     <motion.aside 
+                    <motion.aside
                         key="properties-sidebar"
-                        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
                         transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                        className="w-[350px] bg-[var(--color-panel-bg)] p-6 border-l border-[var(--color-border)] shadow-sm h-full flex-col hidden md:flex"
-                     >
+                        className="order-3 w-screen max-w-sm md:w-80 h-full bg-[var(--color-panel-bg)] border-l border-[var(--color-border)] shadow-2xl z-20"
+                    >
                         <PropertiesSidebar
                             item={selectedItem}
                             onPropertyChange={handlePropertyChange}
@@ -322,43 +545,6 @@ const Playground: React.FC<PlaygroundProps> = (props) => {
                     </motion.aside>
                 )}
             </AnimatePresence>
-
-            <AnimatePresence>
-                {isPropertiesPanelOpen && (
-                    <motion.div
-                        key="properties-backdrop"
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/30 z-30 md:hidden"
-                        onClick={() => setSelectedIds([])}
-                    />
-                )}
-            </AnimatePresence>
-            <AnimatePresence>
-                {isPropertiesPanelOpen && (
-                    <motion.div
-                        key="properties-sheet"
-                        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                        className="fixed bottom-0 left-0 right-0 h-[60vh] bg-[var(--color-panel-bg)] rounded-t-2xl border-t border-[var(--color-border)] shadow-2xl p-4 z-40 md:hidden"
-                    >
-                         <div className="w-12 h-1.5 bg-[var(--color-border)] rounded-full mx-auto mb-4" />
-                         <div className="overflow-y-auto h-[calc(60vh-40px)] px-2">
-                             <PropertiesSidebar
-                                item={selectedItem}
-                                onPropertyChange={handlePropertyChange}
-                                selectedCount={selectedIds.length}
-                            />
-                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-                {showMobileWarning && (
-                    <MobileWarning onDismiss={() => setShowMobileWarning(false)} />
-                )}
-            </AnimatePresence>
-
             <AssistantWidget />
         </div>
     );

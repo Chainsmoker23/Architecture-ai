@@ -107,6 +107,7 @@ fetch('https://cubegen.ai/api/v1/diagrams/generate', {
             highlight: false,
             features: [
               { name: 'A block of 50 generation credits', icon: 'check', iconColor: 'text-green-500' },
+              { name: 'Custom icons', icon: 'check', iconColor: 'text-purple-500' },
               { name: 'Credits never expire', icon: 'check', iconColor: 'text-blue-500' },
               { name: 'Re-purchase anytime to add more', icon: 'check', iconColor: 'text-orange-500' },
             ]
@@ -121,6 +122,7 @@ fetch('https://cubegen.ai/api/v1/diagrams/generate', {
             highlight: true,
             features: [
               { name: 'Unlimited diagram generations', icon: 'check', iconColor: 'text-green-500' },
+              { name: 'Custom icons', icon: 'check', iconColor: 'text-purple-500' },
               { name: 'Generate a personal API key', icon: 'check', iconColor: 'text-blue-500' },
               { name: 'Use your own key in-app', icon: 'check', iconColor: 'text-orange-500' },
               { name: 'Priority support', icon: 'check', iconColor: 'text-purple-500' },

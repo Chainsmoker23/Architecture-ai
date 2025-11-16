@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArchNode, Container, Link } from '../types';
 import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 
 type Item = ArchNode | Container | Link;
 
@@ -11,12 +12,17 @@ interface PropertiesSidebarProps {
 }
 
 const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyChange, selectedCount }) => {
+  const { currentUser } = useAuth();
+  const plan = currentUser?.user_metadata?.plan || 'free';
+  const isPremiumUser = ['hobbyist', 'pro'].includes(plan);
+
   const [label, setLabel] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('#ffffff');
   const [linkStyle, setLinkStyle] = useState<'solid' | 'dotted' | 'dashed' | 'double'>('solid');
   const [linkThickness, setLinkThickness] = useState<'thin' | 'medium' | 'thick'>('medium');
   const [nodeShape, setNodeShape] = useState<'rectangle' | 'ellipse' | 'diamond'>('rectangle');
+  const [customIconSize, setCustomIconSize] = useState(80);
 
   useEffect(() => {
     if (item) {
@@ -43,6 +49,11 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
       } else if('type' in item) {
         setNodeShape('rectangle');
       }
+      if ('customIconSize' in item && typeof item.customIconSize === 'number') {
+        setCustomIconSize(item.customIconSize);
+      } else {
+        setCustomIconSize(80); // Default
+      }
     }
   }, [item]);
   
@@ -59,6 +70,29 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
      if (item && 'description' in item && item.description !== description) {
        handlePropertyUpdate({ description });
     }
+  };
+
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handlePropertyUpdate({ customIcon: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+    // Clear the input value to allow re-uploading the same file
+    e.target.value = '';
+  };
+
+  const handleRemoveIcon = () => {
+    handlePropertyUpdate({ customIcon: null });
+  };
+
+  const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSize = parseInt(e.target.value, 10);
+    setCustomIconSize(newSize);
+    handlePropertyUpdate({ customIconSize: newSize });
   };
   
   if (selectedCount > 1) {
@@ -135,6 +169,43 @@ const PropertiesSidebar: React.FC<PropertiesSidebarProps> = ({ item, onPropertyC
                   <option value="diamond">Diamond</option>
               </select>
           </div>
+        )}
+        {isNode && isPremiumUser && (
+            <div>
+                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Custom Icon</label>
+                <input
+                    type="file"
+                    id="custom-icon-upload"
+                    className="hidden"
+                    accept="image/png, image/jpeg, image/svg+xml"
+                    onChange={handleIconUpload}
+                />
+                <label htmlFor="custom-icon-upload" className="w-full cursor-pointer text-center p-3 bg-transparent border border-dashed border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)] hover:text-[var(--color-accent-text)] transition flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    <span className="text-sm font-medium">Upload Image</span>
+                </label>
+
+                {(item as ArchNode).customIcon && (
+                    <div className="mt-4">
+                    <div className="flex items-center justify-between text-sm mb-1">
+                        <label htmlFor="icon-size" className="font-medium text-[var(--color-text-secondary)]">Icon Size</label>
+                        <span className="font-semibold">{customIconSize}%</span>
+                    </div>
+                    <input
+                        id="icon-size"
+                        type="range"
+                        min="10"
+                        max="100"
+                        value={customIconSize}
+                        onChange={handleSizeChange}
+                        className="w-full h-2 bg-[var(--color-bg-input)] rounded-lg appearance-none cursor-pointer"
+                    />
+                    <button onClick={handleRemoveIcon} className="w-full text-center mt-4 text-sm font-semibold text-red-500 hover:bg-red-500/10 py-1 rounded-lg transition-colors">
+                        Remove Custom Icon
+                    </button>
+                    </div>
+                )}
+            </div>
         )}
         {!isLink && (
             <div>

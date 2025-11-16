@@ -10,7 +10,8 @@ import { motion } from 'framer-motion';
 
 const GRID_SIZE = 10;
 
-export type InteractionMode = 'select' | 'pan' | 'addNode' | 'connect' | 'addContainer';
+export type InteractionMode = 'select' | 'pan' | 'addNode';
+type HandleType = 'top' | 'right' | 'bottom' | 'left';
 
 interface DiagramCanvasProps {
   data: DiagramData;
@@ -21,18 +22,28 @@ interface DiagramCanvasProps {
   fitScreenRef: React.RefObject<(() => void) | null>;
   isEditable?: boolean;
   interactionMode?: InteractionMode;
-  onInteractionNodeClick?: (nodeId: string) => void;
   onTransformChange?: (transform: ZoomTransform) => void;
   resizingNodeId?: string | null;
   onNodeDoubleClick?: (nodeId: string) => void;
-  onCanvasClick?: () => void;
+  onCanvasClick?: (event?: PointerEvent) => void;
+  onLinkStart: (sourceNodeId: string, startPos: { x: number, y: number }) => void;
+  linkingState: { sourceNodeId: string; startPos: { x: number, y: number } } | null;
+  previewLinkTarget: { x: number; y: number; targetNodeId?: string } | null;
 }
+
+// ====================================================================================
+// --- Main Canvas Component ---
+// ====================================================================================
+// This component orchestrates the rendering of the entire diagram, including nodes,
+// links, and containers. It also manages the main zoom and pan behavior.
+// ====================================================================================
 
 const DiagramCanvas: React.FC<DiagramCanvasProps> = ({ 
     data, onDataChange, selectedIds, setSelectedIds, forwardedRef, fitScreenRef,
     isEditable = false,
-    interactionMode = 'select', onInteractionNodeClick,
+    interactionMode = 'select',
     onTransformChange, resizingNodeId = null, onNodeDoubleClick, onCanvasClick,
+    onLinkStart, linkingState, previewLinkTarget,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewTransform, setViewTransform] = useState<ZoomTransform>(() => zoomIdentity);
@@ -173,12 +184,14 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
   }, [data.containers]);
 
   const handleItemSelection = (e: React.MouseEvent, id: string) => {
-    if (!isEditable || (interactionMode !== 'select' && interactionMode !== 'pan')) return;
-    e.stopPropagation();
+    if (interactionMode !== 'select') return;
+    
     if (e.shiftKey) {
       setSelectedIds(prev => prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]);
     } else {
-      setSelectedIds([id]);
+      if (!selectedIds.includes(id)) {
+        setSelectedIds([id]);
+      }
     }
   };
 
@@ -192,7 +205,8 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       .filter(event => {
         if (!isEditable) return event.type === 'wheel'; // Allow zoom only if not editable
         if (event.defaultPrevented) return false;
-        return event.type === 'wheel' || event.button === 2 || (interactionMode === 'select' && (event.target as HTMLElement)?.tagName === 'svg');
+        const isBackgroundDrag = (event.target as HTMLElement)?.tagName === 'svg';
+        return event.type === 'wheel' || event.button === 2 || (interactionMode === 'select' && isBackgroundDrag);
       })
       .on('zoom', (event) => {
         setViewTransform(event.transform);
@@ -219,7 +233,7 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     const handleCanvasClick = (event: PointerEvent) => {
         if (!event.defaultPrevented && (event.target as SVGSVGElement).tagName === 'svg') {
             if (onCanvasClick) {
-                onCanvasClick();
+                onCanvasClick(event);
             } else {
                 setSelectedIds([]);
             }
@@ -228,10 +242,10 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     };
     
     const svgNode = svg.node();
-    if (svgNode) svgNode.addEventListener('click', handleCanvasClick as EventListener);
+    if (svgNode) svgNode.addEventListener('pointerdown', handleCanvasClick as EventListener);
 
     return () => {
-      if (svgNode) svgNode.removeEventListener('click', handleCanvasClick as EventListener);
+      if (svgNode) svgNode.removeEventListener('pointerdown', handleCanvasClick as EventListener);
       svg.on('.zoom', null);
       if (fitScreenRef) fitScreenRef.current = null;
     }
@@ -255,19 +269,10 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
     setContextMenu(null);
   }
   
-  const handleNodeClick = (e: React.MouseEvent, id: string) => {
-      if (isEditable && interactionMode === 'connect' && onInteractionNodeClick) {
-          e.stopPropagation();
-          onInteractionNodeClick(id);
-      } else {
-          handleItemSelection(e, id);
-      }
-  };
-  
   const getCursor = () => {
     if (!isEditable) return 'default';
+    if (linkingState) return 'crosshair';
     switch(interactionMode) {
-      case 'connect': return 'pointer';
       default: return 'default';
     }
   };
@@ -288,21 +293,13 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
           <filter id="drop-shadow" x="-50%" y="-50%" width="200%" height="200%">
               <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="var(--color-shadow)" floodOpacity="0.1" />
           </filter>
-          <radialGradient id="neuron-gradient-dark">
-            <stop offset="0%" stopColor="#666" />
-            <stop offset="100%" stopColor="#2B2B2B" />
-          </radialGradient>
-          <radialGradient id="neuron-gradient-light">
-            <stop offset="0%" stopColor="#FFFFFF" />
-            <stop offset="100%" stopColor="#D1D5DB" />
-          </radialGradient>
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <g id="diagram-content" transform={viewTransform.toString()}>
             {/* Containers Layer */}
             <g>
-                {data.containers?.map(container => ( <DiagramContainer key={container.id} container={container} data={data} onDataChange={onDataChange} isSelected={isSelected(container.id)} onSelect={handleItemSelection} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} fillColor={container.color || (container.type === 'tier' ? tierColors.get(container.id) || 'var(--color-tier-default)' : 'var(--color-tier-default)')} interactionMode={interactionMode} isEditable={isEditable} /> ))}
+                {data.containers?.map(container => ( <DiagramContainer key={container.id} container={container} data={data} onDataChange={onDataChange} isSelected={isSelected(container.id)} setSelectedIds={setSelectedIds} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} fillColor={container.color || (container.type === 'tier' ? tierColors.get(container.id) || 'var(--color-tier-default)' : 'var(--color-tier-default)')} interactionMode={interactionMode} isEditable={isEditable} /> ))}
             </g>
             
             {/* Link Paths Layer */}
@@ -316,7 +313,6 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
 
                     return (
                         <g key={link.id} onClick={(e) => handleItemSelection(e, link.id)} onContextMenu={(e) => handleItemContextMenu(e, link)} style={{ cursor: 'pointer' }}>
-                            {/* Invisible wider path for easier clicking */}
                             <path d={pathD} stroke="transparent" strokeWidth={20} fill="none" />
                             <path d={pathD} stroke={color} strokeWidth={thicknessPx} strokeDasharray={dashArray} fill="none" markerEnd={isNeuronLink ? undefined : `url(#arrowhead)`} markerStart={link.bidirectional ? `url(#arrowhead-reverse)` : undefined} />
                         </g>
@@ -326,9 +322,22 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
             
             {/* Nodes Layer */}
             <g>
-                {data.nodes.map(node => ( <DiagramNode key={node.id} node={node} data={data} onDataChange={onDataChange} isSelected={isSelected(node.id)} onSelect={handleNodeClick} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} interactionMode={interactionMode} isEditable={isEditable} resizingNodeId={resizingNodeId} onNodeDoubleClick={onNodeDoubleClick} /> ))}
+                {data.nodes.map(node => ( <DiagramNode key={node.id} node={node} data={data} onDataChange={onDataChange} isSelected={isSelected(node.id)} setSelectedIds={setSelectedIds} onContextMenu={handleItemContextMenu} selectedIds={selectedIds} interactionMode={interactionMode} isEditable={isEditable} resizingNodeId={resizingNodeId} onNodeDoubleClick={onNodeDoubleClick} onLinkStart={onLinkStart} isLinkHoverTarget={previewLinkTarget?.targetNodeId === node.id} /> ))}
             </g>
 
+            {/* Preview Link (on top of nodes) */}
+            {linkingState && previewLinkTarget && (
+              <path
+                d={`M ${linkingState.startPos.x} ${linkingState.startPos.y} L ${previewLinkTarget.x} ${previewLinkTarget.y}`}
+                stroke="var(--color-accent-text)"
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                fill="none"
+                markerEnd="url(#arrowhead)"
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
+            
             {/* Link Labels Layer (On Top) */}
             <g>
                 {renderableLinks.map(({ link, labelPos }) => {
@@ -373,40 +382,63 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
   );
 };
 
-// --- Sub-components ---
-interface DraggableProps { data: DiagramData; onDataChange: (data: DiagramData, fromHistory?: boolean) => void; selectedIds: string[]; interactionMode: InteractionMode; }
+// ====================================================================================
+// --- Draggable Container Component ---
+// ====================================================================================
+// This component renders a single background container (e.g., a "Tier" or "Region").
+// It manages its own drag-and-drop behavior, including moving its child nodes.
+// ====================================================================================
 
-const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: Container) => void; fillColor: string; isEditable: boolean; } & DraggableProps>((props) => {
-    const { container, onSelect, onContextMenu, fillColor, interactionMode, isEditable } = props;
+interface DraggableProps { data: DiagramData; onDataChange: (data: DiagramData, fromHistory?: boolean) => void; selectedIds: string[]; setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>; interactionMode: InteractionMode; }
+
+const DiagramContainer = memo<{ container: Container; isSelected: boolean; onContextMenu: (e: React.MouseEvent, item: Container) => void; fillColor: string; isEditable: boolean; } & DraggableProps>((props) => {
+    const { container, onContextMenu, fillColor, interactionMode, isEditable } = props;
     const ref = useRef<SVGGElement>(null);
     const dataRef = useRef(props.data);
     dataRef.current = props.data;
 
     useEffect(() => {
-      if (!ref.current || !isEditable || (interactionMode !== 'select' && interactionMode !== 'pan')) return;
+      if (!ref.current || !isEditable) return;
       const selection = select(ref.current);
       let currentData: DiagramData;
 
       const dragBehavior = drag<SVGGElement, unknown>()
+          .filter(event => {
+            const isHandle = (event.sourceEvent.target as SVGElement)?.dataset?.handle === 'true';
+            return !isHandle && (interactionMode === 'select' || interactionMode === 'pan') && !event.button;
+          })
           .on('start', (event) => {
-              if (interactionMode !== 'select' && interactionMode !== 'pan') return;
+              if (event.sourceEvent.shiftKey) {
+                props.setSelectedIds(prev => prev.includes(container.id) ? prev.filter(sid => sid !== container.id) : [...prev, container.id]);
+              } else {
+                if (!props.selectedIds.includes(container.id)) {
+                    props.setSelectedIds([container.id]);
+                }
+              }
               currentData = dataRef.current;
               selection.raise();
           })
           .on('drag', (event) => {
-              if (interactionMode !== 'select' && interactionMode !== 'pan') return;
               const { dx, dy } = event;
-              const { selectedIds } = props;
-              const selectedContainers = new Set(currentData.containers?.filter(c => selectedIds.includes(c.id)).map(c => c.id) || []);
+              const { selectedIds, container } = props;
+
+              const containerIdsToMove = new Set(selectedIds.filter(id => currentData.containers?.some(c => c.id === id)));
+              containerIdsToMove.add(container.id);
+
+              const childNodeIdsToMove = new Set<string>();
+              currentData.containers?.forEach(c => {
+                  if (containerIdsToMove.has(c.id)) {
+                      (c.childNodeIds || []).forEach(childId => childNodeIdsToMove.add(childId));
+                  }
+              });
               
               const newContainers = currentData.containers?.map(c => {
-                  if (selectedIds.includes(c.id)) {
+                  if (containerIdsToMove.has(c.id)) {
                       return { ...c, x: c.x + dx, y: c.y + dy };
                   }
                   return c;
               });
 
-              const childNodeIdsToMove = new Set(newContainers?.filter(c => selectedContainers.has(c.id)).flatMap(c => c.childNodeIds) || []);
               const newNodes = currentData.nodes.map(n => {
                   if (childNodeIdsToMove.has(n.id)) {
                       return { ...n, x: n.x + dx, y: n.y + dy };
@@ -424,10 +456,67 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
           });
       selection.call(dragBehavior);
       return () => { selection.on('.drag', null); }
-    }, [props.onDataChange, props.selectedIds, isEditable, interactionMode]);
+    }, [props.onDataChange, props.selectedIds, isEditable, interactionMode, container.id, props.setSelectedIds]);
+
+    const handleResize = (dx: number, dy: number, handle: 'br' | 'bl' | 'tr' | 'tl') => {
+        const { onDataChange, container } = props;
+        const currentData = dataRef.current;
+        const minSize = 100;
+        const newContainers = currentData.containers?.map(c => {
+            if (c.id === container.id) {
+                let { x, y, width, height } = c;
+                if (handle.includes('r')) width = Math.max(minSize, width + dx);
+                if (handle.includes('l')) {
+                    const newWidth = Math.max(minSize, width - dx);
+                    x += width - newWidth; width = newWidth;
+                }
+                if (handle.includes('b')) height = Math.max(minSize, height + dy);
+                if (handle.includes('t')) {
+                    const newHeight = Math.max(minSize, height - dy);
+                    y += height - newHeight; height = newHeight;
+                }
+                return { ...c, x, y, width, height };
+            }
+            return c;
+        });
+        const newData = { ...currentData, containers: newContainers };
+        onDataChange(newData, true);
+        dataRef.current = newData;
+    };
+
+    const ResizeHandle: React.FC<{ handle: 'br' | 'bl' | 'tr' | 'tl' }> = ({ handle }) => {
+        const handleRef = useRef<SVGRectElement>(null);
+        useEffect(() => {
+            if (!handleRef.current) return;
+            const selection = select(handleRef.current);
+            const dragBehavior = drag<SVGRectElement, unknown>()
+                .on('start', (e) => { e.sourceEvent.preventDefault(); e.sourceEvent.stopPropagation(); dataRef.current = props.data; })
+                .on('drag', (event) => handleResize(event.dx, event.dy, handle))
+                .on('end', () => props.onDataChange(dataRef.current, false));
+            selection.call(dragBehavior);
+            return () => { selection.on('.drag', null); };
+        }, [handle]);
+
+        const getCoords = () => {
+          const size = 10;
+          let x = container.x - size/2;
+          let y = container.y - size/2;
+          if (handle.includes('r')) x += container.width;
+          if (handle.includes('b')) y += container.height;
+          return { x, y };
+        };
+
+        const getCursor = () => {
+          if (handle === 'tl' || handle === 'br') return 'nwse-resize';
+          if (handle === 'tr' || handle === 'bl') return 'nesw-resize';
+          return 'default';
+        }
+
+        return <rect ref={handleRef} data-handle="true" {...getCoords()} width={10} height={10} fill="var(--color-accent-text)" stroke="var(--color-node-bg)" strokeWidth={2} cursor={getCursor()} />;
+    };
     
     return (
-      <g ref={ref} onClick={(e) => onSelect(e, container.id)} onContextMenu={(e) => onContextMenu(e, container)}>
+      <g ref={ref} onContextMenu={(e) => onContextMenu(e, container)} style={{ cursor: isEditable ? 'move' : 'default' }}>
         <rect
           x={container.x}
           y={container.y}
@@ -436,24 +525,47 @@ const DiagramContainer = memo<{ container: Container; isSelected: boolean; onSel
           rx={16}
           ry={16}
           fill={fillColor}
-          stroke="var(--color-border)"
+          stroke={props.isSelected ? "var(--color-accent-text)" : "var(--color-border)"}
           strokeWidth={props.isSelected ? 2 : 1}
           strokeDasharray={container.type === 'availability-zone' ? '6 4' : 'none'}
         />
-         <foreignObject x={container.x + 12} y={container.y + 8} width={container.width - 24} height={30}>
+         <foreignObject x={container.x + 12} y={container.y + 8} width={container.width - 24} height={30} style={{ pointerEvents: 'none' }}>
             <div className="font-semibold text-[var(--color-text-secondary)]">
                 {container.label}
             </div>
         </foreignObject>
+        {props.isSelected && isEditable && interactionMode === 'select' && (
+            <>
+                <ResizeHandle handle="tl" />
+                <ResizeHandle handle="tr" />
+                <ResizeHandle handle="bl" />
+                <ResizeHandle handle="br" />
+            </>
+        )}
       </g>
     );
 });
 
-const DiagramNode = memo<{ node: ArchNode; isSelected: boolean; onSelect: (e: React.MouseEvent, id: string) => void; onContextMenu: (e: React.MouseEvent, item: ArchNode) => void; isEditable: boolean; resizingNodeId: string | null; onNodeDoubleClick?: (nodeId: string) => void;} & DraggableProps>((props) => {
-    const { node, isSelected, onSelect, onContextMenu, interactionMode, isEditable, resizingNodeId, onNodeDoubleClick } = props;
+// ====================================================================================
+// --- Draggable Node Component ---
+// ====================================================================================
+// This component renders a single component box (e.g., a "Database" or "User").
+// It manages its own drag-and-drop behavior and displays connection handles.
+// This is where the conflict between dragging and connecting is resolved.
+// ====================================================================================
+
+const DiagramNode = memo<{ node: ArchNode; isSelected: boolean; onContextMenu: (e: React.MouseEvent, item: ArchNode) => void; isEditable: boolean; resizingNodeId: string | null; onNodeDoubleClick?: (nodeId: string) => void; onLinkStart: (sourceNodeId: string, startPos: { x: number, y: number }) => void; isLinkHoverTarget: boolean;} & DraggableProps>((props) => {
+    const { node, isSelected, onContextMenu, interactionMode, isEditable, resizingNodeId, onNodeDoubleClick, onLinkStart, isLinkHoverTarget } = props;
     const ref = useRef<SVGGElement>(null);
     const dataRef = useRef(props.data);
     dataRef.current = props.data;
+
+    const handlePositions: Record<HandleType, { x: number; y: number }> = useMemo(() => ({
+      top: { x: node.x, y: node.y - node.height / 2 },
+      right: { x: node.x + node.width / 2, y: node.y },
+      bottom: { x: node.x, y: node.y + node.height / 2 },
+      left: { x: node.x - node.width / 2, y: node.y },
+    }), [node.x, node.y, node.width, node.height]);
 
     useEffect(() => {
         if (!ref.current || !isEditable) return;
@@ -461,17 +573,41 @@ const DiagramNode = memo<{ node: ArchNode; isSelected: boolean; onSelect: (e: Re
         let currentData: DiagramData;
 
         const dragBehavior = drag<SVGGElement, unknown>()
-            .filter(event => interactionMode === 'select' || interactionMode === 'pan')
-            .on('start', () => { 
+            .filter(event => (interactionMode === 'select' || interactionMode === 'pan') && !event.button)
+            .on('start', (event) => {
+                const originalTarget = event.sourceEvent.target as SVGElement;
+                const isHandle = originalTarget.classList.contains('connection-handle');
+
+                if (isHandle) {
+                    event.sourceEvent.stopPropagation();
+                    const handleType = originalTarget.dataset.handle as HandleType | undefined;
+                    if (handleType) {
+                        onLinkStart(node.id, handlePositions[handleType]);
+                    }
+                    event.on('drag', null).on('end', null);
+                    return;
+                }
+                
+                if (event.sourceEvent.shiftKey) {
+                    props.setSelectedIds(prev => prev.includes(node.id) ? prev.filter(sid => sid !== node.id) : [...prev, node.id]);
+                } else {
+                    if (!props.selectedIds.includes(node.id)) {
+                        props.setSelectedIds([node.id]);
+                    }
+                }
+                
                 currentData = dataRef.current;
-                selection.raise(); 
+                selection.raise();
             })
             .on('drag', (event) => {
                 const { dx, dy } = event;
-                const { selectedIds } = props;
+                const { selectedIds, node } = props;
                 
+                const idsToMove = new Set(selectedIds);
+                idsToMove.add(node.id);
+
                 const newNodes = currentData.nodes.map(n => {
-                    if (selectedIds.includes(n.id) && !n.locked) {
+                    if (idsToMove.has(n.id) && !n.locked) {
                         return { ...n, x: n.x + dx, y: n.y + dy };
                     }
                     return n;
@@ -484,9 +620,10 @@ const DiagramNode = memo<{ node: ArchNode; isSelected: boolean; onSelect: (e: Re
                     props.onDataChange(currentData, false);
                 }
             });
+            
         selection.call(dragBehavior);
         return () => { selection.on('.drag', null); };
-    }, [props.onDataChange, props.selectedIds, isEditable, interactionMode]);
+    }, [props.onDataChange, props.selectedIds, isEditable, interactionMode, node.id, props.setSelectedIds, onLinkStart, handlePositions]);
 
     const handleResize = (dx: number, dy: number, handle: 'br' | 'bl' | 'tr' | 'tl') => {
         const { onDataChange } = props;
@@ -513,7 +650,7 @@ const DiagramNode = memo<{ node: ArchNode; isSelected: boolean; onSelect: (e: Re
             if (!handleRef.current) return;
             const selection = select(handleRef.current);
             const dragBehavior = drag<SVGRectElement, unknown>()
-                .on('start', () => { dataRef.current = props.data; })
+                .on('start', (e) => { e.sourceEvent.preventDefault(); e.sourceEvent.stopPropagation(); dataRef.current = props.data; })
                 .on('drag', (event) => handleResize(event.dx, event.dy, handle))
                 .on('end', () => props.onDataChange(dataRef.current, false));
             selection.call(dragBehavior);
@@ -533,59 +670,107 @@ const DiagramNode = memo<{ node: ArchNode; isSelected: boolean; onSelect: (e: Re
     };
     
     const isResizing = resizingNodeId === node.id;
-
-    if (node.type === 'layer-label') {
-        return (
-            <g ref={ref} onClick={(e) => onSelect(e, node.id)} onDoubleClick={() => onNodeDoubleClick?.(node.id)} onContextMenu={(e) => onContextMenu(e, node)} style={{ cursor: isEditable && (interactionMode === 'select' || interactionMode === 'pan') ? 'move' : 'default' }}>
-                <motion.text
-                    animate={{ x: node.x, y: node.y }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    x={node.x}
-                    y={node.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fill={isSelected ? "var(--color-accent-text)" : "var(--color-text-primary)"}
-                    fontSize="18px"
-                    fontWeight="700"
-                    style={{ pointerEvents: 'none' }}
-                >
-                    {node.label}
-                </motion.text>
-            </g>
-        );
-    }
+    const isCustomIcon = !!node.customIcon;
     
-    if (node.type === 'neuron') {
-        const neuronFill = node.color === '#2B2B2B' ? 'url(#neuron-gradient-dark)' : 'url(#neuron-gradient-light)';
-        return (
-            <g ref={ref} onClick={(e) => onSelect(e, node.id)} onDoubleClick={() => onNodeDoubleClick?.(node.id)} onContextMenu={(e) => onContextMenu(e, node)} style={{ cursor: isEditable && (interactionMode === 'select' || interactionMode === 'pan') ? 'move' : 'default' }}>
-                <motion.circle
-                    animate={{ cx: node.x, cy: node.y }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    cx={node.x}
-                    cy={node.y}
-                    r={node.width / 2}
-                    fill={neuronFill}
-                    stroke={isSelected ? "var(--color-accent-text)" : "rgba(0,0,0,0.1)"}
-                    strokeWidth={isSelected ? 1.5 : 0.5}
-                />
-            </g>
-        );
-    }
+    const nodeBody = (() => {
+        const commonProps = {
+            width: node.width,
+            height: node.height,
+            fill: node.color || "var(--color-node-bg)",
+            stroke: isLinkHoverTarget ? "var(--color-accent-text)" : (isSelected ? "var(--color-accent-text)" : "var(--color-border)"),
+            strokeWidth: isLinkHoverTarget ? 3 : (isSelected ? 2.5 : 1.5),
+            style: { filter: 'url(#drop-shadow)', transition: 'stroke 0.2s ease-in-out' }
+        };
+
+        switch (node.shape) {
+            case 'ellipse':
+                return <ellipse cx={node.width / 2} cy={node.height / 2} rx={node.width / 2} ry={node.height / 2} {...commonProps} />;
+            case 'diamond':
+                const points = `${node.width / 2},0 ${node.width},${node.height / 2} ${node.width / 2},${node.height} 0,${node.height / 2}`;
+                return <polygon points={points} {...commonProps} />;
+            default: // rectangle
+                return <rect rx={12} ry={12} {...commonProps} />;
+        }
+    })();
 
     return (
-        <g ref={ref} onClick={(e) => onSelect(e, node.id)} onDoubleClick={() => onNodeDoubleClick?.(node.id)} onContextMenu={(e) => onContextMenu(e, node)} style={{ cursor: isEditable && (interactionMode === 'select' || interactionMode === 'pan') ? 'move' : (interactionMode === 'connect' ? 'pointer' : 'default')}}>
+        <g ref={ref} onDoubleClick={() => onNodeDoubleClick?.(node.id)} onContextMenu={(e) => onContextMenu(e, node)} style={{ cursor: isEditable && (interactionMode === 'select' || interactionMode === 'pan') ? 'move' : 'default' }} className={`diagram-node node-id-${node.id}`}>
           {node.description && <title>{node.description}</title>}
           <motion.g animate={{ x: node.x - node.width/2, y: node.y - node.height/2 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }}>
-            <rect width={node.width} height={node.height} rx={node.shape === 'ellipse' ? Math.max(node.width, node.height)/2 : (node.shape === 'diamond' ? 8 : 12)} fill={node.color || "var(--color-node-bg)"} stroke={isSelected ? "var(--color-accent-text)" : "var(--color-border)"} strokeWidth={isSelected ? 2.5 : 1.5} style={{ filter: 'url(#drop-shadow)', transform: node.shape === 'diamond' ? `rotate(45 ${node.width/2} ${node.height/2})` : 'none'}}/>
-            <foreignObject x={8} y={8} width={node.width - 16} height={node.height - 16} style={{ pointerEvents: 'none' }}>
-              <div className="w-full h-full flex flex-col items-center justify-center text-center p-1 gap-1">
-                 {node.type !== 'layer-label' && node.type !== 'group-label' && <ArchitectureIcon type={node.type} className="w-8 h-8 flex-shrink-0" />}
-                 <span className="label-text font-medium leading-tight text-sm" style={{ wordBreak: 'break-word' }}>{node.label}</span>
-              </div>
-            </foreignObject>
+            {nodeBody}
+            
+            {isCustomIcon ? (
+              (() => {
+                const iconSizePercent = node.customIconSize || 60;
+                const labelHeight = node.label ? 24 : 8;
+                const availableWidth = node.width - 16;
+                const availableHeight = node.height - 8 - labelHeight;
+                const baseSize = Math.min(availableWidth, availableHeight);
+                const iconSize = (baseSize * iconSizePercent) / 100;
+                
+                const iconX = (node.width - iconSize) / 2;
+                const iconY = (availableHeight - iconSize) / 2 + 8;
+
+                return (
+                  <>
+                    <image
+                      href={node.customIcon!}
+                      x={iconX}
+                      y={iconY}
+                      width={iconSize}
+                      height={iconSize}
+                      preserveAspectRatio="xMidYMid meet"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    {node.label && (
+                      <foreignObject x={8} y={node.height - labelHeight} width={node.width - 16} height={labelHeight - 4} style={{ pointerEvents: 'none' }}>
+                        <div className="w-full h-full flex items-center justify-center text-center">
+                           <span className="label-text font-medium leading-tight text-xs" style={{ wordBreak: 'break-word' }}>{node.label}</span>
+                        </div>
+                      </foreignObject>
+                    )}
+                  </>
+                );
+              })()
+            ) : (
+              <foreignObject x={8} y={8} width={node.width - 16} height={node.height - 16} style={{ pointerEvents: 'none' }}>
+                <div className="w-full h-full flex flex-col items-center justify-center text-center p-1 gap-1">
+                   {node.type !== 'layer-label' && node.type !== 'group-label' && <ArchitectureIcon type={node.type} className="w-8 h-8 flex-shrink-0" />}
+                   <span className="label-text font-medium leading-tight text-sm" style={{ wordBreak: 'break-word' }}>{node.label}</span>
+                </div>
+              </foreignObject>
+            )}
           </motion.g>
           {isResizing && isSelected && ['tl', 'tr', 'bl', 'br'].map(h => <ResizeHandle key={h} handle={h as 'br' | 'bl' | 'tr' | 'tl'} />)}
+          
+          {/* Connection Handles */}
+          {isSelected && isEditable && (Object.keys(handlePositions) as HandleType[]).map(handle => (
+              <g key={handle}>
+                  <circle
+                      className="connection-handle"
+                      data-handle={handle}
+                      cx={handlePositions[handle].x}
+                      cy={handlePositions[handle].y}
+                      r={8}
+                      fill="transparent"
+                      strokeWidth={10}
+                      stroke="transparent"
+                      cursor="crosshair"
+                  />
+                   <motion.circle
+                      cx={handlePositions[handle].x}
+                      cy={handlePositions[handle].y}
+                      r={4}
+                      fill="var(--color-accent-text)"
+                      stroke="var(--color-node-bg)"
+                      strokeWidth={1.5}
+                      style={{ pointerEvents: 'none' }}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                  />
+              </g>
+          ))}
         </g>
     );
 });
